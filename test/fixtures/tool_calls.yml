@@ -1,0 +1,7 @@
+one:
+  type: ToolCall::Function
+  function_name: get_user_info
+  provider_id: fc_000000095xyz
+  provider_call_id: call_000000095xyz
+  function_arguments: {}
+  message: chat1_assistant_response
