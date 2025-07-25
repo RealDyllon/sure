@@ -1,3 +1,8 @@
+Since #2419 will not be merged, I am moving this guide here in the discussions section of the repo.
+
+> [!WARNING]
+> Plaid integration currently only works for Western users. Plaid Production support is not available to European users.
+
 > [!NOTE]
 > For Plaid integration your Maybe instance needs to be accessible by the internet behind a domain with working SSL.
 
@@ -37,7 +42,7 @@ Go to [https://dashboard.plaid.com](https://dashboard.plaid.com) and register fo
 9. When asked "What industry are you in?", select **Budgeting and financial management tools**.
 10. Click **Next**.
 11. Enter any name for your application.
-12. Upload the Maybe logo (must be 1024x1024px and under 4MB).
+12. Upload any photo as the logo (must be 1024x1024px and under 4MB).
 13. Leave the brand color as **#22CCEE**.
 14. Set the Website URL to:  
     https://github.com/maybe-finance/maybe
@@ -76,13 +81,19 @@ Go to [https://dashboard.plaid.com](https://dashboard.plaid.com) and register fo
 3. Click **Save changes**.
 4. Go to [https://dashboard.plaid.com/developers/keys](https://dashboard.plaid.com/developers/keys) or click **Developers > Keys** in the sidebar.
 5. Copy your `client_id` and `secret` keys. Use the "Production" secret key.
-6. In your `.env` file (next to your `docker-compose` file), add these lines:
+6. In your `docker-compose` file, below the `OPENAI_ACCESS_TOKEN: ${OPENAI_ACCESS_TOKEN}` line, add these lines:
+```
+PLAID_CLIENT_ID: ${PLAID_CLIENT_ID}
+PLAID_SECRET: ${PLAID_SECRET}
+PLAID_ENV: ${PLAID_ENV}
+```
+7. In your `.env` file (next to your `docker-compose` file), add these lines:
 ```
    PLAID_CLIENT_ID: ENTER_CLIENT_ID_FROM_PLAID_HERE  
    PLAID_SECRET: ENTER_SECRET_KEY_FROM_PLAID_HERE  
    PLAID_ENV: production  # (use 'production' for Full/Limited Production Access, or 'sandbox' for Sandbox Access)
 ```
-7. Restart Maybe.
+8. Restart Maybe.
 
 ---
 
