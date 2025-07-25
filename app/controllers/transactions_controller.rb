@@ -1,5 +1,5 @@
 class TransactionsController < ApplicationController
-  include ScrollFocusable, EntryableResource
+  include EntryableResource
 
   before_action :store_params!, only: :index
 
@@ -21,12 +21,7 @@ class TransactionsController < ApplicationController
                          :transfer_as_inflow, :transfer_as_outflow
                        )
 
-    @pagy, @transactions = pagy(base_scope, limit: per_page, params: ->(p) { p.except(:focused_record_id) })
-
-    # No performance penalty by default. Only runs queries if the record is set.
-    if params[:focused_record_id].present?
-      set_focused_record(base_scope, params[:focused_record_id], default_per_page: per_page)
-    end
+    @pagy, @transactions = pagy(base_scope, limit: per_page)
   end
 
   def clear_filter
@@ -115,7 +110,7 @@ class TransactionsController < ApplicationController
 
   private
     def per_page
-      params[:per_page].to_i.positive? ? params[:per_page].to_i : 50
+      params[:per_page].to_i.positive? ? params[:per_page].to_i : 20
     end
 
     def needs_rule_notification?(transaction)
@@ -159,10 +154,6 @@ class TransactionsController < ApplicationController
 
       cleaned_params.delete(:amount_operator) unless cleaned_params[:amount].present?
 
-      # Only add default start_date if params are blank AND filters weren't explicitly cleared
-      if cleaned_params.blank? && params[:filter_cleared].blank?
-        cleaned_params[:start_date] = 30.days.ago.to_date
-      end
 
       cleaned_params
     end

@@ -24,6 +24,12 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :family_exports, only: %i[new create index] do
+    member do
+      get :download
+    end
+  end
+
   get "changelog", to: "pages#changelog"
   get "feedback", to: "pages#feedback"
 
@@ -108,17 +114,12 @@ Rails.application.routes.draw do
     resources :mappings, only: :update, module: :import
   end
 
-  resources :accounts, only: %i[index new], shallow: true do
-    member do
-      post :sync
-      get :chart
-      get :sparkline
-    end
-  end
-
   resources :holdings, only: %i[index new show destroy]
   resources :trades, only: %i[show new create update destroy]
-  resources :valuations, only: %i[show new create update destroy]
+  resources :valuations, only: %i[show new create update destroy] do
+    post :confirm_create, on: :collection
+    post :confirm_update, on: :member
+  end
 
   namespace :transactions do
     resource :bulk_deletion, only: :create
@@ -155,24 +156,41 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :accounts, only: %i[index new show destroy], shallow: true do
+    member do
+      post :sync
+      get :sparkline
+      patch :toggle_active
+    end
+
+    collection do
+      post :sync_all
+    end
+  end
+
   # Convenience routes for polymorphic paths
   # Example: account_path(Account.new(accountable: Depository.new)) => /depositories/123
-  direct :account do |model, options|
-    route_for model.accountable_name, model, options
-  end
   direct :edit_account do |model, options|
     route_for "edit_#{model.accountable_name}", model, options
   end
 
-  resources :depositories, except: :index
-  resources :investments, except: :index
-  resources :properties, except: :index
-  resources :vehicles, except: :index
-  resources :credit_cards, except: :index
-  resources :loans, except: :index
-  resources :cryptos, except: :index
-  resources :other_assets, except: :index
-  resources :other_liabilities, except: :index
+  resources :depositories, only: %i[new create edit update]
+  resources :investments, only: %i[new create edit update]
+  resources :properties, only: %i[new create edit update] do
+    member do
+      get :balances
+      patch :update_balances
+
+      get :address
+      patch :update_address
+    end
+  end
+  resources :vehicles, only: %i[new create edit update]
+  resources :credit_cards, only: %i[new create edit update]
+  resources :loans, only: %i[new create edit update]
+  resources :cryptos, only: %i[new create edit update]
+  resources :other_assets, only: %i[new create edit update]
+  resources :other_liabilities, only: %i[new create edit update]
 
   resources :securities, only: :index
 

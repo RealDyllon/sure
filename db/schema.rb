@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_06_23_162207) do
+ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -29,20 +29,22 @@ ActiveRecord::Schema[7.2].define(version: 2025_06_23_162207) do
     t.uuid "accountable_id"
     t.decimal "balance", precision: 19, scale: 4
     t.string "currency"
-    t.boolean "is_active", default: true, null: false
-    t.virtual "classification", type: :string, as: "\nCASE\n    WHEN ((accountable_type)::text = ANY (ARRAY[('Loan'::character varying)::text, ('CreditCard'::character varying)::text, ('OtherLiability'::character varying)::text])) THEN 'liability'::text\n    ELSE 'asset'::text\nEND", stored: true
+    t.virtual "classification", type: :string, as: "\nCASE\n    WHEN ((accountable_type)::text = ANY ((ARRAY['Loan'::character varying, 'CreditCard'::character varying, 'OtherLiability'::character varying])::text[])) THEN 'liability'::text\n    ELSE 'asset'::text\nEND", stored: true
     t.uuid "import_id"
     t.uuid "plaid_account_id"
-    t.boolean "scheduled_for_deletion", default: false
     t.decimal "cash_balance", precision: 19, scale: 4, default: "0.0"
     t.jsonb "locked_attributes", default: {}
+    t.string "status", default: "active"
     t.index ["accountable_id", "accountable_type"], name: "index_accounts_on_accountable_id_and_accountable_type"
     t.index ["accountable_type"], name: "index_accounts_on_accountable_type"
+    t.index ["currency"], name: "index_accounts_on_currency"
     t.index ["family_id", "accountable_type"], name: "index_accounts_on_family_id_and_accountable_type"
     t.index ["family_id", "id"], name: "index_accounts_on_family_id_and_id"
+    t.index ["family_id", "status"], name: "index_accounts_on_family_id_and_status"
     t.index ["family_id"], name: "index_accounts_on_family_id"
     t.index ["import_id"], name: "index_accounts_on_import_id"
     t.index ["plaid_account_id"], name: "index_accounts_on_plaid_account_id"
+    t.index ["status"], name: "index_accounts_on_status"
   end
 
   create_table "active_storage_attachments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -113,7 +115,22 @@ ActiveRecord::Schema[7.2].define(version: 2025_06_23_162207) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.decimal "cash_balance", precision: 19, scale: 4, default: "0.0"
+    t.decimal "start_cash_balance", precision: 19, scale: 4, default: "0.0", null: false
+    t.decimal "start_non_cash_balance", precision: 19, scale: 4, default: "0.0", null: false
+    t.decimal "cash_inflows", precision: 19, scale: 4, default: "0.0", null: false
+    t.decimal "cash_outflows", precision: 19, scale: 4, default: "0.0", null: false
+    t.decimal "non_cash_inflows", precision: 19, scale: 4, default: "0.0", null: false
+    t.decimal "non_cash_outflows", precision: 19, scale: 4, default: "0.0", null: false
+    t.decimal "net_market_flows", precision: 19, scale: 4, default: "0.0", null: false
+    t.decimal "cash_adjustments", precision: 19, scale: 4, default: "0.0", null: false
+    t.decimal "non_cash_adjustments", precision: 19, scale: 4, default: "0.0", null: false
+    t.integer "flows_factor", default: 1, null: false
+    t.virtual "start_balance", type: :decimal, precision: 19, scale: 4, as: "(start_cash_balance + start_non_cash_balance)", stored: true
+    t.virtual "end_cash_balance", type: :decimal, precision: 19, scale: 4, as: "((start_cash_balance + ((cash_inflows - cash_outflows) * (flows_factor)::numeric)) + cash_adjustments)", stored: true
+    t.virtual "end_non_cash_balance", type: :decimal, precision: 19, scale: 4, as: "(((start_non_cash_balance + ((non_cash_inflows - non_cash_outflows) * (flows_factor)::numeric)) + net_market_flows) + non_cash_adjustments)", stored: true
+    t.virtual "end_balance", type: :decimal, precision: 19, scale: 4, as: "(((start_cash_balance + ((cash_inflows - cash_outflows) * (flows_factor)::numeric)) + cash_adjustments) + (((start_non_cash_balance + ((non_cash_inflows - non_cash_outflows) * (flows_factor)::numeric)) + net_market_flows) + non_cash_adjustments))", stored: true
     t.index ["account_id", "date", "currency"], name: "index_account_balances_on_account_id_date_currency_unique", unique: true
+    t.index ["account_id", "date"], name: "index_balances_on_account_id_and_date", order: { date: :desc }
     t.index ["account_id"], name: "index_balances_on_account_id"
   end
 
@@ -205,7 +222,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_06_23_162207) do
     t.uuid "account_id", null: false
     t.string "entryable_type"
     t.uuid "entryable_id"
-    t.decimal "amount", precision: 19, scale: 4
+    t.decimal "amount", precision: 19, scale: 4, null: false
     t.string "currency"
     t.date "date"
     t.string "name", null: false
@@ -216,12 +233,11 @@ ActiveRecord::Schema[7.2].define(version: 2025_06_23_162207) do
     t.boolean "excluded", default: false
     t.string "plaid_id"
     t.jsonb "locked_attributes", default: {}
+    t.index "lower((name)::text)", name: "index_entries_on_lower_name"
     t.index ["account_id", "date"], name: "index_entries_on_account_id_and_date"
     t.index ["account_id"], name: "index_entries_on_account_id"
-    t.index ["amount"], name: "index_entries_on_amount"
     t.index ["date"], name: "index_entries_on_date"
-    t.index ["entryable_id", "entryable_type"], name: "index_entries_on_entryable"
-    t.index ["excluded"], name: "index_entries_on_excluded"
+    t.index ["entryable_type"], name: "index_entries_on_entryable_type"
     t.index ["import_id"], name: "index_entries_on_import_id"
   end
 
@@ -232,7 +248,6 @@ ActiveRecord::Schema[7.2].define(version: 2025_06_23_162207) do
     t.date "date", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["date", "from_currency", "to_currency"], name: "index_exchange_rates_on_date_and_currencies"
     t.index ["from_currency", "to_currency", "date"], name: "index_exchange_rates_on_base_converted_date_unique", unique: true
     t.index ["from_currency"], name: "index_exchange_rates_on_from_currency"
     t.index ["to_currency"], name: "index_exchange_rates_on_to_currency"
@@ -253,6 +268,14 @@ ActiveRecord::Schema[7.2].define(version: 2025_06_23_162207) do
     t.boolean "auto_sync_on_login", default: true, null: false
     t.datetime "latest_sync_activity_at", default: -> { "CURRENT_TIMESTAMP" }
     t.datetime "latest_sync_completed_at", default: -> { "CURRENT_TIMESTAMP" }
+  end
+
+  create_table "family_exports", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "family_id", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["family_id"], name: "index_family_exports_on_family_id"
   end
 
   create_table "holdings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -442,7 +465,6 @@ ActiveRecord::Schema[7.2].define(version: 2025_06_23_162207) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "oauth_application_id"
-    t.index ["device_id"], name: "index_mobile_devices_on_device_id", unique: true
     t.index ["oauth_application_id"], name: "index_mobile_devices_on_oauth_application_id"
     t.index ["user_id", "device_id"], name: "index_mobile_devices_on_user_id_and_device_id", unique: true
     t.index ["user_id"], name: "index_mobile_devices_on_user_id"
@@ -691,7 +713,6 @@ ActiveRecord::Schema[7.2].define(version: 2025_06_23_162207) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["tag_id"], name: "index_taggings_on_tag_id"
-    t.index ["taggable_id", "taggable_type"], name: "index_taggings_on_taggable_id_and_type"
     t.index ["taggable_type", "taggable_id"], name: "index_taggings_on_taggable"
   end
 
@@ -750,6 +771,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_06_23_162207) do
     t.index ["inflow_transaction_id", "outflow_transaction_id"], name: "idx_on_inflow_transaction_id_outflow_transaction_id_8cd07a28bd", unique: true
     t.index ["inflow_transaction_id"], name: "index_transfers_on_inflow_transaction_id"
     t.index ["outflow_transaction_id"], name: "index_transfers_on_outflow_transaction_id"
+    t.index ["status"], name: "index_transfers_on_status"
   end
 
   create_table "users", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -788,6 +810,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_06_23_162207) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "locked_attributes", default: {}
+    t.string "kind", default: "reconciliation", null: false
   end
 
   create_table "vehicles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -815,6 +838,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_06_23_162207) do
   add_foreign_key "chats", "users"
   add_foreign_key "entries", "accounts"
   add_foreign_key "entries", "imports"
+  add_foreign_key "family_exports", "families"
   add_foreign_key "holdings", "accounts"
   add_foreign_key "holdings", "securities"
   add_foreign_key "impersonation_session_logs", "impersonation_sessions"

@@ -49,7 +49,10 @@ class Budget < ApplicationRecord
 
     private
       def oldest_valid_budget_date(family)
-        @oldest_valid_budget_date ||= family.oldest_entry_date.beginning_of_month
+        # Allow going back to either the earliest entry date OR 2 years ago, whichever is earlier
+        two_years_ago = 2.years.ago.beginning_of_month
+        oldest_entry_date = family.oldest_entry_date.beginning_of_month
+        [ two_years_ago, oldest_entry_date ].min
       end
   end
 
@@ -88,7 +91,7 @@ class Budget < ApplicationRecord
   end
 
   def transactions
-    family.transactions.active.in_period(period)
+    family.transactions.visible.in_period(period)
   end
 
   def name

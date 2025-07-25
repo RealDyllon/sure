@@ -18,6 +18,7 @@ class Family < ApplicationRecord
   has_many :invitations, dependent: :destroy
 
   has_many :imports, dependent: :destroy
+  has_many :family_exports, dependent: :destroy
 
   has_many :entries, through: :accounts
   has_many :transactions, through: :accounts
@@ -100,7 +101,8 @@ class Family < ApplicationRecord
     [
       id,
       key,
-      data_invalidation_key
+      data_invalidation_key,
+      accounts.maximum(:updated_at)
     ].compact.join("_")
   end
 
