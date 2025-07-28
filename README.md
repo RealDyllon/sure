@@ -1,10 +1,22 @@
 
 <img width="1190" alt="maybe_hero" src="https://github.com/user-attachments/assets/5ed08763-a9ee-42b2-a436-e05038fcf573" />
 
+<p align="center">
+  <!-- Keep these links. Translations will automatically update with the README. -->
+  <a href="https://readme-i18n.com/de/we-promise/sure">Deutsch</a> | 
+  <a href="https://readme-i18n.com/es/we-promise/sure">Español</a> | 
+  <a href="https://readme-i18n.com/fr/we-promise/sure">français</a> | 
+  <a href="https://readme-i18n.com/ja/we-promise/sure">日本語</a> | 
+  <a href="https://readme-i18n.com/ko/we-promise/sure">한국어</a> | 
+  <a href="https://readme-i18n.com/pt/we-promise/sure">Português</a> | 
+  <a href="https://readme-i18n.com/ru/we-promise/sure">Русский</a> | 
+  <a href="https://readme-i18n.com/zh/we-promise/sure">中文</a>
+</p>
+
 # ~Maybe~Sure: The personal finance app for everyone
 
 <b>Get
-involved: [Discord](https://discord.gg/36ZGBsxYEK) • [Website](https://web.archive.org/web/20250715182050/https://maybefinance.com/) • [Issues](https://github.com/we-promise/sure/issues)</b>
+involved: [Discord](https://discord.gg/36ZGBsxYEK) • [(archived) Website](https://web.archive.org/web/20250715182050/https://maybefinance.com/) • [Issues](https://github.com/we-promise/sure/issues)</b>
 
 > [!IMPORTANT]
 > This repository is a community fork of the official (now abandoned) Maybe Finance one.  
@@ -33,15 +45,15 @@ codebase alive and who knows what else will come next.
 
 Join us?
 
-[^^^ STOPPED EDITING HERE ^^^]
+## Hosting ~Maybe~Sure
 
-## Maybe Hosting
-
-Maybe is a fully working personal finance app that can be [self hosted with Docker](docs/hosting/docker.md).
+Sure is a fully working personal finance app that can be [self hosted with Docker](docs/hosting/docker.md).
 
 ## Forking and Attribution
 
-This repo is no longer maintained. You’re free to fork it under the AGPLv3. To stay compliant and avoid trademark issues:
+This repo is a community fork of the no longer maintained Maybe Finance one.
+You’re free to fork it under the AGPLv3 but we prefer if you stay here and contribute.
+To stay compliant and avoid trademark issues:
 
 - Be sure to include the original [AGPLv3 license](https://github.com/maybe-finance/maybe/blob/main/LICENSE) and clearly state in your README that your fork is based on Maybe Finance but is **not affiliated with or endorsed by** Maybe Finance Inc.
 - "Maybe" is a trademark of Maybe Finance Inc. and therefore, use of it is NOT allowed in forked repositories (or the logo)
@@ -61,7 +73,7 @@ The instructions below are for developers to get started with contributing to th
 After cloning the repo, the basic setup commands are:
 
 ```sh
-cd maybe
+cd sure
 cp .env.local.example .env.local
 bin/setup
 bin/dev
@@ -87,6 +99,7 @@ For further instructions, see guides below.
 
 ## Copyright & license
 
-Maybe is distributed under
-an [AGPLv3 license](https://github.com/maybe-finance/maybe/blob/main/LICENSE). "
-Maybe" is a trademark of Maybe Finance, Inc.
+Maybe/Sure are distributed under
+an [AGPLv3 license](https://github.com/maybe-finance/maybe/blob/main/LICENSE).
+Remember that "Maybe" is a trademark of Maybe Finance, Inc.
+"Sure" is not.
