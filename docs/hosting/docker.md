@@ -133,7 +133,7 @@ docker compose ls
 
 Your app is now set up. You can visit it at `http://localhost:3000` in your browser.
 
-If you find bugs or have a feature request, be sure to read through our [contributing guide here](https://github.com/we-promise/sure/wiki/How-to-Contribute-Effectively-to-this-Project).
+If you find bugs or have a feature request, be sure to read through our [contributing guide here](https://github.com/we-promise/sure/wiki/How-to-Contribute-Effectively-to-Sure).
 
 ## How to update your app
 
