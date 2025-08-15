@@ -63,6 +63,7 @@ Rails.application.routes.draw do
     resource :billing, only: :show
     resource :security, only: :show
     resource :api_key, only: [ :show, :new, :create, :destroy ]
+    resource :bank_sync, only: :show, controller: "bank_sync"
   end
 
   resource :subscription, only: %i[new show create] do
