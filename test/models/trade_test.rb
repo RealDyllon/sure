@@ -20,4 +20,38 @@ class TradeTest < ActiveSupport::TestCase
     name = Trade.build_name("buy", 0.25, "BTC")
     assert_equal "Buy 0.25 shares of BTC", name
   end
+
+  test "price scale is preserved at 10 decimal places" do
+    security = Security.create!(ticker: "TEST", exchange_operating_mic: "XNAS")
+
+    # up to 10 decimal places — should persist exactly
+    precise_price = BigDecimal("12.30000001789012")
+    trade = Trade.create!(
+      security: security,
+      price: precise_price,
+      qty: 10000,
+      currency: "USD"
+    )
+
+    trade.reload
+
+    assert_equal precise_price, trade.price
+  end
+
+  test "price is rounded to 10 decimal places" do
+    security = Security.create!(ticker: "TEST", exchange_operating_mic: "XNAS")
+
+    # over 10 decimal places — will be rounded
+    price_with_too_many_decimals = BigDecimal("1.00000003000000095")
+    trade = Trade.create!(
+      security: security,
+      price: price_with_too_many_decimals,
+      qty: 1,
+      currency: "USD"
+    )
+
+    trade.reload
+
+    assert_equal BigDecimal("1.00000003"), trade.price
+  end
 end
