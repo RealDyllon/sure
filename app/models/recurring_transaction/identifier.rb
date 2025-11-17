@@ -55,7 +55,6 @@ class RecurringTransaction
             entries: entries
           }
 
-          # Set either merchant_id or name based on identifier type
           if identifier_type == :merchant
             pattern[:merchant_id] = identifier_value
           else
