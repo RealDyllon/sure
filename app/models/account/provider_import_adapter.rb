@@ -136,14 +136,30 @@ class Account::ProviderImportAdapter
       # Two strategies for finding/creating holdings:
       # 1. By external_id (SimpleFin approach) - tracks each holding uniquely
       # 2. By security+date+currency (Plaid approach) - overwrites holdings for same security/date
-      holding = if external_id.present?
-        account.holdings.find_or_initialize_by(external_id: external_id) do |h|
-          h.security = security
-          h.date = date
-          h.currency = currency
+      holding = nil
+
+      if external_id.present?
+        # Preferred path: match by provider's external_id
+        holding = account.holdings.find_by(external_id: external_id)
+
+        unless holding
+          # Fallback path: match by (security, date, currency) to respect schemas
+          # where a unique index exists on these columns. This allows us to "claim"
+          # an existing row created by another import path (e.g., fixtures or a prior provider)
+          holding = account.holdings.find_by(
+            security: security,
+            date: date,
+            currency: currency
+          )
         end
+
+        holding ||= account.holdings.new(
+          security: security,
+          date: date,
+          currency: currency
+        )
       else
-        account.holdings.find_or_initialize_by(
+        holding = account.holdings.find_or_initialize_by(
           security: security,
           date: date,
           currency: currency
@@ -158,7 +174,8 @@ class Account::ProviderImportAdapter
         price: price,
         amount: amount,
         cost_basis: cost_basis,
-        account_provider_id: account_provider_id
+        account_provider_id: account_provider_id,
+        external_id: external_id
       )
 
       holding.save!
