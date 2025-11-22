@@ -143,20 +143,27 @@ class Account::ProviderImportAdapter
         holding = account.holdings.find_by(external_id: external_id)
 
         unless holding
-          # Fallback path: match by (security, date, currency) to respect schemas
-          # where a unique index exists on these columns. This allows us to "claim"
-          # an existing row created by another import path (e.g., fixtures or a prior provider)
-          holding = account.holdings.find_by(
+          # Fallback path: match by (security, date, currency) — and when provided,
+          # also scope by account_provider_id to avoid cross‑provider claiming.
+          # This keeps behavior symmetric with deletion logic below which filters
+          # by account_provider_id when present.
+          find_by_attrs = {
             security: security,
             date: date,
             currency: currency
-          )
+          }
+          if account_provider_id.present?
+            find_by_attrs[:account_provider_id] = account_provider_id
+          end
+
+          holding = account.holdings.find_by(find_by_attrs)
         end
 
         holding ||= account.holdings.new(
           security: security,
           date: date,
-          currency: currency
+          currency: currency,
+          account_provider_id: account_provider_id
         )
       else
         holding = account.holdings.find_or_initialize_by(
@@ -164,6 +171,26 @@ class Account::ProviderImportAdapter
           date: date,
           currency: currency
         )
+      end
+
+      # Early cross-provider composite-key conflict guard: avoid attempting a write
+      # that would violate a unique index on (account_id, security_id, date, currency).
+      if external_id.present?
+        existing_composite = account.holdings.find_by(
+          security: security,
+          date: date,
+          currency: currency
+        )
+
+        if existing_composite &&
+           account_provider_id.present? &&
+           existing_composite.account_provider_id.present? &&
+           existing_composite.account_provider_id != account_provider_id
+          Rails.logger.warn(
+            "ProviderImportAdapter: cross-provider holding collision for account=#{account.id} security=#{security.id} date=#{date} currency=#{currency}; returning existing id=#{existing_composite.id}"
+          )
+          return existing_composite
+        end
       end
 
       holding.assign_attributes(
@@ -178,7 +205,45 @@ class Account::ProviderImportAdapter
         external_id: external_id
       )
 
-      holding.save!
+      begin
+        Holding.transaction(requires_new: true) do
+          holding.save!
+        end
+      rescue ActiveRecord::RecordNotUnique => e
+        # Handle unique index collisions on (account_id, security_id, date, currency)
+        # that can occur when another provider (or concurrent import) already
+        # created a row for this composite key. Use the existing row and keep
+        # the outer transaction valid by isolating the error in a savepoint.
+        existing = account.holdings.find_by(
+          security: security,
+          date: date,
+          currency: currency
+        )
+
+        if existing
+          # If an existing row belongs to a different provider, do NOT claim it.
+          # Keep cross-provider isolation symmetrical with deletion logic.
+          if account_provider_id.present? && existing.account_provider_id.present? && existing.account_provider_id != account_provider_id
+            Rails.logger.warn(
+              "ProviderImportAdapter: cross-provider holding collision for account=#{account.id} security=#{security.id} date=#{date} currency=#{currency}; returning existing id=#{existing.id}"
+            )
+            holding = existing
+          else
+            # Same provider (or unowned). Optionally set external_id if blank to ensure idempotency.
+            if external_id.present? && existing.external_id.blank?
+              begin
+                existing.update_columns(external_id: external_id)
+              rescue => _
+                # Best-effort only; avoid raising in collision handler
+              end
+            end
+            holding = existing
+          end
+        else
+          # Could not find an existing row; re-raise original error
+          raise e
+        end
+      end
 
       # Optionally delete future holdings for this security (Plaid behavior)
       # Only delete if ALL providers allow deletion (cross-provider check)
