@@ -229,14 +229,31 @@ class Account::ProviderImportAdapter
             )
             holding = existing
           else
-            # Same provider (or unowned). Optionally set external_id if blank to ensure idempotency.
-            if external_id.present? && existing.external_id.blank?
-              begin
-                existing.update_columns(external_id: external_id)
-              rescue => _
-                # Best-effort only; avoid raising in collision handler
-              end
+            # Same provider (or unowned). Apply latest snapshot and attach external_id for idempotency.
+            updates = {
+              qty: quantity,
+              price: price,
+              amount: amount,
+              cost_basis: cost_basis
+            }
+
+            # Adopt the row to this provider if it’s currently unowned
+            if account_provider_id.present? && existing.account_provider_id.nil?
+              updates[:account_provider_id] = account_provider_id
             end
+
+            # Attach external_id if provided and missing
+            if external_id.present? && existing.external_id.blank?
+              updates[:external_id] = external_id
+            end
+
+            begin
+              # Use update_columns to avoid validations and keep this collision handler best-effort.
+              existing.update_columns(updates.compact)
+            rescue => _
+              # Best-effort only; avoid raising in collision handler
+            end
+
             holding = existing
           end
         else
