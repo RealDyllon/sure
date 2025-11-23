@@ -44,11 +44,11 @@ class ReportsController < ApplicationController
     @period_type = params[:period_type]&.to_sym || :monthly
     @start_date = parse_date_param(:start_date) || default_start_date
     @end_date = parse_date_param(:end_date) || default_end_date
-    
+
     # Validate and fix date range if end_date is before start_date
     # Don't show flash message since we're returning CSV data
     validate_and_fix_date_range(show_flash: false)
-    
+
     @period = Period.custom(start_date: @start_date, end_date: @end_date)
 
     # Build monthly breakdown data for export
