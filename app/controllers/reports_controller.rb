@@ -12,11 +12,7 @@ class ReportsController < ApplicationController
     @end_date = parse_date_param(:end_date) || default_end_date
 
     # Validate and fix date range if end_date is before start_date
-    if @start_date > @end_date
-      # Swap the dates to maintain user's intended date range
-      @start_date, @end_date = @end_date, @start_date
-      flash.now[:alert] = t("reports.invalid_date_range")
-    end
+    validate_and_fix_date_range(show_flash: true)
 
     # Build the period
     @period = Period.custom(start_date: @start_date, end_date: @end_date)
@@ -50,9 +46,8 @@ class ReportsController < ApplicationController
     @end_date = parse_date_param(:end_date) || default_end_date
     
     # Validate and fix date range if end_date is before start_date
-    if @start_date > @end_date
-      @start_date, @end_date = @end_date, @start_date
-    end
+    # Don't show flash message since we're returning CSV data
+    validate_and_fix_date_range(show_flash: false)
     
     @period = Period.custom(start_date: @start_date, end_date: @end_date)
 
@@ -105,6 +100,14 @@ class ReportsController < ApplicationController
   end
 
   private
+
+    def validate_and_fix_date_range(show_flash: false)
+      return unless @start_date > @end_date
+
+      # Swap the dates to maintain user's intended date range
+      @start_date, @end_date = @end_date, @start_date
+      flash.now[:alert] = t("reports.invalid_date_range") if show_flash
+    end
 
     def ensure_money(value)
       return value if value.is_a?(Money)
