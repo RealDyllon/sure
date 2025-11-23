@@ -11,6 +11,13 @@ class ReportsController < ApplicationController
     @start_date = parse_date_param(:start_date) || default_start_date
     @end_date = parse_date_param(:end_date) || default_end_date
 
+    # Validate and fix date range if end_date is before start_date
+    if @start_date > @end_date
+      # Swap the dates to maintain user's intended date range
+      @start_date, @end_date = @end_date, @start_date
+      flash.now[:alert] = t("reports.invalid_date_range")
+    end
+
     # Build the period
     @period = Period.custom(start_date: @start_date, end_date: @end_date)
     @previous_period = build_previous_period
@@ -41,6 +48,12 @@ class ReportsController < ApplicationController
     @period_type = params[:period_type]&.to_sym || :monthly
     @start_date = parse_date_param(:start_date) || default_start_date
     @end_date = parse_date_param(:end_date) || default_end_date
+    
+    # Validate and fix date range if end_date is before start_date
+    if @start_date > @end_date
+      @start_date, @end_date = @end_date, @start_date
+    end
+    
     @period = Period.custom(start_date: @start_date, end_date: @end_date)
 
     # Build monthly breakdown data for export

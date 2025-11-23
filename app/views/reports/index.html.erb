@@ -9,6 +9,13 @@
       </p>
     </div>
 
+    <%# Flash messages %>
+    <% if flash[:alert].present? %>
+      <div class="p-3 rounded-lg bg-destructive-surface text-sm text-destructive">
+        <%= flash[:alert] %>
+      </div>
+    <% end %>
+
     <%# Period Navigation Tabs %>
     <div class="flex items-center gap-2 overflow-x-auto pb-2">
       <%= render DS::Link.new(
