@@ -69,8 +69,11 @@ jobs:
           
           # Update index
           helm repo index gh-pages --url https://we-promise.github.io/sure --merge gh-pages/index.yaml
-          
+
           # Push to gh-pages
+          git config --global user.email "sure-admin@sure.am"
+          git config --global user.name "sure-admin"
+          git config --global credential.helper cache
           cd gh-pages
           git add .
           git commit -m "Release nightly: ${{ steps.version.outputs.version }}"
