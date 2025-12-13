@@ -41,6 +41,16 @@ jobs:
           sed -i "s/^version:.*/version: ${{ steps.version.outputs.version }}/" charts/sure/Chart.yaml
           cat charts/sure/Chart.yaml
 
+      - name: Add Helm repositories
+        run: |
+          helm repo add cloudnative-pg https://cloudnative-pg.github.io/charts
+          helm repo add ot-helm https://ot-container-kit.github.io/helm-charts
+          helm repo update
+
+      - name: Build dependencies
+        run: |
+          helm dependency build charts/sure
+
       - name: Package chart
         run: |
           mkdir -p .cr-release-packages
