@@ -1,4 +1,4 @@
-name: Release Helm Chart
+name: Release Helm Chart (Nightly)
 
 on:
   push:
@@ -28,9 +28,40 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v3
 
-      - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.6.0
-        env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Generate nightly version
+        id: version
+        run: |
+          # Generate version like: 0.0.0-nightly.20251213.173045
+          VERSION="0.0.0-nightly.$(date -u +'%Y%m%d.%H%M%S')"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+
+      - name: Update Chart.yaml version
+        run: |
+          sed -i "s/^version:.*/version: ${{ steps.version.outputs.version }}/" charts/sure/Chart.yaml
+          cat charts/sure/Chart.yaml
+
+      - name: Package chart
+        run: |
+          mkdir -p .cr-release-packages
+          helm package charts/sure -d .cr-release-packages
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
         with:
-          charts_dir: charts
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Update index and push
+        run: |
+          # Copy packaged chart
+          cp .cr-release-packages/*.tgz gh-pages/
+          
+          # Update index
+          helm repo index gh-pages --url https://we-promise.github.io/sure --merge gh-pages/index.yaml
+          
+          # Push to gh-pages
+          cd gh-pages
+          git add .
+          git commit -m "Release nightly: ${{ steps.version.outputs.version }}"
+          git push
