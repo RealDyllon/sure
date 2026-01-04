@@ -71,8 +71,12 @@ class SessionsController < ApplicationController
     id_token = session[:id_token_hint]
     login_provider = session[:sso_login_provider]
 
-    # Find the identity for the provider used during login (not arbitrary .first)
-    oidc_identity = login_provider.present? ? user.oidc_identities.find_by(provider: login_provider) : nil
+    # Find the identity for the provider used during login, with fallback to first if session data lost
+    oidc_identity = if login_provider.present?
+      user.oidc_identities.find_by(provider: login_provider)
+    else
+      user.oidc_identities.first
+    end
 
     # Destroy local session
     @session.destroy
