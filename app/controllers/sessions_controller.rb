@@ -194,8 +194,8 @@ class SessionsController < ApplicationController
     end
 
     def build_idp_logout_url(oidc_identity, id_token)
-      # Find the provider configuration
-      provider_config = Rails.configuration.x.auth.sso_providers&.find do |p|
+      # Find the provider configuration using unified loader (supports both YAML and DB providers)
+      provider_config = ProviderLoader.load_providers.find do |p|
         p[:name] == oidc_identity.provider
       end
 
