@@ -91,7 +91,6 @@ Rails.application.routes.draw do
     end
     resource :billing, only: :show
     resource :security, only: :show
-    resource :sso_identities, only: :show
     resources :sso_identities, only: :destroy
     resource :api_key, only: [ :show, :new, :create, :destroy ]
     resource :ai_prompts, only: :show

@@ -6,7 +6,6 @@ module SettingsHelper
     { name: "Preferences", path: :settings_preferences_path },
     { name: "Profile Info", path: :settings_profile_path },
     { name: "Security", path: :settings_security_path },
-    { name: "Connected Accounts", path: :settings_sso_identities_path, condition: :has_sso_connections? },
     { name: "Billing", path: :settings_billing_path, condition: :not_self_hosted? },
     # Transactions section
     { name: "Categories", path: :categories_path },
@@ -81,9 +80,5 @@ module SettingsHelper
 
     def self_hosted_and_admin?
       self_hosted? && admin_user?
-    end
-
-    def has_sso_connections?
-      Current.user&.oidc_identities&.exists? || AuthConfig.sso_providers.any?
     end
 end

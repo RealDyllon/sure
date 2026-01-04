@@ -34,6 +34,10 @@ class SsoProviderPolicy < ApplicationPolicy
     update?
   end
 
+  def test_connection?
+    user&.super_admin?
+  end
+
   class Scope < ApplicationPolicy::Scope
     def resolve
       if user&.super_admin?
