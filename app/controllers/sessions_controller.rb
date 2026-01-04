@@ -69,11 +69,15 @@ class SessionsController < ApplicationController
   def destroy
     user = Current.user
     id_token = session[:id_token_hint]
-    oidc_identity = user.oidc_identities.first
+    login_provider = session[:sso_login_provider]
+
+    # Find the identity for the provider used during login (not arbitrary .first)
+    oidc_identity = login_provider.present? ? user.oidc_identities.find_by(provider: login_provider) : nil
 
     # Destroy local session
     @session.destroy
     session.delete(:id_token_hint)
+    session.delete(:sso_login_provider)
 
     # Check if we should redirect to IdP for federated logout
     if oidc_identity && id_token.present?
@@ -114,8 +118,9 @@ class SessionsController < ApplicationController
       oidc_identity.record_authentication!
       oidc_identity.sync_user_attributes!(auth)
 
-      # Store id_token for RP-initiated logout
+      # Store id_token and provider for RP-initiated logout
       session[:id_token_hint] = auth.credentials&.id_token if auth.credentials&.id_token
+      session[:sso_login_provider] = auth.provider
 
       # Log successful SSO login
       SsoAuditLog.log_login!(user: user, provider: auth.provider, request: request)
@@ -155,15 +160,13 @@ class SessionsController < ApplicationController
       reason: sanitized_reason
     )
 
-    message = case params[:message]
+    message = case sanitized_reason
     when "sso_provider_unavailable"
       t("sessions.failure.sso_provider_unavailable")
     when "sso_invalid_response"
       t("sessions.failure.sso_invalid_response")
-    when "sso_failed"
-      t("sessions.failure.sso_failed")
     else
-      t("sessions.failure.failed")
+      t("sessions.failure.sso_failed")
     end
 
     redirect_to new_session_path, alert: message
