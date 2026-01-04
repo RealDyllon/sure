@@ -86,6 +86,14 @@ class SsoProviderPolicyTest < ActiveSupport::TestCase
     assert_not SsoProviderPolicy.new(@regular_user, @provider).toggle?
   end
 
+  test "super admin can test connection" do
+    assert SsoProviderPolicy.new(@super_admin, @provider).test_connection?
+  end
+
+  test "regular user cannot test connection" do
+    assert_not SsoProviderPolicy.new(@regular_user, @provider).test_connection?
+  end
+
   test "scope returns all providers for super admin" do
     SsoProvider.create!(
       strategy: "google_oauth2",

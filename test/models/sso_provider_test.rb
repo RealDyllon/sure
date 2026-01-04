@@ -96,9 +96,11 @@ class SsoProviderTest < ActiveSupport::TestCase
     assert_equal "super_secret_value", provider.client_secret
 
     # Raw database value should be encrypted (not plain text)
-    raw_value = ActiveRecord::Base.connection.execute(
-      "SELECT client_secret FROM sso_providers WHERE id = '#{provider.id}'"
-    ).first["client_secret"]
+    raw_value = ActiveRecord::Base.connection.select_value(
+      ActiveRecord::Base.sanitize_sql_array(
+        [ "SELECT client_secret FROM sso_providers WHERE id = ?", provider.id ]
+      )
+    )
 
     assert_not_equal "super_secret_value", raw_value
   end

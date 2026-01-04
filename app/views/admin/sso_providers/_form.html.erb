@@ -158,8 +158,7 @@
           <label class="block text-sm font-medium text-primary mb-1"><%= t("admin.sso_providers.form.name_id_format") %></label>
           <select name="sso_provider[settings][name_id_format]"
                   class="w-full px-3 py-2 border border-primary rounded-lg text-sm">
-            <option value="" <%= "selected" if sso_provider.settings&.dig("name_id_format").blank? %>><%= t("admin.sso_providers.form.name_id_email") %></option>
-            <option value="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" <%= "selected" if sso_provider.settings&.dig("name_id_format") == "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" %>><%= t("admin.sso_providers.form.name_id_email") %></option>
+            <option value="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" <%= "selected" if sso_provider.settings&.dig("name_id_format").blank? || sso_provider.settings&.dig("name_id_format") == "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" %>><%= t("admin.sso_providers.form.name_id_email") %></option>
             <option value="urn:oasis:names:tc:SAML:2.0:nameid-format:persistent" <%= "selected" if sso_provider.settings&.dig("name_id_format") == "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent" %>><%= t("admin.sso_providers.form.name_id_persistent") %></option>
             <option value="urn:oasis:names:tc:SAML:2.0:nameid-format:transient" <%= "selected" if sso_provider.settings&.dig("name_id_format") == "urn:oasis:names:tc:SAML:2.0:nameid-format:transient" %>><%= t("admin.sso_providers.form.name_id_transient") %></option>
             <option value="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" <%= "selected" if sso_provider.settings&.dig("name_id_format") == "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" %>><%= t("admin.sso_providers.form.name_id_unspecified") %></option>

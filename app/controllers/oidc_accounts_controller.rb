@@ -118,17 +118,19 @@ class OidcAccountsController < ApplicationController
 
     if @user.save
       # Create the OIDC (or other SSO) identity
-      OidcIdentity.create_from_omniauth(
+      identity = OidcIdentity.create_from_omniauth(
         build_auth_hash(@pending_auth),
         @user
       )
 
-      # Log JIT account creation
-      SsoAuditLog.log_jit_account_created!(
-        user: @user,
-        provider: @pending_auth["provider"],
-        request: request
-      )
+      # Only log JIT account creation if identity was successfully created
+      if identity.persisted?
+        SsoAuditLog.log_jit_account_created!(
+          user: @user,
+          provider: @pending_auth["provider"],
+          request: request
+        )
+      end
 
       # Clear pending auth from session
       session.delete(:pending_oidc_auth)

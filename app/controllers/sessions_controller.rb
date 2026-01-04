@@ -144,11 +144,15 @@ class SessionsController < ApplicationController
   end
 
   def failure
+    # Sanitize reason to known values only
+    known_reasons = %w[sso_provider_unavailable sso_invalid_response sso_failed]
+    sanitized_reason = known_reasons.include?(params[:message]) ? params[:message] : "sso_failed"
+
     # Log failed SSO attempt
     SsoAuditLog.log_login_failed!(
       provider: params[:strategy],
       request: request,
-      reason: params[:message]
+      reason: sanitized_reason
     )
 
     message = case params[:message]
