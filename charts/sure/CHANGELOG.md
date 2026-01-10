@@ -5,11 +5,15 @@ All notable changes to the Sure Helm chart will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-### [0.0.0]
+### [0.0.0], [0.6.5]
+
+### Added
 
 - First (nightly/test) releases via <https://we-promise.github.io/sure/index.yaml>
 
-### [0.6.5]
+### [0.6.6] - 2025-12-31
+
+### Added
 
 - First version/release that aligns versions with monorepo
 - CNPG: render `Cluster.spec.backup` from `cnpg.cluster.backup`.
