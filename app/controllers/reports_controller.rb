@@ -338,7 +338,7 @@ class ReportsController < ApplicationController
         .joins(:entry)
         .joins(entry: :account)
         .where(accounts: { family_id: Current.family.id, status: [ "draft", "active" ] })
-        .where(entries: { entryable_type: "Transaction", excluded: false, date: @period.date_range })
+        .where(entries: { entryable_type: "Transaction", excluded: false, exclude_from_cashflow: false, date: @period.date_range })
         .where.not(kind: [ "funds_movement", "one_time", "cc_payment" ])
         .includes(entry: :account, category: [])
 
@@ -350,7 +350,7 @@ class ReportsController < ApplicationController
         .joins(:entry)
         .joins(entry: :account)
         .where(accounts: { family_id: Current.family.id, status: [ "draft", "active" ] })
-        .where(entries: { entryable_type: "Trade", excluded: false, date: @period.date_range })
+        .where(entries: { entryable_type: "Trade", excluded: false, exclude_from_cashflow: false, date: @period.date_range })
         .includes(entry: :account, category: [])
 
       # Get sort parameters
@@ -519,7 +519,7 @@ class ReportsController < ApplicationController
         .joins(:entry)
         .joins(entry: :account)
         .where(accounts: { family_id: Current.family.id, status: [ "draft", "active" ] })
-        .where(entries: { entryable_type: "Transaction", excluded: false, date: @period.date_range })
+        .where(entries: { entryable_type: "Transaction", excluded: false, exclude_from_cashflow: false, date: @period.date_range })
         .where.not(kind: [ "funds_movement", "one_time", "cc_payment" ])
         .includes(entry: :account, category: [])
 
@@ -556,7 +556,7 @@ class ReportsController < ApplicationController
         .joins(:entry)
         .joins(entry: :account)
         .where(accounts: { family_id: Current.family.id, status: [ "draft", "active" ] })
-        .where(entries: { entryable_type: "Transaction", excluded: false, date: @period.date_range })
+        .where(entries: { entryable_type: "Transaction", excluded: false, exclude_from_cashflow: false, date: @period.date_range })
         .where.not(kind: [ "funds_movement", "one_time", "cc_payment" ])
         .includes(entry: :account, category: [])
 
@@ -567,7 +567,7 @@ class ReportsController < ApplicationController
         .joins(:entry)
         .joins(entry: :account)
         .where(accounts: { family_id: Current.family.id, status: [ "draft", "active" ] })
-        .where(entries: { entryable_type: "Trade", excluded: false, date: @period.date_range })
+        .where(entries: { entryable_type: "Trade", excluded: false, exclude_from_cashflow: false, date: @period.date_range })
         .includes(entry: :account, category: [])
 
       # Group by category, type, and month
