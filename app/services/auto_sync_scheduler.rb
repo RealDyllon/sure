@@ -1,4 +1,3 @@
-# app/services/auto_sync_scheduler.rb
 class AutoSyncScheduler
   JOB_NAME = "sync_all_accounts"
 
@@ -12,10 +11,13 @@ class AutoSyncScheduler
   end
 
   def self.upsert_job
-    time = Setting.auto_sync_time || "02:22"
+    time_str = Setting.auto_sync_time || "02:22"
+    hour, minute = time_str.split(":").map(&:to_i)
 
-    hour, minute = time.split(":").map(&:to_i)
-    cron = "#{minute} #{hour} * * *"
+    local_time = Time.zone.now.change(hour: hour, min: minute, sec: 0)
+    utc_time = local_time.utc
+
+    cron = "#{utc_time.min} #{utc_time.hour} * * *"
 
     Sidekiq::Cron::Job.create(
       name: JOB_NAME,
