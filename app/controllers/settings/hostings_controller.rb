@@ -62,14 +62,27 @@ class Settings::HostingsController < ApplicationController
       Setting.syncs_include_pending = hosting_params[:syncs_include_pending] == "1"
     end
 
+    sync_settings_changed = false
+
     if hosting_params.key?(:auto_sync_enabled)
       Setting.auto_sync_enabled = hosting_params[:auto_sync_enabled] == "1"
-      AutoSyncScheduler.sync!
+      sync_settings_changed = true
     end
 
     if hosting_params.key?(:auto_sync_time)
-      Setting.auto_sync_time = hosting_params[:auto_sync_time]
-      AutoSyncScheduler.sync!
+      time_value = hosting_params[:auto_sync_time]
+      unless Setting.valid_auto_sync_time?(time_value)
+        flash[:alert] = t(".invalid_sync_time")
+        return redirect_to settings_hosting_path
+      end
+
+      Setting.auto_sync_time = time_value
+      Setting.auto_sync_timezone = current_user_timezone
+      sync_settings_changed = true
+    end
+
+    if sync_settings_changed
+      sync_auto_sync_scheduler!
     end
 
     if hosting_params.key?(:openai_access_token)
@@ -118,5 +131,17 @@ class Settings::HostingsController < ApplicationController
 
     def ensure_admin
       redirect_to settings_hosting_path, alert: t(".not_authorized") unless Current.user.admin?
+    end
+
+    def sync_auto_sync_scheduler!
+      AutoSyncScheduler.sync!
+    rescue StandardError => error
+      Rails.logger.error("[AutoSyncScheduler] Failed to sync scheduler: #{error.message}")
+      Rails.logger.error(error.backtrace.join("\n"))
+      flash[:alert] = t(".scheduler_sync_failed")
+    end
+
+    def current_user_timezone
+      Current.family&.timezone.presence || "UTC"
     end
 end
