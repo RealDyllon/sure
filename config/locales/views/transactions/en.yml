@@ -51,7 +51,6 @@ en:
       withdrawal: Withdrawal
       exchange: Exchange
       other: Other
-      loan_payment: Loan Payment
     mark_recurring: Mark as Recurring
     mark_recurring_subtitle: Track this as a recurring transaction. Amount variance is automatically calculated from past 6 months of similar transactions.
     mark_recurring_title: Recurring Transaction
