@@ -51,25 +51,24 @@ en:
       withdrawal: Withdrawal
       exchange: Exchange
       other: Other
-      mark_recurring: Mark as Recurring
-      mark_recurring_subtitle: Track this as a recurring transaction. Amount variance is automatically calculated from past 6 months of similar transactions.
-      mark_recurring_title: Recurring Transaction
-      merchant_label: Merchant
-      name_label: Name
-      nature: Type
-      none: "(none)"
-      note_label: Notes
-      note_placeholder: Enter a note
-      overview: Overview
-      settings: Settings
-      tags_label: Tags
-      uncategorized: "(uncategorized)"
-      potential_duplicate_title: Possible duplicate detected
-      potential_duplicate_description: This pending transaction may be the same as the posted transaction below. If so, merge them to avoid double-counting.
-      merge_duplicate: Yes, merge them
-      keep_both: No, keep both
       loan_payment: Loan Payment
-      transfer: Transfer
+    mark_recurring: Mark as Recurring
+    mark_recurring_subtitle: Track this as a recurring transaction. Amount variance is automatically calculated from past 6 months of similar transactions.
+    mark_recurring_title: Recurring Transaction
+    merchant_label: Merchant
+    name_label: Name
+    nature: Type
+    none: "(none)"
+    note_label: Notes
+    note_placeholder: Enter a note
+    overview: Overview
+    settings: Settings
+    tags_label: Tags
+    uncategorized: "(uncategorized)"
+    potential_duplicate_title: Possible duplicate detected
+    potential_duplicate_description: This pending transaction may be the same as the posted transaction below. If so, merge them to avoid double-counting.
+    merge_duplicate: Yes, merge them
+    keep_both: No, keep both
     transaction:
       pending: Pending
       pending_tooltip: Pending transaction — may change when posted

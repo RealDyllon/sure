@@ -41,7 +41,13 @@ class TransactionTest < ActiveSupport::TestCase
     assert_includes Transaction::ACTIVITY_LABELS, "Sweep In"
     assert_includes Transaction::ACTIVITY_LABELS, "Sweep Out"
     assert_includes Transaction::ACTIVITY_LABELS, "Dividend"
+    assert_includes Transaction::ACTIVITY_LABELS, "Reinvestment"
     assert_includes Transaction::ACTIVITY_LABELS, "Interest"
     assert_includes Transaction::ACTIVITY_LABELS, "Fee"
+    assert_includes Transaction::ACTIVITY_LABELS, "Transfer"
+    assert_includes Transaction::ACTIVITY_LABELS, "Contribution"
+    assert_includes Transaction::ACTIVITY_LABELS, "Withdrawal"
+    assert_includes Transaction::ACTIVITY_LABELS, "Exchange"
+    assert_includes Transaction::ACTIVITY_LABELS, "Other"
   end
 end

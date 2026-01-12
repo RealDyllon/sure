@@ -2,11 +2,12 @@ class PlaidAccount::Investments::TransactionsProcessor
   SecurityNotFoundError = Class.new(StandardError)
 
   # Map Plaid investment transaction types to activity labels
+  # All values must be valid Transaction::ACTIVITY_LABELS
   PLAID_TYPE_TO_LABEL = {
     "buy" => "Buy",
     "sell" => "Sell",
-    "cancel" => "Cancelled",
-    "cash" => "Cash",
+    "cancel" => "Other",
+    "cash" => "Other",
     "fee" => "Fee",
     "transfer" => "Transfer",
     "dividend" => "Dividend",
@@ -92,7 +93,7 @@ class PlaidAccount::Investments::TransactionsProcessor
 
     def label_from_plaid_type(transaction)
       plaid_type = transaction["type"]&.downcase
-      PLAID_TYPE_TO_LABEL[plaid_type] || plaid_type&.titleize
+      PLAID_TYPE_TO_LABEL[plaid_type] || "Other"
     end
 
     def transactions

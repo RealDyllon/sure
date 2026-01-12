@@ -17,7 +17,7 @@ class Transaction < ApplicationRecord
     cc_payment: "cc_payment", # A CC payment, excluded from budget analytics (CC payments offset the sum of expense transactions)
     loan_payment: "loan_payment", # A payment to a Loan account, treated as an expense in budgets
     one_time: "one_time", # A one-time expense/income, excluded from budget analytics
-    investment_contribution: "investment_contribution" # Transfer to investment/crypto account, included in budget as investment expense
+    investment_contribution: "investment_contribution" # Transfer to investment/crypto account, excluded from budget analytics
   }
 
   # All valid investment activity labels (for UI dropdown)
