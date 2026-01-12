@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_01_10_180000) do
+ActiveRecord::Schema[7.2].define(version: 2026_01_12_065106) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -489,6 +489,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_01_10_180000) do
     t.string "external_id"
     t.decimal "cost_basis", precision: 19, scale: 4
     t.uuid "account_provider_id"
+    t.string "cost_basis_source"
+    t.boolean "cost_basis_locked", default: false, null: false
     t.index ["account_id", "external_id"], name: "idx_holdings_on_account_id_external_id_unique", unique: true, where: "(external_id IS NOT NULL)"
     t.index ["account_id", "security_id", "date", "currency"], name: "idx_on_account_id_security_id_date_currency_5323e39f8b", unique: true
     t.index ["account_id"], name: "index_holdings_on_account_id"
@@ -1129,7 +1131,14 @@ ActiveRecord::Schema[7.2].define(version: 2026_01_10_180000) do
     t.string "currency"
     t.jsonb "locked_attributes", default: {}
     t.uuid "category_id"
+    t.decimal "realized_gain", precision: 19, scale: 4
+    t.decimal "cost_basis_amount", precision: 19, scale: 4
+    t.string "cost_basis_currency"
+    t.integer "holding_period_days"
+    t.string "realized_gain_confidence"
+    t.string "realized_gain_currency"
     t.index ["category_id"], name: "index_trades_on_category_id"
+    t.index ["realized_gain"], name: "index_trades_on_realized_gain_not_null", where: "(realized_gain IS NOT NULL)"
     t.index ["security_id"], name: "index_trades_on_security_id"
   end
 
