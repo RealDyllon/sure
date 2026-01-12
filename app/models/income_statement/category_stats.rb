@@ -49,7 +49,6 @@ class IncomeStatement::CategoryStats
           WHERE a.family_id = :family_id
             AND t.kind NOT IN ('funds_movement', 'one_time', 'cc_payment', 'investment_contribution')
             AND ae.excluded = false
-            AND ae.exclude_from_cashflow = false
             AND (t.extra -> 'simplefin' ->> 'pending')::boolean IS DISTINCT FROM true
             AND (t.extra -> 'plaid' ->> 'pending')::boolean IS DISTINCT FROM true
           GROUP BY c.id, period, CASE WHEN ae.amount < 0 THEN 'income' ELSE 'expense' END

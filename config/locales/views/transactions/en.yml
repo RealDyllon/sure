@@ -33,9 +33,6 @@ en:
       details: Details
       exclude: Exclude
       exclude_description: Excluded transactions will be removed from budgeting calculations and reports.
-      exclude_from_cashflow: Exclude from Cashflow
-      exclude_from_cashflow_description: Hide from income/expense reports and Sankey chart. Useful for transactions you don't want in cashflow analysis.
-      exclude_from_cashflow_description_investment: Hide from income/expense reports and Sankey chart. Use for internal investment activity like fund swaps, reinvestments, or money market sweeps.
       activity_type: Activity Type
       activity_type_description: Type of investment activity (Buy, Sell, Dividend, etc.). Auto-detected or set manually.
       one_time_title: One-time %{type}
@@ -76,7 +73,6 @@ en:
     transaction:
       pending: Pending
       pending_tooltip: Pending transaction — may change when posted
-      excluded_from_cashflow_tooltip: Excluded from cashflow reports
       activity_type_tooltip: Investment activity type
       possible_duplicate: Duplicate?
       potential_duplicate_tooltip: This may be a duplicate of another transaction

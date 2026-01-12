@@ -203,28 +203,6 @@
         <% end %>
       </div>
 
-      <div class="pb-4">
-        <%= styled_form_with model: @entry,
-              url: transaction_path(@entry),
-              class: "p-3",
-              data: { controller: "auto-submit-form" } do |f| %>
-          <div class="flex cursor-pointer items-center gap-4 justify-between">
-            <div class="text-sm space-y-1">
-              <h4 class="text-primary"><%= t(".exclude_from_cashflow") %></h4>
-              <p class="text-secondary">
-                <% if @entry.account.investment? || @entry.account.crypto? %>
-                  <%= t(".exclude_from_cashflow_description_investment") %>
-                <% else %>
-                  <%= t(".exclude_from_cashflow_description") %>
-                <% end %>
-              </p>
-            </div>
-
-            <%= f.toggle :exclude_from_cashflow, { data: { auto_submit_form_target: "auto" } } %>
-          </div>
-        <% end %>
-      </div>
-
       <% if @entry.account.investment? || @entry.account.crypto? %>
         <div class="pb-4">
           <%= styled_form_with model: @entry,
