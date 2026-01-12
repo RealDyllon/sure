@@ -20,18 +20,11 @@ class Transaction < ApplicationRecord
     investment_contribution: "investment_contribution" # Transfer to investment/crypto account, included in budget as investment expense
   }
 
-  # Labels for internal investment activity (auto-exclude from cashflow)
-  # Only internal shuffling should be excluded, not contributions/dividends/withdrawals
-  INTERNAL_ACTIVITY_LABELS = %w[Buy Sell Reinvestment Exchange].freeze
-
   # All valid investment activity labels (for UI dropdown)
   ACTIVITY_LABELS = [
     "Buy", "Sell", "Sweep In", "Sweep Out", "Dividend", "Reinvestment",
     "Interest", "Fee", "Transfer", "Contribution", "Withdrawal", "Exchange", "Other"
   ].freeze
-
-  after_save :sync_exclude_from_cashflow_with_activity_label,
-             if: :saved_change_to_investment_activity_label?
 
   # Pending transaction scopes - filter based on provider pending flags in extra JSONB
   # Works with any provider that stores pending status in extra["provider_name"]["pending"]
@@ -158,18 +151,5 @@ class Transaction < ApplicationRecord
       return unless family
 
       FamilyMerchantAssociation.where(family: family, merchant: merchant).delete_all
-    end
-
-    # Sync exclude_from_cashflow based on activity label
-    # Internal activities (Buy, Sell, etc.) should be excluded from cashflow
-    def sync_exclude_from_cashflow_with_activity_label
-      return unless entry&.account&.investment? || entry&.account&.crypto?
-      return if entry.locked?(:exclude_from_cashflow) # Respect user's manual setting
-
-      should_exclude = INTERNAL_ACTIVITY_LABELS.include?(investment_activity_label)
-
-      if entry.exclude_from_cashflow != should_exclude
-        entry.update!(exclude_from_cashflow: should_exclude)
-      end
     end
 end

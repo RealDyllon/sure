@@ -35,13 +35,6 @@ class TransactionTest < ActiveSupport::TestCase
     end
   end
 
-  test "INTERNAL_ACTIVITY_LABELS contains expected labels" do
-    assert_includes Transaction::INTERNAL_ACTIVITY_LABELS, "Buy"
-    assert_includes Transaction::INTERNAL_ACTIVITY_LABELS, "Sell"
-    assert_includes Transaction::INTERNAL_ACTIVITY_LABELS, "Reinvestment"
-    assert_includes Transaction::INTERNAL_ACTIVITY_LABELS, "Exchange"
-  end
-
   test "ACTIVITY_LABELS contains all valid labels" do
     assert_includes Transaction::ACTIVITY_LABELS, "Buy"
     assert_includes Transaction::ACTIVITY_LABELS, "Sell"
