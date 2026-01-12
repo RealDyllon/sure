@@ -119,8 +119,9 @@ class InvestmentActivityDetector
       end
 
       # Check for dividend patterns
-      if description == "CASH" || description.include?("DIVIDEND") ||
-         description.include?("DISTRIBUTION")
+      # "CASH" alone typically indicates dividend payout in brokerage feeds (only for inflows)
+      if description.include?("DIVIDEND") || description.include?("DISTRIBUTION") ||
+         (description == "CASH" && amount < 0)
         return "Dividend"
       end
 

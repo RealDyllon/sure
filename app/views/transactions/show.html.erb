@@ -240,7 +240,7 @@
 
                 <%= ef.select :investment_activity_label,
                       options_for_select(
-                        [["—", nil]] + Transaction::ACTIVITY_LABELS.map { |l| [l, l] },
+                        [["—", nil]] + Transaction::ACTIVITY_LABELS.map { |l| [t("transactions.activity_labels.#{l.parameterize(separator: '_')}"), l] },
                         @entry.entryable.investment_activity_label
                       ),
                       { label: false },
@@ -260,8 +260,8 @@
           <%= f.fields_for :entryable do |ef| %>
             <div class="flex cursor-pointer items-center gap-4 justify-between">
               <div class="text-sm space-y-1">
-                <h4 class="text-primary">One-time <%= @entry.amount.negative? ? "Income" : "Expense" %></h4>
-                <p class="text-secondary">One-time transactions will be excluded from certain budgeting calculations and reports to help you see what's really important.</p>
+                <h4 class="text-primary"><%= t(".one_time_title", type: @entry.amount.negative? ? t("transactions.form.income") : t("transactions.form.expense")) %></h4>
+                <p class="text-secondary"><%= t(".one_time_description") %></p>
               </div>
 
               <%= ef.toggle :kind, {

@@ -38,6 +38,22 @@ en:
       exclude_from_cashflow_description_investment: Hide from income/expense reports and Sankey chart. Use for internal investment activity like fund swaps, reinvestments, or money market sweeps.
       activity_type: Activity Type
       activity_type_description: Type of investment activity (Buy, Sell, Dividend, etc.). Auto-detected or set manually.
+      one_time_title: One-time %{type}
+      one_time_description: One-time transactions will be excluded from certain budgeting calculations and reports to help you see what's really important.
+    activity_labels:
+      buy: Buy
+      sell: Sell
+      sweep_in: Sweep In
+      sweep_out: Sweep Out
+      dividend: Dividend
+      reinvestment: Reinvestment
+      interest: Interest
+      fee: Fee
+      transfer: Transfer
+      contribution: Contribution
+      withdrawal: Withdrawal
+      exchange: Exchange
+      other: Other
       mark_recurring: Mark as Recurring
       mark_recurring_subtitle: Track this as a recurring transaction. Amount variance is automatically calculated from past 6 months of similar transactions.
       mark_recurring_title: Recurring Transaction

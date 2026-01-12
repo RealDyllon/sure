@@ -78,6 +78,7 @@ namespace :sure do
         # Find transactions (optionally include already-labeled if force=true)
         entries = account.entries
           .joins("INNER JOIN transactions ON transactions.id = entries.entryable_id AND entries.entryable_type = 'Transaction'")
+          .includes(:entryable)
 
         unless force
           entries = entries.where("transactions.investment_activity_label IS NULL OR transactions.investment_activity_label = ''")
@@ -160,8 +161,11 @@ namespace :sure do
         true
       elsif %w[1 true yes y].include?(dry_raw)
         true
-      else
+      elsif %w[0 false no n].include?(dry_raw)
         false
+      else
+        puts({ ok: false, error: "invalid_argument", message: "dry_run must be one of: true/yes/1 or false/no/0" }.to_json)
+        exit 1
       end
 
       account = Account.find(account_id)

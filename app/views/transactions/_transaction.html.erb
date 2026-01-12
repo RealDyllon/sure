@@ -87,7 +87,7 @@
                     <%# Investment activity label badge %>
                     <% if transaction.investment_activity_label.present? %>
                       <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-alpha-black-50 text-secondary" title="<%= t("transactions.transaction.activity_type_tooltip") %>">
-                        <%= transaction.investment_activity_label %>
+                        <%= t("transactions.activity_labels.#{transaction.investment_activity_label.parameterize(separator: '_')}") %>
                       </span>
                     <% end %>
 

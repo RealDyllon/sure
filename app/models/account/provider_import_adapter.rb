@@ -119,11 +119,12 @@ class Account::ProviderImportAdapter
       # Set investment activity label if provided and not already set
       if investment_activity_label.present? && entry.entryable.is_a?(Transaction)
         if entry.transaction.investment_activity_label.blank?
-          entry.transaction.update!(investment_activity_label: investment_activity_label)
+          entry.transaction.assign_attributes(investment_activity_label: investment_activity_label)
         end
       end
 
       entry.save!
+      entry.transaction.save! if entry.transaction.changed?
 
       # AFTER save: For NEW posted transactions, check for fuzzy matches to SUGGEST (not auto-claim)
       # This handles tip adjustments where auto-matching is too risky
