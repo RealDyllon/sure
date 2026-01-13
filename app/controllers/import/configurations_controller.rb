@@ -7,11 +7,11 @@ class Import::ConfigurationsController < ApplicationController
   end
 
   def update
-    @import.update!(import_params)
-
     if params[:refresh_only]
+      @import.update!(rows_to_skip: params.dig(:import, :rows_to_skip).to_i)
       redirect_to import_configuration_path(@import)
     else
+      @import.update!(import_params)
       @import.generate_rows_from_csv
       @import.reload.sync_mappings
 

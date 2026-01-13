@@ -46,14 +46,22 @@ export default class extends Controller {
   }
 
   refreshForm(event) {
-    const form = event.target.closest("form");
-    const input = document.createElement("input");
-    input.type = "hidden";
-    input.name = "refresh_only";
-    input.value = "true";
-    form.appendChild(input);
+    clearTimeout(this.refreshTimeout);
 
-    form.requestSubmit();
+    const form = event.target.closest("form");
+
+    this.refreshTimeout = setTimeout(() => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "refresh_only";
+      input.value = "true";
+      form.appendChild(input);
+
+      // Temporarily disable validation for refresh-only submission
+      form.setAttribute("novalidate", "");
+      form.requestSubmit();
+      form.removeAttribute("novalidate");
+    }, 500);
   }
 
   #showAmountTypeValueTargets(amountTypeColumnKey) {
