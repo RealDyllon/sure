@@ -42,6 +42,7 @@ class Import < ApplicationRecord
   validates :number_format, presence: true, inclusion: { in: NUMBER_FORMATS.keys }
   validates :rows_to_skip, numericality: { greater_than_or_equal_to: 0 }
   validate :account_belongs_to_family
+  validate :rows_to_skip_within_file_bounds
 
   has_many :rows, dependent: :destroy
   has_many :mappings, dependent: :destroy
@@ -371,5 +372,16 @@ class Import < ApplicationRecord
       return if account.family_id == family_id
 
       errors.add(:account, "must belong to your family")
+    end
+
+    def rows_to_skip_within_file_bounds
+      return if raw_file_str.blank?
+      return if rows_to_skip.to_i == 0
+
+      line_count = raw_file_str.lines.count
+
+      if rows_to_skip.to_i >= line_count
+        errors.add(:rows_to_skip, "must be less than the number of lines in the file (#{line_count})")
+      end
     end
 end
