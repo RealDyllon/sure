@@ -608,6 +608,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_01_12_065106) do
     t.string "exchange_operating_mic_col_label"
     t.string "amount_type_strategy", default: "signed_amount"
     t.string "amount_type_inflow_value"
+    t.integer "rows_to_skip", default: 0, null: false
     t.integer "rows_count", default: 0, null: false
     t.index ["family_id"], name: "index_imports_on_family_id"
   end
