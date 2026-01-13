@@ -45,6 +45,17 @@ export default class extends Controller {
     this.#showAmountTypeValueTargets(amountTypeColumnKey);
   }
 
+  refreshForm(event) {
+    const form = event.target.closest("form");
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = "refresh_only";
+    input.value = "true";
+    form.appendChild(input);
+
+    form.requestSubmit();
+  }
+
   #showAmountTypeValueTargets(amountTypeColumnKey) {
     const selectableValues = this.#uniqueValuesForColumn(amountTypeColumnKey);
 

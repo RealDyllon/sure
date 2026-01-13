@@ -8,10 +8,15 @@ class Import::ConfigurationsController < ApplicationController
 
   def update
     @import.update!(import_params)
-    @import.generate_rows_from_csv
-    @import.reload.sync_mappings
 
-    redirect_to import_clean_path(@import), notice: "Import configured successfully."
+    if params[:refresh_only]
+      redirect_to import_configuration_path(@import)
+    else
+      @import.generate_rows_from_csv
+      @import.reload.sync_mappings
+
+      redirect_to import_clean_path(@import), notice: t(".success")
+    end
   rescue ActiveRecord::RecordInvalid => e
     message = e.record.errors.full_messages.to_sentence.presence || e.message
     redirect_back_or_to import_configuration_path(@import), alert: message
