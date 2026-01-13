@@ -344,7 +344,7 @@ jobs:
         uses: actions/checkout@v4.2.0
         with:
           ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
 
       - name: Bump alpha version
         run: |
@@ -386,6 +386,7 @@ jobs:
 
            # Verify the change
            echo "Updated version.rb:"
+           grep "semver" "$VERSION_FILE"
 
       - name: Commit and push version bump
         run: |
@@ -398,6 +399,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit - version may have already been bumped"
             exit 0
+          fi
 
           git commit -m "Bump version to next alpha after ${{ github.ref_name }} release"
 
