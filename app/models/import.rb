@@ -40,7 +40,7 @@ class Import < ApplicationRecord
   validates :col_sep, inclusion: { in: SEPARATORS.map(&:last) }
   validates :signage_convention, inclusion: { in: SIGNAGE_CONVENTIONS }, allow_nil: true
   validates :number_format, presence: true, inclusion: { in: NUMBER_FORMATS.keys }
-  validates :rows_to_skip, numericality: { greater_than_or_equal_to: 0 }
+  validates :rows_to_skip, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validate :account_belongs_to_family
   validate :rows_to_skip_within_file_bounds
 
