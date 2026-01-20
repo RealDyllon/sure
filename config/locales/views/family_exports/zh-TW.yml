@@ -8,15 +8,15 @@ zh-TW:
       success: 匯出已成功刪除
     export_not_ready: 匯出尚未準備好下載
     table:
-      title: 出口
+      title: 匯出
       header:
         date: 日期
         filename: 檔案名稱
-        status: 地位
-        actions: 行動
+        status: 狀態
+        actions: 操作
       row:
         status:
           in_progress: 進行中
           complete: 已完成
           failed: 已失敗
-      empty: 目前尚無出口記錄。
+      empty: 目前尚無匯出記錄。

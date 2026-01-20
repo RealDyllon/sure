@@ -17,7 +17,7 @@ pt-BR:
       title: Exportações
       header:
         date: Data
-        filename: Nome do ficheiro
+        filename: Nome do arquivo
         status: Estado
         actions: Ações
       row:

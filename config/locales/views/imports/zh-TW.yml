@@ -59,8 +59,8 @@ zh-TW:
       title: 匯入紀錄
       header:
         date: 日期
-        operation: 手術
-        status: 地位
+        operation: 操作
+        status: 狀態
         actions: 行動
       row:
         status:

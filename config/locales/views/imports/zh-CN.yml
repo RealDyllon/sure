@@ -59,9 +59,9 @@ zh-CN:
       title: 导入记录
       header:
         date: 日期
-        operation: 手术
-        status: 地位
-        actions: 行动
+        operation: 操作
+        status: 状态
+        actions: 操作
       row:
         status:
           in_progress: 进行中

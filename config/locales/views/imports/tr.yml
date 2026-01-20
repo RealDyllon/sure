@@ -48,7 +48,7 @@ tr:
       title: İçe aktarmalar
       new: Yeni İçe Aktarma
     table:
-      title: Imports
+      title: İçe aktarmalar
       header:
         date: Tarih
         operation: Operasyon

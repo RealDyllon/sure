@@ -18,8 +18,8 @@ zh-CN:
       header:
         date: 日期
         filename: 文件名
-        status: 地位
-        actions: 行动
+        status: 状态
+        actions: 操作
       row:
         status:
           complete: 已完成

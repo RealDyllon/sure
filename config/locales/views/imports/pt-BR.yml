@@ -66,7 +66,7 @@ pt-BR:
       title: Importações
       new: Nova Importação
     table:
-      title: Imports
+      title: Importações
       header:
         date: Data
         operation: Operação

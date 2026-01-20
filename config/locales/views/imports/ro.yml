@@ -48,7 +48,7 @@ ro:
       title: Importuri
       new: Import nou
     table:
-      title: Imports
+      title: Importuri
       header:
         date: Data
         operation: Operațiune
