@@ -33,7 +33,7 @@
               <tr id="<%= dom_id import %>" class="border-b border-subdued hover:bg-surface-hover">
                 <td class="px-2 py-3">
                   <span class="text-sm text-secondary">
-                    <%= import.updated_at.strftime("%b %-d, %Y %l:%M %p") %>
+                    <%= l(import.updated_at, format: :long) %>
                   </span>
                 </td>
                 <td class="px-2 py-3">
