@@ -39,6 +39,10 @@ class Category < ApplicationRecord
   UNCATEGORIZED_NAME_KEY = "models.category.uncategorized"
   OTHER_INVESTMENTS_NAME_KEY = "models.category.other_investments"
 
+  # Default category name for investment contributions (bootstrapped category)
+  # This is the canonical English name used when seeding categories via bootstrap!
+  DEFAULT_INVESTMENT_CONTRIBUTIONS_NAME = "Investment Contributions"
+
   class Group
     attr_reader :category, :subcategories
 

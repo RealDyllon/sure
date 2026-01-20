@@ -43,7 +43,7 @@ class Transfer::Creator
     end
 
     def investment_contributions_category
-      source_account.family.categories.find_by(name: "Investment Contributions")
+      source_account.family.categories.find_by(name: Category::DEFAULT_INVESTMENT_CONTRIBUTIONS_NAME)
     end
 
     def inflow_transaction

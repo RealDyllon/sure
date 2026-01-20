@@ -7,16 +7,11 @@ class Transfer::CreatorTest < ActiveSupport::TestCase
     @destination_account = accounts(:investment)
     @date = Date.current
     @amount = 100
+    # Ensure the Investment Contributions category exists for transfer tests
+    @investment_category = ensure_investment_contributions_category(@family)
   end
 
   test "creates investment contribution when transferring from depository to investment" do
-    # Ensure the Investment Contributions category exists with all required attributes
-    investment_category = @family.categories.find_or_create_by!(name: "Investment Contributions") do |c|
-      c.color = "#0d9488"
-      c.lucide_icon = "trending-up"
-      c.classification = "expense"
-    end
-
     creator = Transfer::Creator.new(
       family: @family,
       source_account_id: @source_account.id,
@@ -36,7 +31,7 @@ class Transfer::CreatorTest < ActiveSupport::TestCase
     assert_equal @amount, outflow.entry.amount
     assert_equal @source_account.currency, outflow.entry.currency
     assert_equal "Transfer to #{@destination_account.name}", outflow.entry.name
-    assert_equal investment_category, outflow.category, "Should auto-assign Investment Contributions category"
+    assert_equal @investment_category, outflow.category, "Should auto-assign Investment Contributions category"
 
     # Verify inflow transaction (always funds_movement)
     inflow = transfer.inflow_transaction
@@ -75,13 +70,7 @@ class Transfer::CreatorTest < ActiveSupport::TestCase
   end
 
   test "creates investment contribution when transferring from depository to crypto" do
-    # Use crypto account - transfer from depository should be investment_contribution
     crypto_account = accounts(:crypto)
-    investment_category = @family.categories.find_or_create_by!(name: "Investment Contributions") do |c|
-      c.color = "#0d9488"
-      c.lucide_icon = "trending-up"
-      c.classification = "expense"
-    end
 
     creator = Transfer::Creator.new(
       family: @family,
@@ -99,7 +88,7 @@ class Transfer::CreatorTest < ActiveSupport::TestCase
     outflow = transfer.outflow_transaction
     assert_equal "investment_contribution", outflow.kind
     assert_equal "Transfer to #{crypto_account.name}", outflow.entry.name
-    assert_equal investment_category, outflow.category
+    assert_equal @investment_category, outflow.category
 
     # Verify inflow transaction with currency handling
     inflow = transfer.inflow_transaction
