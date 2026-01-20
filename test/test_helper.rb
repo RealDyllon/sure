@@ -82,7 +82,7 @@ module ActiveSupport
     # Ensures the Investment Contributions category exists for a family
     # Used in transfer tests where this bootstrapped category is required
     def ensure_investment_contributions_category(family)
-      family.categories.find_or_create_by!(name: Category::DEFAULT_INVESTMENT_CONTRIBUTIONS_NAME) do |c|
+      family.categories.find_or_create_by!(name: Category.investment_contributions_name) do |c|
         c.color = "#0d9488"
         c.lucide_icon = "trending-up"
         c.classification = "expense"
