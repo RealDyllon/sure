@@ -1,7 +1,16 @@
 ---
 fr:
   family_exports:
-    list:
-      in_progress: En cours
-      complete: Terminé
-      failed: Échoué
+    table:
+      title: Exportations
+      header:
+        date: Date
+        filename: Nom de fichier
+        status: Statut
+        actions: Actions
+      row:
+        status:
+          in_progress: En cours
+          complete: Terminé
+          failed: Échoué
+      empty: Aucune exportation pour l'instant.

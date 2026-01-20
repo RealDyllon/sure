@@ -13,9 +13,16 @@ en:
     index:
       title: Exports
       new: New Export
-      no_exports: No exports yet.
-    list:
-      export_from: "Export from %{date}"
-      in_progress: In progress
-      complete: Complete
-      failed: Failed
+    table:
+      title: Exports
+      header:
+        date: Date
+        filename: File name
+        status: Status
+        actions: Actions
+      row:
+        status:
+          in_progress: In progress
+          complete: Complete
+          failed: Failed
+      empty: No exports yet.
