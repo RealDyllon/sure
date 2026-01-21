@@ -13,20 +13,20 @@
         <% if @exports.any? %>
           <table class="w-full overflow-x-auto">
             <thead>
-            <tr class="text-xs uppercase font-medium text-secondary border-b border-divider">
-              <th class="px-2 py-3 text-left min-w-44">
-                <%= t("family_exports.table.header.date") %>
-              </th>
-              <th class="px-2 py-3 text-left min-w-64">
-                <%= t("family_exports.table.header.filename") %>
-              </th>
-              <th class="px-2 py-3 text-left min-w-24">
-                <%= t("family_exports.table.header.status") %>
-              </th>
-              <th class="px-2 py-3 text-right min-w-20">
-                <%= t("family_exports.table.header.actions") %>
-              </th>
-            </tr>
+              <tr class="text-xs uppercase font-medium text-secondary border-b border-divider">
+                <th class="px-2 py-3 text-left min-w-44">
+                  <%= t("family_exports.table.header.date") %>
+                </th>
+                <th class="px-2 py-3 text-left min-w-64">
+                  <%= t("family_exports.table.header.filename") %>
+                </th>
+                <th class="px-2 py-3 text-left min-w-24">
+                  <%= t("family_exports.table.header.status") %>
+                </th>
+                <th class="px-2 py-3 text-right min-w-20">
+                  <%= t("family_exports.table.header.actions") %>
+                </th>
+              </tr>
             </thead>
             <tbody>
             <% @exports.ordered.each do |export| %>
@@ -81,7 +81,7 @@
                       <% end %>
                     </div>
                   <% elsif export.failed? %>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 justify-end">
                       <div class="flex items-center gap-2 text-destructive">
                         <%= icon "alert-circle", class: "w-4 h-4" %>
                       </div>
