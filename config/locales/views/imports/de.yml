@@ -63,8 +63,9 @@ de:
           complete: Abgeschlossen
           failed: Fehlgeschlagen
         actions:
+          revert: Zurücksetzen
+          confirm_revert: Dadurch werden importierte Transaktionen gelöscht, Sie können Ihre Daten aber jederzeit wieder einsehen und erneut importieren.
           delete: Löschen
-          confirm_delete: Dadurch werden importierte Transaktionen gelöscht, Sie können Ihre Daten aber jederzeit wieder einsehen und erneut importieren.
           view: Anzeigen
       empty: Noch keine Importe vorhanden.
     new:

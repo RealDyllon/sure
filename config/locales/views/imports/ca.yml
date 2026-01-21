@@ -89,8 +89,9 @@ ca:
           complete: Completat
           failed: Error
         actions:
+          revert: Revertir
+          confirm_revert: Això suprimirà les transaccions que s'han importat, però encara podràs revisar i tornar a importar les teves dades en qualsevol moment.
           delete: Elimina
-          confirm_delete: Això suprimirà les transaccions que s'han importat, però encara podràs revisar i tornar a importar les teves dades en qualsevol moment.
           view: Veure
       empty: Encara no hi ha importacions.
     new:

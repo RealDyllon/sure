@@ -71,8 +71,9 @@ zh-CN:
           complete: 已完成
           failed: 已失败
         actions:
+          revert: 恢复
+          confirm_revert: 这将删除已导入的交易记录，但您仍然可以随时查看和重新导入您的数据。
           delete: 删除
-          confirm_delete: 这将删除已导入的交易记录，但您仍然可以随时查看和重新导入您的数据。
           view: 查看
       empty: 暂无导入记录。
     new:

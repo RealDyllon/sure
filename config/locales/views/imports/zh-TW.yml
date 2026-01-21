@@ -71,8 +71,9 @@ zh-TW:
           complete: 已完成
           failed: 失敗
         actions:
+          revert: 恢復
+          confirm_revert: 這將刪除已匯入的交易記錄，但您仍然可以隨時查看和重新匯入您的資料。
           delete: 刪除
-          confirm_delete: 這將刪除已匯入的交易記錄，但您仍然可以隨時查看和重新匯入您的資料。
           view: 查看
       empty: 尚無匯入紀錄。
     new:

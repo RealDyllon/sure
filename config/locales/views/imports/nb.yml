@@ -76,8 +76,9 @@ nb:
           complete: Fullført
           failed: Mislykket
         actions:
+          revert: Gå tilbake
+          confirm_revert: Dette vil slette transaksjoner som ble importert, men du vil fortsatt kunne se gjennom og importere dataene dine på nytt når som helst.
           delete: Slett
-          confirm_delete: Dette vil slette transaksjoner som ble importert, men du vil fortsatt kunne se gjennom og importere dataene dine på nytt når som helst.
           view: Vis
       empty: Ingen importer ennå.
     new:

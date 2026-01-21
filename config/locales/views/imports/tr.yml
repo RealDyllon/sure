@@ -63,8 +63,9 @@ tr:
           complete: Tamamlandı
           failed: Başarısız
         actions:
+          revert: Geri al
+          confirm_revert: Bu işlem, içe aktarılan işlemleri silecektir, ancak verilerinizi istediğiniz zaman inceleyebilir ve yeniden içe aktarabilirsiniz.
           delete: Sil
-          confirm_delete: Bu işlem, içe aktarılan işlemleri silecektir, ancak verilerinizi istediğiniz zaman inceleyebilir ve yeniden içe aktarabilirsiniz.
           view: Görüntüle
       empty: Henüz hiç içe aktarma yok.
     new:

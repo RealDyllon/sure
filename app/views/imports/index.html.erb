@@ -77,8 +77,9 @@
                       <%= button_to revert_import_path(import),
                                     method: :put,
                                     class: "flex items-center gap-2",
+                                    aria: { label: t("imports.table.row.actions.revert") },
                                     data: {
-                                      turbo_confirm: t("imports.table.row.actions.confirm_delete")
+                                      turbo_confirm: t("imports.table.row.actions.confirm_revert")
                                     } do %>
                         <%= icon "rotate-ccw", class: "w-5 h-5 text-destructive" %>
                       <% end %>
@@ -87,6 +88,7 @@
                       <%= button_to import_path(import),
                                     method: :delete,
                                     class: "flex items-center gap-2 text-destructive hover:text-destructive-hover",
+                                    aria: { label: t("imports.table.row.actions.delete") },
                                     data: {
                                       turbo_confirm: CustomConfirm.for_resource_deletion("import")
                                     } do %>
@@ -95,6 +97,7 @@
                     <% end %>
 
                     <%= link_to import_path(import),
+                                aria: { label: t("imports.table.row.actions.view") },
                                 class: "flex items-center gap-2 text-primary hover:text-primary-hover" do %>
                       <%= icon "eye", class: "w-5 h-5" %>
                     <% end %>

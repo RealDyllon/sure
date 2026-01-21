@@ -88,8 +88,9 @@ en:
           complete: Complete
           failed: Failed
         actions:
+          revert: Revert
+          confirm_revert: This will delete transactions that were imported, but you will still be able to review and re-import your data at any time.
           delete: Delete
-          confirm_delete: This will delete transactions that were imported, but you will still be able to review and re-import your data at any time.
           view: View
       empty: No imports yet.
     new:

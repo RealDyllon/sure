@@ -74,8 +74,9 @@ nl:
           complete: Voltooid
           failed: Mislukt
         actions:
+          revert: Terugdraaien
+          confirm_revert: Hierdoor worden de geïmporteerde transacties verwijderd, maar u kunt uw gegevens nog steeds op elk gewenst moment bekijken en opnieuw importeren.
           delete: Verwijderen
-          confirm_delete: Hierdoor worden de geïmporteerde transacties verwijderd, maar u kunt uw gegevens nog steeds op elk gewenst moment bekijken en opnieuw importeren.
           view: Bekijken
       empty: Nog geen imports.
     new:

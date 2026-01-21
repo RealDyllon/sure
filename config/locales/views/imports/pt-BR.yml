@@ -81,8 +81,9 @@ pt-BR:
           complete: Concluída
           failed: Falhou
         actions:
+          revert: Reverter
+          confirm_revert: Isso excluirá as transações importadas, mas você ainda poderá revisar e importar seus dados novamente a qualquer momento.
           delete: Excluir
-          confirm_delete: Isso excluirá as transações importadas, mas você ainda poderá revisar e importar seus dados novamente a qualquer momento.
           view: Visualizar
       empty: Nenhuma importação ainda.
     new:

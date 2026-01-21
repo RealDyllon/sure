@@ -67,8 +67,9 @@ es:
           complete: Completado
           failed: Fallido
         actions:
+          revert: Revertir
+          confirm_revert: Esto eliminará las transacciones que se importaron, pero aún podrá revisar y volver a importar sus datos en cualquier momento.
           delete: Eliminar
-          confirm_delete: Esto eliminará las transacciones que se importaron, pero aún podrá revisar y volver a importar sus datos en cualquier momento.
           view: Ver
       empty: Aún no hay importaciones.
     new:

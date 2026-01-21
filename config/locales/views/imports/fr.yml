@@ -74,8 +74,9 @@ fr:
           complete: Terminé
           failed: Échoué
         actions:
+          revert: Revenir
+          confirm_revert: Cette opération supprimera les transactions importées, mais vous pourrez toujours consulter et réimporter vos données à tout moment.
           delete: Supprimer
-          confirm_delete: Cette opération supprimera les transactions importées, mais vous pourrez toujours consulter et réimporter vos données à tout moment.
           view: Afficher
       empty: Aucune importation pour l'instant.
     new:
