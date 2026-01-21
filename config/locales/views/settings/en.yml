@@ -1,5 +1,9 @@
 ---
 en:
+  views:
+    settings:
+      payments:
+        renewal: "Your contribution continues on %{date}."
   settings:
     ai_prompts:
       show:
@@ -18,9 +22,9 @@ en:
           subtitle: AI identifies and enriches transaction data with merchant information
     payments:
       show:
-        page_title: Payment
-        subscription_subtitle: Update your subscription and payment details
-        subscription_title: Manage subscription
+        page_title: Payments
+        subscription_subtitle: Update your credit card details
+        subscription_title: Manage contributions
     preferences:
       show:
         country: Country
