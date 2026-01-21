@@ -14,107 +14,48 @@
     <span class="text-sm font-normal text-tertiary">(<%= Money.new(total, Current.family.currency).format %>)</span>
   </h3>
 
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="border-b border-tertiary">
-          <th class="text-left py-3 pr-4 font-medium text-secondary"><%= t("reports.transactions_breakdown.table.category") %></th>
-          <th class="text-right py-3 px-4 font-medium text-secondary">
-            <%= link_to reports_path(amount_sort_params), class: "inline-flex items-center gap-1 hover:text-primary" do %>
-              <%= t("reports.transactions_breakdown.table.amount") %>
-              <% if current_sort_by == "amount" %>
-                <%= icon(current_sort_direction == "desc" ? "chevron-down" : "chevron-up", class: "w-3 h-3") %>
-              <% end %>
-            <% end %>
-          </th>
-          <th class="text-right py-3 pl-4 font-medium text-secondary"><%= t("reports.transactions_breakdown.table.percentage") %></th>
-        </tr>
-      </thead>
-      <tbody>
-        <% groups.each do |group| %>
-          <% percentage = total.zero? ? 0 : (group[:total].to_f / total * 100).round(1) %>
-          <% has_subcategories = group[:subcategories].present? && group[:subcategories].any? %>
-          <tr class="border-b border-tertiary hover:bg-surface-inset">
-            <td class="py-3 pr-4">
-              <div class="flex items-center gap-2">
-                  <% if group[:category_icon] %>
-                    <div class="h-7 w-7 flex-shrink-0 group-hover:scale-105 transition-all duration-300 rounded-full flex justify-center items-center" 
-                    style="
-                      background-color: color-mix(in oklab, <%= group[:category_color] %> 10%, transparent);
-                      border-color: color-mix(in oklab, <%= group[:category_color] %> 10%, transparent);
-                      color: <%= group[:category_color] %>;">
-                        <%= icon(group[:category_icon], color: "current", size: "sm") %>
-                    </div>
-                  <% else %>
-                    <%= render DS::FilledIcon.new(
-                      variant: :text,
-                      hex_color: group[:category_color],
-                      text: group[:category_name],
-                      size: "md",
-                      rounded: true
-                    ) %>
-                  <% end %>
-                <span class="font-medium text-primary"><%= group[:category_name] %></span>
-                <span class="text-xs text-tertiary whitespace-nowrap">(<%= t("reports.transactions_breakdown.table.entries", count: group[:count]) %>)</span>
-              </div>
-            </td>
-            <td class="py-3 px-4 text-right">
-              <span class="font-semibold <%= color_class %>">
-                <%= Money.new(group[:total], Current.family.currency).format %>
-              </span>
-            </td>
-            <td class="py-3 pl-4 text-right">
-              <span class="text-sm text-secondary">
-                <%= percentage %>%
-              </span>
-            </td>
-          </tr>
-          <%# Render subcategories if present %>
-          <% if has_subcategories %>
-            <% group[:subcategories].each do |subcategory| %>
-              <% sub_percentage = total.zero? ? 0 : (subcategory[:total].to_f / total * 100).round(1) %>
-              <tr class="border-b border-tertiary hover:bg-surface-inset bg-surface-inset/30">
-                <td class="p-2 pl-3">
-                  <div class="flex items-center gap-2">
-                    <% if subcategory[:category_icon] %>
-                      <div class="flex items-center justify-center text-subdued">
-                        <%= icon "corner-down-right" %>
-                      </div>
-                      <div class="h-7 w-7 flex-shrink-0 group-hover:scale-105 transition-all duration-300 rounded-full flex justify-center items-center" 
-                      style="
-                        background-color: color-mix(in oklab, <%= subcategory[:category_color] %> 10%, transparent);
-                        border-color: color-mix(in oklab, <%= subcategory[:category_color] %> 10%, transparent);
-                        color: <%= subcategory[:category_color] %>;">
-                          <%= icon(subcategory[:category_icon], color: "current", size: "sm") %>
-                      </div>
-                    <% else %>
-                      <%= render DS::FilledIcon.new(
-                        variant: :text,
-                        hex_color: subcategory[:category_color],
-                        text: subcategory[:category_name],
-                        size: "md",
-                        rounded: true
-                      ) %>
-                    <% end %>
-                    <span class="text-sm text-secondary"><%= subcategory[:category_name] %></span>
-                    <span class="text-xs text-tertiary whitespace-nowrap">(<%= t("reports.transactions_breakdown.table.entries", count: subcategory[:count]) %>)</span>
-                  </div>
-                </td>
-                <td class="py-2 px-4 text-right">
-                  <span class="text-sm <%= color_class %>">
-                    <%= Money.new(subcategory[:total], Current.family.currency).format %>
-                  </span>
-                </td>
-                <td class="py-2 pl-4 text-right">
-                  <span class="text-xs text-tertiary">
-                    <%= sub_percentage %>%
-                  </span>
-                </td>
-              </tr>
+  <div class="bg-container-inset rounded-xl p-1 overflow-x-auto">
+    <div class="w-max sm:w-full">
+      <div class="grid grid-cols-4 sm:grid-cols-12 items-center uppercase text-xs font-medium text-secondary px-4 py-2">
+        <div class="col-span-2 sm:col-span-6 font-medium text-secondary"><%= t("reports.transactions_breakdown.table.category") %></div>
+        <div class="col-span-1 sm:col-span-3 justify-self-end font-medium text-secondary">
+          <%= link_to reports_path(amount_sort_params), class: "inline-flex items-center gap-1 hover:text-primary" do %>
+            <%= t("reports.transactions_breakdown.table.amount") %>
+            <% if current_sort_by == "amount" %>
+              <%= icon(current_sort_direction == "desc" ? "chevron-down" : "chevron-up", class: "w-3 h-3") %>
             <% end %>
           <% end %>
+        </div>
+        <div class="col-span-1 sm:col-span-3 justify-self-end font-medium text-secondary"><%= t("reports.transactions_breakdown.table.percentage") %></div>
+      </div>
+
+      <div class="bg-container rounded-lg shadow-border-xs">
+        <% groups.each_with_index do |group, idx| %>
+          <%= render "reports/category_row",
+            item: group,
+            total: total,
+            color_class: color_class,
+            level: :category
+          %>
+          <% if idx < group.size - 1 %>
+            <%= render "shared/ruler", classes: "mx-3 lg:mx-4" %>
+          <% end %>
+          <%# Render subcategories if present %>
+          <% if group[:subcategories].present? && group[:subcategories].any? %>
+            <% group[:subcategories].each_with_index do |subcategory, idx| %>
+              <%= render "reports/category_row",
+                item: subcategory,
+                total: total,
+                color_class: color_class,
+                level: :subcategory
+              %>
+            <% end %>
+            <% if idx < group.size - 1 %>
+            <%= render "shared/ruler", classes: "mx-3 lg:mx-4" %>
+          <% end %>
+          <% end %>
         <% end %>
-      </tbody>
-    </table>
+      </div>
+    </div>
   </div>
 </div>
