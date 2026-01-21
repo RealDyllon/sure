@@ -25,4 +25,7 @@ es:
           in_progress: En progreso
           complete: Completo
           failed: Fallido
+        actions:
+          delete: Eliminar
+          download: Descargar
       empty: Aún no hay exportaciones.

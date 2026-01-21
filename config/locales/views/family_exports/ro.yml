@@ -25,4 +25,7 @@ ro:
           in_progress: În curs de desfășurare
           complete: Finalizat
           failed: Eșuat
+        actions:
+          delete: Șterge
+          download: Descărcare
       empty: Nu există încă exporturi.

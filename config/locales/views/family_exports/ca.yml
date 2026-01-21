@@ -25,4 +25,7 @@ ca:
           in_progress: En curs
           complete: Completat
           failed: Error
+        actions:
+          delete: Elimina
+          download: Descarregar
       empty: Encara no hi ha exportacions.

@@ -25,4 +25,7 @@ pt-BR:
           in_progress: Em andamento
           complete: Concluído
           failed: Falhou
+        actions:
+          delete: Excluir
+          download: Descarregar
       empty: Nenhuma exportação ainda.

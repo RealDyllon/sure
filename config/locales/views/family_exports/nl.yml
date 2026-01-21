@@ -13,4 +13,7 @@ nl:
           in_progress: Bezig
           complete: Voltooid
           failed: Mislukt
+        actions:
+          delete: Verwijderen
+          download: Downloaden
       empty: Nog geen export.

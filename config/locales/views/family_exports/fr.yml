@@ -25,4 +25,7 @@ fr:
           in_progress: En cours
           complete: Terminé
           failed: Échoué
+        actions:
+          delete: Supprimer
+          download: Télécharger
       empty: Aucune exportation pour l'instant.

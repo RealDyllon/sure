@@ -25,4 +25,7 @@ tr:
           in_progress: Devam ediyor
           complete: Tamamlandı
           failed: Başarısız
+        actions:
+          delete: Sil
+          download: İndirmek
       empty: Henüz hiç dışa aktarma yok.

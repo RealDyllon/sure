@@ -25,4 +25,7 @@ nb:
           in_progress: Pågår
           complete: Fullført
           failed: Mislykket
+        actions:
+          delete: Slett
+          download: Laste ned
       empty: Ingen eksporter ennå.

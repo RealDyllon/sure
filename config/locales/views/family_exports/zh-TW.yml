@@ -19,4 +19,7 @@ zh-TW:
           in_progress: 進行中
           complete: 已完成
           failed: 已失敗
+        actions:
+          delete: 刪除
+          download: 下載
       empty: 目前尚無匯出記錄。
