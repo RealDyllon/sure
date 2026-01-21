@@ -76,11 +76,11 @@
     </div>
 
     <%# Summary Stats %>
-    <div class="mt-4 text-sm text-secondary">
+    <div class="mt-4 text-sm text-subdued">
       <%= t("reports.transactions_breakdown.pagination.showing", count: transactions.sum { |g| g[:count] }) %>
     </div>
   <% else %>
-    <div class="text-center py-8 text-tertiary">
+    <div class="text-center py-8 text-subdued">
       <%= t("reports.transactions_breakdown.no_transactions") %>
     </div>
   <% end %>
