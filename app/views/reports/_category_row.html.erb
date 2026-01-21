@@ -3,8 +3,8 @@
   is_sub = level == :subcategory
 %>
 
-<div class="grid grid-cols-4 sm:grid-cols-12 items-center text-secondary text-sm p-3 <%= is_sub ? "pl-6" : "" %>">
-  <div class="col-span-2 sm:col-span-6 flex items-center gap-2 px-2">
+<div class="grid grid-cols-4 sm:grid-cols-12 items-center text-secondary text-sm py-3 px-4 lg:px-6 <%= is_sub ? "pl-7 lg:pl-9" : "" %>">
+  <div class="col-span-2 sm:col-span-6 flex items-center gap-2">
     <% if is_sub %>
       <div class="text-subdued">
         <%= icon "corner-down-right" %>
