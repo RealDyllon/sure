@@ -18,7 +18,7 @@
 
     <%# Period Navigation Tabs %>
     <div class="flex items-center justify-between gap-4">
-      <div class="flex items-center gap-2 overflow-x-auto pb-2">
+      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
         <%= render DS::Link.new(
           text: t("reports.index.periods.monthly"),
           variant: @period_type == :monthly ? "secondary" : "ghost",
