@@ -1,7 +1,7 @@
 <div class="space-y-8">
     <%# Month-over-Month Trends %>
     <div>
-      <h3 class="text-sm font-medium text-secondary mb-4">
+      <h3 class="text-lg font-medium mb-4">
         <%= t("reports.trends.monthly_breakdown") %>
       </h3>
 
@@ -53,21 +53,21 @@
           <% avg_net = trends_data.sum { |t| t[:net] } / trends_data.length %>
 
           <div class="p-4 bg-surface-inset rounded-lg">
-            <p class="text-xs text-tertiary mb-1"><%= t("reports.trends.avg_monthly_income") %></p>
+            <p class="text-sm text-secondary mb-1"><%= t("reports.trends.avg_monthly_income") %></p>
             <p class="text-lg font-semibold text-success">
               <%= Money.new(avg_income, Current.family.currency).format %>
             </p>
           </div>
 
           <div class="p-4 bg-surface-inset rounded-lg">
-            <p class="text-xs text-tertiary mb-1"><%= t("reports.trends.avg_monthly_expenses") %></p>
+            <p class="text-sm text-secondary mb-1"><%= t("reports.trends.avg_monthly_expenses") %></p>
             <p class="text-lg font-semibold text-destructive">
               <%= Money.new(avg_expenses, Current.family.currency).format %>
             </p>
           </div>
 
           <div class="p-4 bg-surface-inset rounded-lg">
-            <p class="text-xs text-tertiary mb-1"><%= t("reports.trends.avg_monthly_savings") %></p>
+            <p class="text-sm text-secondary mb-1"><%= t("reports.trends.avg_monthly_savings") %></p>
             <p class="text-lg font-semibold <%= avg_net >= 0 ? "text-success" : "text-destructive" %>">
               <%= Money.new(avg_net, Current.family.currency).format %>
             </p>
