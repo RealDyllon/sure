@@ -26,11 +26,20 @@ class SnaptradeAccount::ActivitiesProcessor
     "JOURNAL" => "Other",
     "CASH" => "Contribution",     # Cash deposit (non-retirement)
     "CORP_ACTION" => "Other",     # Corporate action
-    "OTHER" => "Other"
+    "OTHER" => "Other",
+    # Option activity types
+    "OPTION_BUY" => "Buy",        # Buy to open/close option
+    "OPTION_SELL" => "Sell",      # Sell to open/close option
+    "EXERCISED" => "Other",       # Option exercised
+    "EXPIRED" => "Other",         # Option expired worthless
+    "ASSIGNED" => "Other"         # Option assignment
   }.freeze
 
   # Activity types that result in Trade records (involves securities)
-  TRADE_TYPES = %w[BUY SELL REI REINVEST].freeze
+  TRADE_TYPES = %w[BUY SELL REI REINVEST OPTION_BUY OPTION_SELL EXERCISED ASSIGNED].freeze
+
+  # Sell-side activity types (quantity should be negative)
+  SELL_SIDE_TYPES = %w[SELL OPTION_SELL ASSIGNED].freeze
 
   # Activity types that result in Transaction records (cash movements)
   CASH_TYPES = %w[DIVIDEND DIV CONTRIBUTION WITHDRAWAL TRANSFER_IN TRANSFER_OUT TRANSFER INTEREST FEE TAX CASH].freeze
@@ -140,8 +149,8 @@ class SnaptradeAccount::ActivitiesProcessor
         return
       end
 
-      # Determine sign based on activity type
-      quantity = if activity_type == "SELL"
+      # Determine sign based on activity type (sell-side should be negative)
+      quantity = if SELL_SIDE_TYPES.include?(activity_type)
         -quantity.abs
       else
         quantity.abs
