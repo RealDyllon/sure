@@ -16,9 +16,9 @@
 
   <div class="bg-container-inset rounded-xl p-1 overflow-x-auto">
     <div class="w-max sm:w-full">
-      <div class="grid grid-cols-4 sm:grid-cols-12 items-center uppercase text-xs font-medium text-secondary px-4 py-2">
-        <div class="col-span-2 sm:col-span-6 font-medium text-secondary"><%= t("reports.transactions_breakdown.table.category") %></div>
-        <div class="col-span-1 sm:col-span-3 justify-self-end font-medium text-secondary">
+      <div class="grid grid-cols-4 items-center uppercase text-xs font-medium text-secondary px-4 py-2">
+        <div class="col-span-2 font-medium text-secondary"><%= t("reports.transactions_breakdown.table.category") %></div>
+        <div class="col-span-1 text-right font-medium text-secondary">
           <%= link_to reports_path(amount_sort_params), class: "inline-flex items-center gap-1 hover:text-primary" do %>
             <%= t("reports.transactions_breakdown.table.amount") %>
             <% if current_sort_by == "amount" %>
@@ -26,7 +26,7 @@
             <% end %>
           <% end %>
         </div>
-        <div class="col-span-1 sm:col-span-3 justify-self-end font-medium text-secondary"><%= t("reports.transactions_breakdown.table.percentage") %></div>
+        <div class="col-span-1 text-right font-medium text-secondary"><%= t("reports.transactions_breakdown.table.percentage") %></div>
       </div>
 
       <div class="bg-container rounded-lg shadow-border-xs">

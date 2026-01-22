@@ -3,8 +3,8 @@
   is_sub = level == :subcategory
 %>
 
-<div class="grid grid-cols-4 sm:grid-cols-12 items-center text-secondary text-sm py-3 px-4 lg:px-6 <%= is_sub ? "pl-7 lg:pl-9" : "" %>">
-  <div class="col-span-2 sm:col-span-6 flex items-center gap-2">
+<div class="grid grid-cols-4 items-center text-secondary text-sm py-3 px-4 lg:px-6 <%= is_sub ? "pl-7 lg:pl-9" : "" %>">
+  <div class="col-span-2 flex items-center gap-2">
     <% if is_sub %>
       <div class="text-subdued">
         <%= icon "corner-down-right" %>
@@ -36,13 +36,13 @@
     </span>
   </div>
 
-  <div class="col-span-1 sm:col-span-3 justify-self-end">
+  <div class="col-span-1 text-right">
     <span class="text-sm <%= color_class %>">
       <%= Money.new(item[:total], Current.family.currency).format %>
     </span>
   </div>
 
-  <div class="col-span-1 sm:col-span-3 justify-self-end">
+  <div class="col-span-1 text-right">
     <span class="text-sm text-secondary">
       <%= percentage %>%
     </span>
