@@ -1,8 +1,6 @@
 class Settings::ProvidersController < ApplicationController
   layout "settings"
 
-  guard_feature unless: -> { self_hosted? }
-
   before_action :ensure_admin, only: [ :show, :update ]
 
   def show
