@@ -76,7 +76,7 @@
     </div>
 
     <%# Summary Stats %>
-    <div class="mt-4 text-sm text-subdued">
+    <div class="mt-4 text-xs text-subdued">
       <%= t("reports.transactions_breakdown.pagination.showing", count: transactions.sum { |g| g[:count] }) %>
     </div>
   <% else %>
