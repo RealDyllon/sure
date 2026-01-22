@@ -17,8 +17,8 @@
             </div>
             <div class="bg-container rounded-lg shadow-border-xs">
               <% trends_data.each_with_index do |trend, idx| %>
-                <div class="grid grid-cols-6 sm:grid-cols-10 items-center text-secondary text-sm p-3">
-                  <div class="col-span-2 sm:col-span-2 flex items-center gap-2 px-2 <%= trend[:is_current_month] ? "font-medium" : "" %>">
+                <div class="grid grid-cols-6 sm:grid-cols-10 items-center text-secondary text-sm py-3 px-4 lg:px-6">
+                  <div class="col-span-2 sm:col-span-2 flex items-center gap-2 <%= trend[:is_current_month] ? "font-medium" : "" %>">
                     <%= trend[:month] %>
                     <% if trend[:is_current_month] %>
                       <span class="text-xs text-tertiary">(<%= t("reports.trends.current") %>)</span>
