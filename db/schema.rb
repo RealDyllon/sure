@@ -659,6 +659,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_01_23_000000) do
     t.string "amount_type_inflow_value"
     t.integer "rows_to_skip", default: 0, null: false
     t.integer "rows_count", default: 0, null: false
+    t.string "amount_type_identifier_value"
     t.index ["family_id"], name: "index_imports_on_family_id"
   end
 
