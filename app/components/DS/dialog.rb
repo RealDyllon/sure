@@ -33,7 +33,7 @@ class DS::Dialog < DesignSystemComponent
     end
   end
 
-  attr_reader :variant, :auto_open, :reload_on_close, :width, :disable_frame, :disable_click_outside, :opts
+  attr_reader :variant, :auto_open, :reload_on_close, :width, :disable_frame, :content_class, :disable_click_outside, :opts
 
   VARIANTS = %w[modal drawer].freeze
   WIDTHS = {
@@ -43,13 +43,14 @@ class DS::Dialog < DesignSystemComponent
     full: "lg:max-w-full"
   }.freeze
 
-  def initialize(variant: "modal", auto_open: true, reload_on_close: false, width: "md", frame: nil, disable_frame: false, disable_click_outside: false, **opts)
+  def initialize(variant: "modal", auto_open: true, reload_on_close: false, width: "md", frame: nil, disable_frame: false, content_class: nil, disable_click_outside: false, **opts)
     @variant = variant.to_sym
     @auto_open = auto_open
     @reload_on_close = reload_on_close
     @width = width.to_sym
     @frame = frame
     @disable_frame = disable_frame
+    @content_class = content_class
     @disable_click_outside = disable_click_outside
     @opts = opts
   end
@@ -92,7 +93,8 @@ class DS::Dialog < DesignSystemComponent
 
     class_names(
       "flex flex-col bg-container rounded-xl shadow-border-xs mx-3 lg:mx-0 w-full overflow-hidden",
-      variant_classes
+      variant_classes,
+      content_class
     )
   end
 
@@ -104,7 +106,7 @@ class DS::Dialog < DesignSystemComponent
     data[:DS__dialog_auto_open_value] = auto_open
     data[:DS__dialog_reload_on_close_value] = reload_on_close
     data[:DS__dialog_disable_click_outside_value] = disable_click_outside
-    data[:action] = [ "mousedown->DS--dialog#clickOutside", data[:action] ].compact.join(" ")
+    data[:action] = [ "click->DS--dialog#clickOutside", data[:action] ].compact.join(" ")
     data[:hotkey] = "esc:DS--dialog#close"
     merged_opts[:data] = data
 
