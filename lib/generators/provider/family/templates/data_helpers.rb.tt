@@ -57,6 +57,7 @@ module <%= class_name %>Account::DataHelpers
       Rails.logger.error("<%= class_name %>Account::DataHelpers - Failed to parse date: #{date_value.inspect} - #{e.message}")
       nil
     end
+<% if investment_provider? -%>
 
     # Find or create security with race condition handling
     def resolve_security(symbol, symbol_data = {})
@@ -137,6 +138,7 @@ module <%= class_name %>Account::DataHelpers
         nil
       end
     end
+<% end -%>
 
     # Handle currency as string or object (API inconsistency)
     def extract_currency(data, fallback: nil)
