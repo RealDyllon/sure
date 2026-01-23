@@ -70,7 +70,11 @@ class <%= class_name %>ActivitiesFetchJob < ApplicationJob
       #   **credentials
       # )
       []
+    rescue Provider::<%= class_name %>::AuthenticationError
+      # Re-raise auth errors - they need immediate attention
+      raise
     rescue => e
+      # Transient errors trigger retry via blank response
       Rails.logger.error("<%= class_name %>ActivitiesFetchJob - API error: #{e.message}")
       []
     end

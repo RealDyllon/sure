@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class <%= class_name %>ItemsController < ApplicationController
+  ALLOWED_ACCOUNTABLE_TYPES = %w[Depository CreditCard Investment Loan OtherAsset OtherLiability Crypto Property Vehicle].freeze
+
   before_action :set_<%= file_name %>_item, only: [ :show, :edit, :update, :destroy, :sync, :setup_accounts, :complete_account_setup ]
 
   def index
@@ -277,11 +279,13 @@ class <%= class_name %>ItemsController < ApplicationController
     end
 
     def link_<%= file_name %>_account(<%= file_name %>_account, accountable_type)
+      accountable_class = validated_accountable_class(accountable_type)
+
       account = Current.family.accounts.create!(
         name: <%= file_name %>_account.name,
         balance: <%= file_name %>_account.current_balance || 0,
         currency: <%= file_name %>_account.currency || "USD",
-        accountable: accountable_type.constantize.new
+        accountable: accountable_class.new
       )
 
       <%= file_name %>_account.ensure_account_provider!(account)
@@ -289,7 +293,7 @@ class <%= class_name %>ItemsController < ApplicationController
     end
 
     def create_account_from_<%= file_name %>(<%= file_name %>_account, accountable_type, config)
-      accountable_class = accountable_type.constantize
+      accountable_class = validated_accountable_class(accountable_type)
       accountable_attrs = {}
 
       # Set subtype if the accountable supports it
@@ -320,5 +324,13 @@ class <%= class_name %>ItemsController < ApplicationController
       else
         "Depository"
       end
+    end
+
+    def validated_accountable_class(accountable_type)
+      unless ALLOWED_ACCOUNTABLE_TYPES.include?(accountable_type)
+        raise ArgumentError, "Invalid accountable type: #{accountable_type}"
+      end
+
+      accountable_type.constantize
     end
 end

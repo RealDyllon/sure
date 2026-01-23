@@ -95,7 +95,7 @@
         ) <%%= "%" + ">" %>
 
         <%%= "<" + "%# Compute unlinked accounts (no AccountProvider link) %" + ">" %>
-        <%%= "<" + "% unlinked_count = #{file_name}_item.unlinked_#{file_name}_accounts.count rescue 0 %" + ">" %>
+        <%%= "<" + "% unlinked_count = #{file_name}_item.unlinked_#{file_name}_accounts&.count || 0 %" + ">" %>
 
         <%%= "<" + "% if unlinked_count.to_i > 0 && #{file_name}_item.accounts.empty? %" + ">" %>
           <%%= "<" + "%# No accounts imported yet - show prominent setup prompt %" + ">" %>

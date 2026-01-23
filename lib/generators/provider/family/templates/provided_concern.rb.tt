@@ -7,13 +7,14 @@ module <%= class_name %>Item::Provided
     return nil unless credentials_configured?
 
     Provider::<%= class_name %>.new(
-<% parsed_fields.select { |f| f[:secret] }.each_with_index do |field, index| -%>
-      <%= field[:name] %>: <%= field[:name] %><%= index < parsed_fields.select { |f| f[:secret] }.size - 1 ? ',' : '' %>
+<% secret_fields = parsed_fields.select { |f| f[:secret] } -%>
+<% default_fields = parsed_fields.select { |f| f[:default] } -%>
+<% secret_fields.each_with_index do |field, index| -%>
+<% needs_comma = index < secret_fields.size - 1 || default_fields.any? -%>
+      <%= field[:name] %>: <%= field[:name] %><%= needs_comma ? ',' : '' %>
 <% end -%>
-<% if parsed_fields.select { |f| f[:default] }.any? -%>
-<% parsed_fields.select { |f| f[:default] }.each_with_index do |field, index| -%>
-      <%= field[:name] %>: effective_<%= field[:name] %><%= index < parsed_fields.select { |f| f[:default] }.size - 1 ? ',' : '' %>
-<% end -%>
+<% default_fields.each_with_index do |field, index| -%>
+      <%= field[:name] %>: effective_<%= field[:name] %><%= index < default_fields.size - 1 ? ',' : '' %>
 <% end -%>
     )
   end

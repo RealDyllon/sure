@@ -160,7 +160,8 @@ class <%= class_name %>Account::ActivitiesProcessor
       # TODO: Customize amount field names
       amount = parse_decimal(data[:amount]) ||
                parse_decimal(data[:net_amount])
-      return if amount.nil? || amount.zero?
+      return if amount.nil?
+      # Note: Zero-amount transactions (splits, free shares) are allowed
 
       # Get the activity date
       # TODO: Customize date field names

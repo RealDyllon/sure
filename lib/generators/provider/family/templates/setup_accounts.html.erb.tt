@@ -55,13 +55,8 @@
 
             <div class="space-y-2 max-h-96 overflow-y-auto">
               <%%= "<" + "% @unlinked_accounts.each do |#{file_name}_account| %" + ">" %>
-                <label for="acc_<%%= "<" + "%= #{file_name}_account.id %" + ">" %>" class="flex items-center gap-3 p-3 border border-primary rounded-lg hover:bg-surface transition-colors cursor-pointer">
-                  <%%= "<" + "%= check_box_tag \"selected_accounts[]\"," %>
-                                    <%%= "<" + "%= #{file_name}_account.id," %>
-                                    false,
-                                    id: "acc_#{<%%= "<" + "%= #{file_name}_account.id %" + ">" %>}",
-                                    class: "checkbox checkbox--dark",
-                                    data: { select_all_target: "checkbox" } <%%= "%" + ">" %>
+                <%%= "<" + "%= tag.label for: dom_id(#{file_name}_account, :acc), class: \"flex items-center gap-3 p-3 border border-primary rounded-lg hover:bg-surface transition-colors cursor-pointer\" do %" + ">" %>
+                  <%%= "<" + "%= check_box_tag \"selected_accounts[]\", #{file_name}_account.id, false, id: dom_id(#{file_name}_account, :acc), class: \"checkbox checkbox--dark\", data: { select_all_target: \"checkbox\" } %" + ">" %>
                   <div class="flex-1 min-w-0">
                     <p class="font-medium text-primary truncate">
                       <%%= "<" + "%= #{file_name}_account.name %" + ">" %>
@@ -80,7 +75,7 @@
                       <%%= "<" + "%= #{file_name}_account.currency || \"USD\" %" + ">" %>
                     </p>
                   </div>
-                </label>
+                <%%= "<" + "% end %" + ">" %>
               <%%= "<" + "% end %" + ">" %>
             </div>
           </div>
