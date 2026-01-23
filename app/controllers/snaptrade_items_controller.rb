@@ -1,5 +1,5 @@
 class SnaptradeItemsController < ApplicationController
-  before_action :set_snaptrade_item, only: [ :show, :edit, :update, :destroy, :sync, :connect, :setup_accounts, :complete_account_setup ]
+  before_action :set_snaptrade_item, only: [ :show, :edit, :update, :destroy, :sync, :connect, :setup_accounts, :complete_account_setup, :connections, :delete_connection, :delete_orphaned_user ]
 
   def index
     @snaptrade_items = Current.family.snaptrade_items.ordered
@@ -17,7 +17,7 @@ class SnaptradeItemsController < ApplicationController
 
   def create
     @snaptrade_item = Current.family.snaptrade_items.build(snaptrade_item_params)
-    @snaptrade_item.name ||= "SnapTrade Connection"
+    @snaptrade_item.name ||= t("snaptrade_items.default_name")
 
     if @snaptrade_item.save
       # Register user with SnapTrade after saving credentials
@@ -235,6 +235,104 @@ class SnaptradeItemsController < ApplicationController
     end
   end
 
+  # Fetch connections list for Turbo Frame
+  def connections
+    data = build_connections_list
+    render partial: "snaptrade_items/connections_list", layout: false, locals: {
+      connections: data[:connections],
+      orphaned_users: data[:orphaned_users],
+      snaptrade_item: @snaptrade_item,
+      error: @error
+    }
+  end
+
+  # Delete a brokerage connection
+  def delete_connection
+    authorization_id = params[:authorization_id]
+
+    if authorization_id.blank?
+      redirect_to settings_providers_path, alert: t(".failed", message: t(".missing_authorization_id"))
+      return
+    end
+
+    # Delete all local SnaptradeAccounts for this connection (triggers cleanup job)
+    accounts_deleted = @snaptrade_item.snaptrade_accounts
+      .where(snaptrade_authorization_id: authorization_id)
+      .destroy_all
+      .size
+
+    # If no local accounts existed (orphan), delete directly from API
+    api_deletion_failed = false
+    if accounts_deleted == 0
+      provider = @snaptrade_item.snaptrade_provider
+      creds = @snaptrade_item.snaptrade_credentials
+
+      if provider && creds&.dig(:user_id) && creds&.dig(:user_secret)
+        provider.delete_connection(
+          user_id: creds[:user_id],
+          user_secret: creds[:user_secret],
+          authorization_id: authorization_id
+        )
+      else
+        Rails.logger.warn "SnapTrade: Cannot delete orphaned connection #{authorization_id} - missing credentials"
+        api_deletion_failed = true
+      end
+    end
+
+    respond_to do |format|
+      if api_deletion_failed
+        format.html { redirect_to settings_providers_path, alert: t(".api_deletion_failed") }
+        format.turbo_stream do
+          flash.now[:alert] = t(".api_deletion_failed")
+          render turbo_stream: flash_notification_stream_items
+        end
+      else
+        format.html { redirect_to settings_providers_path, notice: t(".success") }
+        format.turbo_stream { render turbo_stream: turbo_stream.remove("connection_#{authorization_id}") }
+      end
+    end
+  rescue Provider::Snaptrade::ApiError => e
+    respond_to do |format|
+      format.html { redirect_to settings_providers_path, alert: t(".failed", message: e.message) }
+      format.turbo_stream do
+        flash.now[:alert] = t(".failed", message: e.message)
+        render turbo_stream: flash_notification_stream_items
+      end
+    end
+  end
+
+  # Delete an orphaned SnapTrade user (and all their connections)
+  def delete_orphaned_user
+    user_id = params[:user_id]
+
+    # Security: verify this is actually an orphaned user
+    unless @snaptrade_item.orphaned_users.include?(user_id)
+      respond_to do |format|
+        format.html { redirect_to settings_providers_path, alert: t(".failed") }
+        format.turbo_stream do
+          flash.now[:alert] = t(".failed")
+          render turbo_stream: flash_notification_stream_items
+        end
+      end
+      return
+    end
+
+    if @snaptrade_item.delete_orphaned_user(user_id)
+      respond_to do |format|
+        format.html { redirect_to settings_providers_path, notice: t(".success") }
+        format.turbo_stream { render turbo_stream: turbo_stream.remove("orphaned_user_#{user_id.parameterize}") }
+      end
+    else
+      respond_to do |format|
+        format.html { redirect_to settings_providers_path, alert: t(".failed") }
+        format.turbo_stream do
+          flash.now[:alert] = t(".failed")
+          render turbo_stream: flash_notification_stream_items
+        end
+      end
+    end
+  end
+
   # Collection actions for account linking flow
 
   def preload_accounts
@@ -321,6 +419,49 @@ class SnaptradeItemsController < ApplicationController
         :client_id,
         :consumer_key
       )
+    end
+
+    def build_connections_list
+      # Fetch connections for current user from API
+      api_connections = @snaptrade_item.fetch_connections
+
+      # Get local accounts grouped by authorization_id
+      local_accounts = @snaptrade_item.snaptrade_accounts
+        .includes(:account_provider)
+        .group_by(&:snaptrade_authorization_id)
+
+      # Build unified list
+      result = { connections: [], orphaned_users: [] }
+
+      # Add connections from API for current user
+      api_connections.each do |api_conn|
+        auth_id = api_conn.id
+        local_accts = local_accounts[auth_id] || []
+
+        result[:connections] << {
+          authorization_id: auth_id,
+          brokerage_name: api_conn.brokerage&.name || I18n.t("snaptrade_items.connections.unknown_brokerage"),
+          brokerage_slug: api_conn.brokerage&.slug,
+          accounts: local_accts.map { |acct|
+            { id: acct.id, name: acct.name, linked: acct.account_provider.present? }
+          },
+          orphaned_connection: local_accts.empty?
+        }
+      end
+
+      # Add orphaned users (users registered but not current)
+      orphaned = @snaptrade_item.orphaned_users
+      orphaned.each do |user_id|
+        result[:orphaned_users] << {
+          user_id: user_id,
+          display_name: user_id.truncate(30)
+        }
+      end
+
+      result
+    rescue Provider::Snaptrade::ApiError => e
+      @error = e.message
+      { connections: [], orphaned_users: [] }
     end
 
     def link_snaptrade_account(snaptrade_account)
