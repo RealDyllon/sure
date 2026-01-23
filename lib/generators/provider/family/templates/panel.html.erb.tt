@@ -65,7 +65,7 @@
       <div class="w-2 h-2 bg-success rounded-full"></div>
       <p class="text-sm text-secondary"><%= "<" + "%= t(\"#{file_name}_items.panel.status_configured_html\", accounts_path: accounts_path).html_safe %" + ">" %></p>
     <%= "<" + "% else %" + ">" %>
-      <div class="w-2 h-2 bg-gray rounded-full"></div>
+      <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
       <p class="text-sm text-secondary"><%= "<" + "%= t(\"#{file_name}_items.panel.status_not_configured\") %" + ">" %></p>
     <%= "<" + "% end %" + ">" %>
   </div>

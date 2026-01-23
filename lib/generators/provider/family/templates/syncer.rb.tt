@@ -65,7 +65,7 @@ class <%= class_name %>Item::Syncer
 <% if investment_provider? -%>
 
     def count_holdings
-      <%= file_name %>_item.<%= file_name %>_accounts.sum { |pa| Array(pa.raw_holdings_payload).size }
+      <%= file_name %>_item.linked_<%= file_name %>_accounts.sum { |pa| Array(pa.raw_holdings_payload).size }
     end
 <% end -%>
 
