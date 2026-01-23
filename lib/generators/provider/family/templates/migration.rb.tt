@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Create<%= class_name %>ItemsAndAccounts < ActiveRecord::Migration<%= migration_version %>
   def change
     # Create provider items table (stores per-family connection credentials)
@@ -40,11 +42,14 @@ class Create<%= class_name %>ItemsAndAccounts < ActiveRecord::Migration<%= migra
 
       # Account identification
       t.string :name
-      t.string :account_id
+      t.string :<%= file_name %>_account_id
+      t.string :<%= file_name %>_authorization_id
+      t.string :account_number
 
       # Account details
       t.string :currency
       t.decimal :current_balance, precision: 19, scale: 4
+      t.decimal :cash_balance, precision: 19, scale: 4, default: 0.0
       t.string :account_status
       t.string :account_type
       t.string :provider
@@ -54,9 +59,20 @@ class Create<%= class_name %>ItemsAndAccounts < ActiveRecord::Migration<%= migra
       t.jsonb :raw_payload
       t.jsonb :raw_transactions_payload
 
+      # Investment data (holdings, activities)
+      t.jsonb :raw_holdings_payload, default: []
+      t.jsonb :raw_activities_payload, default: []
+      t.datetime :last_holdings_sync
+      t.datetime :last_activities_sync
+      t.boolean :activities_fetch_pending, default: false
+
+      # Sync settings
+      t.date :sync_start_date
+
       t.timestamps
     end
 
-    add_index :<%= file_name %>_accounts, :account_id
+    add_index :<%= file_name %>_accounts, :<%= file_name %>_account_id, unique: true
+    add_index :<%= file_name %>_accounts, :<%= file_name %>_authorization_id
   end
 end

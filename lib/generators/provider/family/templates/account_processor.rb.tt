@@ -1,0 +1,112 @@
+# frozen_string_literal: true
+
+class <%= class_name %>Account::Processor
+  include <%= class_name %>Account::DataHelpers
+
+  attr_reader :<%= file_name %>_account
+
+  def initialize(<%= file_name %>_account)
+    @<%= file_name %>_account = <%= file_name %>_account
+  end
+
+  def process
+    account = <%= file_name %>_account.current_account
+    return unless account
+
+    Rails.logger.info "<%= class_name %>Account::Processor - Processing account #{<%= file_name %>_account.id} -> Sure account #{account.id}"
+
+    # Update account balance FIRST (before processing holdings/activities)
+    # This creates the current_anchor valuation needed for reverse sync
+    update_account_balance(account)
+
+    # Process holdings
+    holdings_count = <%= file_name %>_account.raw_holdings_payload&.size || 0
+    Rails.logger.info "<%= class_name %>Account::Processor - Holdings payload has #{holdings_count} items"
+
+    if <%= file_name %>_account.raw_holdings_payload.present?
+      Rails.logger.info "<%= class_name %>Account::Processor - Processing holdings..."
+      <%= class_name %>Account::HoldingsProcessor.new(<%= file_name %>_account).process
+    else
+      Rails.logger.warn "<%= class_name %>Account::Processor - No holdings payload to process"
+    end
+
+    # Process activities (trades, dividends, etc.)
+    activities_count = <%= file_name %>_account.raw_activities_payload&.size || 0
+    Rails.logger.info "<%= class_name %>Account::Processor - Activities payload has #{activities_count} items"
+
+    if <%= file_name %>_account.raw_activities_payload.present?
+      Rails.logger.info "<%= class_name %>Account::Processor - Processing activities..."
+      <%= class_name %>Account::ActivitiesProcessor.new(<%= file_name %>_account).process
+    else
+      Rails.logger.warn "<%= class_name %>Account::Processor - No activities payload to process"
+    end
+
+    # Trigger immediate UI refresh so entries appear in the activity feed
+    account.broadcast_sync_complete
+    Rails.logger.info "<%= class_name %>Account::Processor - Broadcast sync complete for account #{account.id}"
+
+    { holdings_processed: holdings_count > 0, activities_processed: activities_count > 0 }
+  end
+
+  private
+
+    def update_account_balance(account)
+      # Calculate total balance and cash balance from provider data
+      total_balance = calculate_total_balance
+      cash_balance = calculate_cash_balance
+
+      Rails.logger.info "<%= class_name %>Account::Processor - Balance update: total=#{total_balance}, cash=#{cash_balance}"
+
+      # Update the cached fields on the account
+      account.assign_attributes(
+        balance: total_balance,
+        cash_balance: cash_balance,
+        currency: <%= file_name %>_account.currency || account.currency
+      )
+      account.save!
+
+      # Create or update the current balance anchor valuation for linked accounts
+      # This is critical for reverse sync to work correctly
+      account.set_current_balance(total_balance)
+    end
+
+    def calculate_total_balance
+      # Calculate total from holdings + cash for accuracy
+      holdings_value = calculate_holdings_value
+      cash_value = <%= file_name %>_account.cash_balance || 0
+
+      calculated_total = holdings_value + cash_value
+
+      # Use calculated total if we have holdings, otherwise trust API value
+      if holdings_value > 0
+        Rails.logger.info "<%= class_name %>Account::Processor - Using calculated total: holdings=#{holdings_value} + cash=#{cash_value} = #{calculated_total}"
+        calculated_total
+      elsif <%= file_name %>_account.current_balance.present?
+        Rails.logger.info "<%= class_name %>Account::Processor - Using API total: #{<%= file_name %>_account.current_balance}"
+        <%= file_name %>_account.current_balance
+      else
+        calculated_total
+      end
+    end
+
+    def calculate_cash_balance
+      # Use provider's cash_balance directly
+      # Note: Can be negative for margin accounts
+      cash = <%= file_name %>_account.cash_balance
+      Rails.logger.info "<%= class_name %>Account::Processor - Cash balance from API: #{cash.inspect}"
+      cash || BigDecimal("0")
+    end
+
+    def calculate_holdings_value
+      holdings_data = <%= file_name %>_account.raw_holdings_payload || []
+      return 0 if holdings_data.empty?
+
+      holdings_data.sum do |holding|
+        data = holding.is_a?(Hash) ? holding.with_indifferent_access : {}
+        # TODO: Customize field names based on your provider's format
+        units = parse_decimal(data[:units] || data[:quantity]) || 0
+        price = parse_decimal(data[:price]) || 0
+        units * price
+      end
+    end
+end

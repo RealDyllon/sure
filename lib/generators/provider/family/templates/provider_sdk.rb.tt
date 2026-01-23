@@ -1,0 +1,118 @@
+# frozen_string_literal: true
+
+class Provider::<%= class_name %>
+  class Error < StandardError; end
+  class ConfigurationError < Error; end
+  class AuthenticationError < Error; end
+  class ApiError < Error
+    attr_reader :status_code, :response_body
+
+    def initialize(message, status_code: nil, response_body: nil)
+      super(message)
+      @status_code = status_code
+      @response_body = response_body
+    end
+  end
+
+  # Retry configuration for transient network failures
+  MAX_RETRIES = 3
+  INITIAL_RETRY_DELAY = 2 # seconds
+  MAX_RETRY_DELAY = 30 # seconds
+
+  def initialize(<%= parsed_fields.map { |f| "#{f[:name]}:" }.join(", ") %>)
+<% parsed_fields.each do |field| -%>
+    @<%= field[:name] %> = <%= field[:name] %>
+<% end -%>
+    validate_configuration!
+  end
+
+  # TODO: Implement provider-specific API methods
+  # Example methods based on common provider patterns:
+
+  # def list_accounts(**credentials)
+  #   with_retries("list_accounts") do
+  #     # API call to list accounts
+  #   end
+  # end
+
+  # def get_holdings(account_id:, **credentials)
+  #   with_retries("get_holdings") do
+  #     # API call to get holdings for an account
+  #   end
+  # end
+
+  # def get_activities(account_id:, start_date:, end_date: Date.current, **credentials)
+  #   with_retries("get_activities") do
+  #     # API call to get activities/transactions
+  #   end
+  # end
+
+  # def delete_connection(authorization_id:, **credentials)
+  #   with_retries("delete_connection") do
+  #     # API call to delete a connection
+  #   end
+  # end
+
+  private
+
+    def validate_configuration!
+<% parsed_fields.select { |f| f[:secret] }.each do |field| -%>
+      raise ConfigurationError, "<%= field[:name].humanize %> is required" if @<%= field[:name] %>.blank?
+<% end -%>
+    end
+
+    def with_retries(operation_name, max_retries: MAX_RETRIES)
+      retries = 0
+
+      begin
+        yield
+      rescue Faraday::TimeoutError, Faraday::ConnectionFailed, Errno::ECONNRESET, Errno::ETIMEDOUT => e
+        retries += 1
+
+        if retries <= max_retries
+          delay = calculate_retry_delay(retries)
+          Rails.logger.warn(
+            "<%= class_name %> API: #{operation_name} failed (attempt #{retries}/#{max_retries}): " \
+            "#{e.class}: #{e.message}. Retrying in #{delay}s..."
+          )
+          sleep(delay)
+          retry
+        else
+          Rails.logger.error(
+            "<%= class_name %> API: #{operation_name} failed after #{max_retries} retries: " \
+            "#{e.class}: #{e.message}"
+          )
+          raise ApiError.new("Network error after #{max_retries} retries: #{e.message}")
+        end
+      end
+    end
+
+    def calculate_retry_delay(retry_count)
+      base_delay = INITIAL_RETRY_DELAY * (2 ** (retry_count - 1))
+      jitter = base_delay * rand * 0.25
+      [ base_delay + jitter, MAX_RETRY_DELAY ].min
+    end
+
+    def handle_api_error(error, operation)
+      status = error.respond_to?(:code) ? error.code : nil
+      body = error.respond_to?(:response_body) ? error.response_body : nil
+
+      Rails.logger.error("<%= class_name %> API error (#{operation}): #{status} - #{error.message}")
+
+      case status
+      when 401, 403
+        raise AuthenticationError, "Authentication failed: #{error.message}"
+      when 429
+        raise ApiError.new("Rate limit exceeded. Please try again later.", status_code: status, response_body: body)
+      when 500..599
+        raise ApiError.new("<%= class_name %> server error (#{status}). Please try again later.", status_code: status, response_body: body)
+      else
+        raise ApiError.new("<%= class_name %> API error: #{error.message}", status_code: status, response_body: body)
+      end
+    end
+
+  # TODO: Implement api_client method
+  # def api_client
+  #   @api_client ||= SomeProviderGem::Client.new(api_key: @api_key)
+  # end
+end
