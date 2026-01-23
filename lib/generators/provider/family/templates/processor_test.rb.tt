@@ -11,10 +11,14 @@ class <%= class_name %>Account::ProcessorTest < ActiveSupport::TestCase
 
     # Create a linked Sure account for the provider account
     @account = @family.accounts.create!(
-      name: "Test Investment",
+      name: "Test Account",
       balance: 10000,
       currency: "USD",
+<% if investment_provider? -%>
       accountable: Investment.new
+<% else -%>
+      accountable: Depository.new
+<% end -%>
     )
 
     # TODO: Link the provider account to the Sure account
@@ -55,6 +59,7 @@ class <%= class_name %>Account::ProcessorTest < ActiveSupport::TestCase
     # @account.reload
     # assert_equal 15000, @account.balance.to_f
   end
+<% if investment_provider? -%>
 
   # ==========================================================================
   # HoldingsProcessor tests
@@ -130,4 +135,55 @@ class <%= class_name %>Account::ProcessorTest < ActiveSupport::TestCase
     #
     # assert_equal 0, @account.entries.where(source: "<%= file_name %>").count
   end
+<% else -%>
+
+  # ==========================================================================
+  # TransactionsProcessor tests
+  # ==========================================================================
+
+  test "transactions processor creates entries from raw payload" do
+    skip "TODO: Set up <%= file_name %>_account fixture and transactions payload"
+
+    # @<%= file_name %>_account.update!(raw_transactions_payload: [
+    #   {
+    #     "id" => "txn_001",
+    #     "amount" => 50.00,
+    #     "date" => Date.current.to_s,
+    #     "name" => "Coffee Shop",
+    #     "pending" => false
+    #   }
+    # ])
+    #
+    # processor = <%= class_name %>Account::Transactions::Processor.new(@<%= file_name %>_account)
+    # result = processor.process
+    #
+    # assert result[:success]
+    # assert_equal 1, result[:imported]
+  end
+
+  test "transactions processor handles missing transaction id gracefully" do
+    skip "TODO: Set up <%= file_name %>_account fixture"
+
+    # @<%= file_name %>_account.update!(raw_transactions_payload: [
+    #   { "id" => nil, "amount" => 50.00, "date" => Date.current.to_s }
+    # ])
+    #
+    # processor = <%= class_name %>Account::Transactions::Processor.new(@<%= file_name %>_account)
+    # result = processor.process
+    #
+    # assert_equal 1, result[:failed]
+  end
+
+  test "transactions processor returns empty result when no transactions" do
+    skip "TODO: Set up <%= file_name %>_account fixture"
+
+    # @<%= file_name %>_account.update!(raw_transactions_payload: [])
+    #
+    # processor = <%= class_name %>Account::Transactions::Processor.new(@<%= file_name %>_account)
+    # result = processor.process
+    #
+    # assert result[:success]
+    # assert_equal 0, result[:total]
+  end
+<% end -%>
 end

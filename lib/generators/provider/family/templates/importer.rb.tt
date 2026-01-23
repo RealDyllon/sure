@@ -3,6 +3,7 @@
 class <%= class_name %>Item::Importer
   include SyncStats::Collector
   include <%= class_name %>Account::DataHelpers
+<% if investment_provider? -%>
 
   # Chunk size for fetching activities
   ACTIVITY_CHUNK_DAYS = 365
@@ -10,6 +11,7 @@ class <%= class_name %>Item::Importer
 
   # Minimum existing activities required before using incremental sync
   MINIMUM_HISTORY_FOR_INCREMENTAL = 10
+<% end -%>
 
   attr_reader :<%= file_name %>_item, :<%= file_name %>_provider, :sync
 
@@ -32,7 +34,7 @@ class <%= class_name %>Item::Importer
     # Step 1: Fetch and store all accounts
     import_accounts(credentials)
 
-    # Step 2: For LINKED accounts only, fetch holdings and activities
+    # Step 2: For LINKED accounts only, fetch data
     # Unlinked accounts just need basic info (name, balance) for the setup modal
     linked_accounts = <%= class_name %>Account
       .where(<%= file_name %>_item_id: <%= file_name %>_item.id)
@@ -111,12 +113,18 @@ class <%= class_name %>Item::Importer
     end
 
     def import_account_data(<%= file_name %>_account, credentials)
+<% if investment_provider? -%>
       # Import holdings
       import_holdings(<%= file_name %>_account, credentials)
 
       # Import activities
       import_activities(<%= file_name %>_account, credentials)
+<% else -%>
+      # Import transactions
+      import_transactions(<%= file_name %>_account, credentials)
+<% end -%>
     end
+<% if investment_provider? -%>
 
     def import_holdings(<%= file_name %>_account, credentials)
       Rails.logger.info "<%= class_name %>Item::Importer - Fetching holdings for account #{<%= file_name %>_account.id}"
@@ -219,6 +227,70 @@ class <%= class_name %>Item::Importer
       activity[:id] || activity["id"] ||
         [ activity[:date], activity[:type], activity[:amount], activity[:symbol] ].join("-")
     end
+<% else -%>
+
+    def import_transactions(<%= file_name %>_account, credentials)
+      Rails.logger.info "<%= class_name %>Item::Importer - Fetching transactions for account #{<%= file_name %>_account.id}"
+
+      begin
+        # Determine date range
+        start_date = calculate_transaction_start_date(<%= file_name %>_account)
+        end_date = Date.current
+
+        # TODO: Implement API call to fetch transactions
+        # transactions_data = <%= file_name %>_provider.get_transactions(
+        #   account_id: <%= file_name %>_account.<%= file_name %>_account_id,
+        #   start_date: start_date,
+        #   end_date: end_date
+        # )
+        transactions_data = []
+
+        stats["api_requests"] = stats.fetch("api_requests", 0) + 1
+
+        if transactions_data.any?
+          # Convert SDK objects to hashes and merge with existing
+          transactions_hashes = transactions_data.map { |t| sdk_object_to_hash(t) }
+          merged = merge_transactions(<%= file_name %>_account.raw_transactions_payload || [], transactions_hashes)
+          <%= file_name %>_account.upsert_<%= file_name %>_transactions_snapshot!(merged)
+          stats["transactions_found"] = stats.fetch("transactions_found", 0) + transactions_data.size
+        end
+      rescue => e
+        Rails.logger.warn "<%= class_name %>Item::Importer - Failed to fetch transactions: #{e.message}"
+        register_error(e, context: "transactions", account_id: <%= file_name %>_account.id)
+      end
+    end
+
+    def calculate_transaction_start_date(<%= file_name %>_account)
+      # Use user-specified start date if available
+      user_start = <%= file_name %>_account.sync_start_date
+      return user_start if user_start.present?
+
+      # For accounts with existing transactions, use incremental sync
+      existing_count = (<%= file_name %>_account.raw_transactions_payload || []).size
+      if existing_count >= 10 && <%= file_name %>_item.last_synced_at.present?
+        # Incremental: go back 7 days from last sync to catch updates
+        (<%= file_name %>_item.last_synced_at - 7.days).to_date
+      else
+        # Full sync: go back 90 days
+        90.days.ago.to_date
+      end
+    end
+
+    def merge_transactions(existing, new_transactions)
+      # Merge by ID, preferring newer data
+      by_id = {}
+      existing.each { |t| by_id[transaction_key(t)] = t }
+      new_transactions.each { |t| by_id[transaction_key(t)] = t }
+      by_id.values
+    end
+
+    def transaction_key(transaction)
+      transaction = transaction.with_indifferent_access if transaction.is_a?(Hash)
+      # Use ID if available, otherwise generate key from date/amount/description
+      transaction[:id] || transaction["id"] ||
+        [ transaction[:date], transaction[:amount], transaction[:description] ].join("-")
+    end
+<% end -%>
 
     def prune_removed_accounts(upstream_account_ids)
       return if upstream_account_ids.empty?

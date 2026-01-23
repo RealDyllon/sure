@@ -45,10 +45,12 @@ class <%= class_name %>Item < ApplicationRecord
     DestroyJob.perform_later(self)
   end
 
+<% if investment_provider? -%>
   # Override syncing? to include background activities fetch
   def syncing?
     super || <%= file_name %>_accounts.where(activities_fetch_pending: true).exists?
   end
+<% end -%>
 
   # Import data from provider API
   def import_latest_<%= file_name %>_data(sync: nil)

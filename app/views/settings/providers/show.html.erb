@@ -59,4 +59,10 @@
       <%= render "settings/providers/snaptrade_panel" %>
     </turbo-frame>
   <% end %>
+
+<%= settings_section title: "Testprovider", collapsible: true, open: false do %>
+  <turbo-frame id="testprovider-providers-panel">
+    <%= render "settings/providers/testprovider_panel" %>
+  </turbo-frame>
+<% end %>
 </div>

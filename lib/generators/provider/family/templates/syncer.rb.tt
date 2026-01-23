@@ -19,7 +19,7 @@ class <%= class_name %>Item::Syncer
     # Phase 2: Collect setup statistics
     finalize_setup_counts(sync)
 
-    # Phase 3: Process holdings and activities for linked accounts
+    # Phase 3: Process data for linked accounts
     linked_<%= file_name %>_accounts = <%= file_name %>_item.linked_<%= file_name %>_accounts.includes(account_provider: :account)
     if linked_<%= file_name %>_accounts.any?
       sync.update!(status_text: I18n.t("<%= file_name %>_items.sync.status.processing")) if sync.respond_to?(:status_text)
@@ -34,11 +34,15 @@ class <%= class_name %>Item::Syncer
         window_end_date: sync.window_end_date
       )
 
-      # Phase 5: Collect transaction, trades, and holdings statistics
+      # Phase 5: Collect statistics
       account_ids = linked_<%= file_name %>_accounts.filter_map { |pa| pa.current_account&.id }
+<% if investment_provider? -%>
       collect_transaction_stats(sync, account_ids: account_ids, source: "<%= file_name %>")
       collect_trades_stats(sync, account_ids: account_ids, source: "<%= file_name %>")
       collect_holdings_stats(sync, holdings_count: count_holdings, label: "processed")
+<% else -%>
+      collect_transaction_stats(sync, account_ids: account_ids, source: "<%= file_name %>")
+<% end -%>
     end
 
     # Mark sync health
@@ -58,10 +62,12 @@ class <%= class_name %>Item::Syncer
   end
 
   private
+<% if investment_provider? -%>
 
     def count_holdings
       <%= file_name %>_item.<%= file_name %>_accounts.sum { |pa| Array(pa.raw_holdings_payload).size }
     end
+<% end -%>
 
     def mark_import_started(sync)
       # Mark that we're now processing imported data

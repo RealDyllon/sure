@@ -57,6 +57,7 @@ class <%= class_name %>Account < ApplicationRecord
       raw_payload: account_data
     )
   end
+<% if banking_provider? -%>
 
   def upsert_<%= file_name %>_transactions_snapshot!(transactions_snapshot)
     assign_attributes(
@@ -65,6 +66,8 @@ class <%= class_name %>Account < ApplicationRecord
 
     save!
   end
+<% end -%>
+<% if investment_provider? -%>
 
   # Store holdings snapshot - return early if empty to avoid setting timestamps incorrectly
   def upsert_holdings_snapshot!(holdings_data)
@@ -85,6 +88,7 @@ class <%= class_name %>Account < ApplicationRecord
       last_activities_sync: Time.current
     )
   end
+<% end -%>
 
   private
 
@@ -97,14 +101,22 @@ class <%= class_name %>Account < ApplicationRecord
     end
 
     def enqueue_connection_cleanup
-      return unless <%= file_name %>_authorization_id.present?
       return unless <%= file_name %>_item
+
+<% if investment_provider? -%>
+      return unless <%= file_name %>_authorization_id.present?
 
       <%= class_name %>ConnectionCleanupJob.perform_later(
         <%= file_name %>_item_id: <%= file_name %>_item.id,
         authorization_id: <%= file_name %>_authorization_id,
         account_id: id
       )
+<% else -%>
+      <%= class_name %>ConnectionCleanupJob.perform_later(
+        <%= file_name %>_item_id: <%= file_name %>_item.id,
+        account_id: id
+      )
+<% end -%>
     end
 
     def log_invalid_currency(currency_value)

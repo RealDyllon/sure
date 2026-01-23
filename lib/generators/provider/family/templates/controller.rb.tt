@@ -321,6 +321,14 @@ class <%= class_name %>ItemsController < ApplicationController
         "Loan"
       when "other_asset"
         "OtherAsset"
+      when "other_liability"
+        "OtherLiability"
+      when "crypto"
+        "Crypto"
+      when "property"
+        "Property"
+      when "vehicle"
+        "Vehicle"
       else
         "Depository"
       end

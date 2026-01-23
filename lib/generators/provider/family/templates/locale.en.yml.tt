@@ -20,7 +20,11 @@ en:
     sync:
       status:
         importing: "Importing accounts from <%= class_name %>..."
+<% if investment_provider? -%>
         processing: "Processing holdings and activities..."
+<% else -%>
+        processing: "Processing transactions..."
+<% end -%>
         calculating: "Calculating balances..."
         importing_data: "Importing account data..."
         checking_setup: "Checking account configuration..."
@@ -35,6 +39,8 @@ en:
       step_3: "After a successful connection, go to the Accounts tab to set up new accounts"
       field_descriptions: "Field descriptions:"
       optional: "(Optional)"
+      required: "(required)"
+      optional_with_default: "(optional, defaults to %%{default_value})"
       save_button: "Save Configuration"
       update_button: "Update Configuration"
       status_configured_html: "Configured and ready to use. Visit the <a href=\"%%{accounts_path}\" class=\"link\">Accounts</a> tab to manage and set up accounts."
@@ -173,20 +179,34 @@ en:
       select_all: "Select all"
       account_types:
         skip: "Skip this account"
+<% if banking_provider? -%>
+        depository: "Checking or Savings Account"
+        credit_card: "Credit Card"
+        loan: "Loan or Mortgage"
+        other_asset: "Other Asset"
+<% else -%>
         depository: "Checking or Savings Account"
         credit_card: "Credit Card"
         investment: "Investment Account"
+        crypto: "Cryptocurrency Account"
         loan: "Loan or Mortgage"
         other_asset: "Other Asset"
+<% end -%>
       subtype_labels:
         depository: "Account Subtype:"
         credit_card: ""
+<% if investment_provider? -%>
         investment: "Investment Type:"
+        crypto: ""
+<% end -%>
         loan: "Loan Type:"
         other_asset: ""
       subtype_messages:
         credit_card: "Credit cards will be automatically set up as credit card accounts."
         other_asset: "No additional options needed for Other Assets."
+<% if investment_provider? -%>
+        crypto: "Cryptocurrency accounts will be set up to track holdings and transactions."
+<% end -%>
       subtypes:
         depository:
           checking: "Checking"
@@ -194,6 +214,7 @@ en:
           hsa: "Health Savings Account"
           cd: "Certificate of Deposit"
           money_market: "Money Market"
+<% if investment_provider? -%>
         investment:
           brokerage: "Brokerage"
           pension: "Pension"
@@ -208,6 +229,7 @@ en:
           ira: "Traditional IRA"
           roth_ira: "Roth IRA"
           angel: "Angel"
+<% end -%>
         loan:
           mortgage: "Mortgage"
           student: "Student Loan"

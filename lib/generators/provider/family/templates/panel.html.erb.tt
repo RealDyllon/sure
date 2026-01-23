@@ -10,7 +10,7 @@
     <p class="text-primary font-medium"><%= "<" + "%= t(\"#{file_name}_items.panel.field_descriptions\") %" + ">" %></p>
     <ul>
 <% parsed_fields.each do |field| -%>
-      <li><strong><%= "<" + "%= t(\"#{file_name}_items.panel.fields.#{field[:name]}.label\") %" + ">" %>:</strong> <%= "<" + "%= t(\"#{file_name}_items.panel.fields.#{field[:name]}.description\") %" + ">" %><%= field[:secret] ? ' (required)' : '' %><%= field[:default] ? " (optional, defaults to #{field[:default]})" : '' %></li>
+      <li><strong><%= "<" + "%= t(\"#{file_name}_items.panel.fields.#{field[:name]}.label\") %" + ">" %>:</strong> <%= "<" + "%= t(\"#{file_name}_items.panel.fields.#{field[:name]}.description\") %" + ">" %><% if field[:secret] -%> <%= "<" + "%= t(\"#{file_name}_items.panel.required\") %" + ">" %><% end -%><% if field[:default] -%> <%= "<" + "%= t(\"#{file_name}_items.panel.optional_with_default\", default_value: \"#{field[:default]}\") %" + ">" %><% end -%></li>
 <% end -%>
     </ul>
   </div>

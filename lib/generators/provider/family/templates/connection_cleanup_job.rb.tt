@@ -2,6 +2,7 @@
 
 class <%= class_name %>ConnectionCleanupJob < ApplicationJob
   queue_as :default
+<% if investment_provider? -%>
 
   def perform(<%= file_name %>_item_id:, authorization_id:, account_id:)
     Rails.logger.info(
@@ -52,4 +53,26 @@ class <%= class_name %>ConnectionCleanupJob < ApplicationJob
         "<%= class_name %>ConnectionCleanupJob - API delete failed: #{e.message}"
       )
     end
+<% else -%>
+
+  def perform(<%= file_name %>_item_id:, account_id:)
+    Rails.logger.info(
+      "<%= class_name %>ConnectionCleanupJob - Cleaning up for former account #{account_id}"
+    )
+
+    <%= file_name %>_item = <%= class_name %>Item.find_by(id: <%= file_name %>_item_id)
+    return unless <%= file_name %>_item
+
+    # For banking providers, cleanup is typically simpler since there's no
+    # separate authorization concept - the item itself holds the credentials.
+    # Override this method if your provider needs specific cleanup logic.
+
+    Rails.logger.info("<%= class_name %>ConnectionCleanupJob - Cleanup complete for account #{account_id}")
+  rescue => e
+    Rails.logger.warn(
+      "<%= class_name %>ConnectionCleanupJob - Failed: #{e.class} - #{e.message}"
+    )
+    # Don't raise - cleanup failures shouldn't block other operations
+  end
+<% end -%>
 end

@@ -14,6 +14,7 @@ class AccountsController < ApplicationController
     @mercury_items = family.mercury_items.ordered.includes(:syncs, :mercury_accounts)
     @coinbase_items = family.coinbase_items.ordered.includes(:coinbase_accounts, :accounts, :syncs)
     @snaptrade_items = family.snaptrade_items.ordered.includes(:syncs, :snaptrade_accounts)
+    @testprovider_items = family.testprovider_items.ordered.includes(:syncs, :testprovider_accounts)
 
     # Build sync stats maps for all providers
     build_sync_stats_maps
@@ -277,5 +278,12 @@ class AccountsController < ApplicationController
           .count
         @coinbase_unlinked_count_map[item.id] = count
       end
+
+# Testprovider sync stats
+@testprovider_sync_stats_map = {}
+@testprovider_items.each do |item|
+  latest_sync = item.syncs.ordered.first
+  @testprovider_sync_stats_map[item.id] = latest_sync&.sync_stats || {}
+end
     end
 end

@@ -8,7 +8,11 @@ class <%= class_name %>Account::DataHelpersTest < ActiveSupport::TestCase
     include <%= class_name %>Account::DataHelpers
 
     # Make private methods public for testing
+<% if investment_provider? -%>
     public :parse_decimal, :parse_date, :resolve_security, :extract_currency, :extract_security_name
+<% else -%>
+    public :parse_decimal, :parse_date, :extract_currency
+<% end -%>
   end
 
   setup do
@@ -89,7 +93,32 @@ class <%= class_name %>Account::DataHelpersTest < ActiveSupport::TestCase
   end
 
   # ==========================================================================
-  # resolve_security tests
+  # extract_currency tests
+  # ==========================================================================
+
+  test "extract_currency returns fallback for nil currency" do
+    result = @helper.extract_currency({}, fallback: "USD")
+    assert_equal "USD", result
+  end
+
+  test "extract_currency extracts string currency" do
+    result = @helper.extract_currency({ currency: "cad" })
+    assert_equal "CAD", result
+  end
+
+  test "extract_currency extracts currency from hash with code key" do
+    result = @helper.extract_currency({ currency: { code: "EUR" } })
+    assert_equal "EUR", result
+  end
+
+  test "extract_currency handles indifferent access" do
+    result = @helper.extract_currency({ "currency" => { "code" => "GBP" } })
+    assert_equal "GBP", result
+  end
+<% if investment_provider? -%>
+
+  # ==========================================================================
+  # resolve_security tests (investment providers only)
   # ==========================================================================
 
   test "resolve_security returns nil for blank ticker" do
@@ -131,31 +160,7 @@ class <%= class_name %>Account::DataHelpersTest < ActiveSupport::TestCase
   end
 
   # ==========================================================================
-  # extract_currency tests
-  # ==========================================================================
-
-  test "extract_currency returns fallback for nil currency" do
-    result = @helper.extract_currency({}, fallback: "USD")
-    assert_equal "USD", result
-  end
-
-  test "extract_currency extracts string currency" do
-    result = @helper.extract_currency({ currency: "cad" })
-    assert_equal "CAD", result
-  end
-
-  test "extract_currency extracts currency from hash with code key" do
-    result = @helper.extract_currency({ currency: { code: "EUR" } })
-    assert_equal "EUR", result
-  end
-
-  test "extract_currency handles indifferent access" do
-    result = @helper.extract_currency({ "currency" => { "code" => "GBP" } })
-    assert_equal "GBP", result
-  end
-
-  # ==========================================================================
-  # extract_security_name tests
+  # extract_security_name tests (investment providers only)
   # ==========================================================================
 
   test "extract_security_name uses name field" do
@@ -177,4 +182,5 @@ class <%= class_name %>Account::DataHelpersTest < ActiveSupport::TestCase
     result = @helper.extract_security_name({ name: "COMMON STOCK" }, "IBM")
     assert_equal "IBM", result
   end
+<% end -%>
 end

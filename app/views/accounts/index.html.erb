@@ -57,6 +57,10 @@
       <%= render @snaptrade_items.sort_by(&:created_at) %>
     <% end %>
 
+    <% if @testprovider_items.any? %>
+  <%= render @testprovider_items.sort_by(&:created_at) %>
+<% end %>
+
     <% if @manual_accounts.any? %>
       <div id="manual-accounts">
         <%= render "accounts/index/manual_accounts", accounts: @manual_accounts %>

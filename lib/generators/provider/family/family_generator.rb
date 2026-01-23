@@ -4,17 +4,21 @@ require "rails/generators/active_record"
 # Generator for creating per-family provider integrations
 #
 # Usage:
-#   rails g provider:family NAME field:type:secret field:type ...
+#   rails g provider:family NAME field:type:secret field:type ... [--type=banking|investment]
 #
 # Examples:
-#   rails g provider:family lunchflow api_key:text:secret base_url:string
-#   rails g provider:family my_bank access_token:text:secret refresh_token:text:secret
+#   rails g provider:family lunchflow api_key:text:secret base_url:string --type=banking
+#   rails g provider:family my_broker access_token:text:secret --type=investment
 #
 # Field format:
 #   name:type[:secret]
 #   - name: Field name (e.g., api_key)
 #   - type: Database column type (text, string, integer, boolean)
 #   - secret: Optional flag indicating this field should be encrypted
+#
+# Provider type:
+#   --type=banking    - For bank/credit card providers (transactions only, no holdings/activities)
+#   --type=investment - For brokerage providers (holdings + activities) [default]
 #
 # This generates:
 #   - Migration creating complete provider_items and provider_accounts tables
@@ -35,6 +39,9 @@ class Provider::FamilyGenerator < Rails::Generators::NamedBase
   class_option :skip_view, type: :boolean, default: false, desc: "Skip generating view"
   class_option :skip_controller, type: :boolean, default: false, desc: "Skip generating controller"
   class_option :skip_adapter, type: :boolean, default: false, desc: "Skip generating adapter"
+  class_option :type, type: :string, default: "investment",
+               enum: %w[banking investment],
+               desc: "Provider type: banking (transactions only) or investment (holdings + activities)"
 
   def validate_fields
     if parsed_fields.empty?
@@ -119,16 +126,18 @@ class Provider::FamilyGenerator < Rails::Generators::NamedBase
   end
 
   def create_background_jobs
-    # Activities fetch job
-    activities_job_path = "app/jobs/#{file_name}_activities_fetch_job.rb"
-    if File.exist?(activities_job_path)
-      say "Activities fetch job already exists: #{activities_job_path}", :skip
-    else
-      template "activities_fetch_job.rb.tt", activities_job_path
-      say "Created Activities fetch job: #{activities_job_path}", :green
+    # Activities fetch job (investment providers only)
+    if investment_provider?
+      activities_job_path = "app/jobs/#{file_name}_activities_fetch_job.rb"
+      if File.exist?(activities_job_path)
+        say "Activities fetch job already exists: #{activities_job_path}", :skip
+      else
+        template "activities_fetch_job.rb.tt", activities_job_path
+        say "Created Activities fetch job: #{activities_job_path}", :green
+      end
     end
 
-    # Connection cleanup job
+    # Connection cleanup job (both types may need cleanup on unlink)
     cleanup_job_path = "app/jobs/#{file_name}_connection_cleanup_job.rb"
     if File.exist?(cleanup_job_path)
       say "Connection cleanup job already exists: #{cleanup_job_path}", :skip
@@ -505,7 +514,7 @@ class Provider::FamilyGenerator < Rails::Generators::NamedBase
 
   def show_summary
     say "\n" + "=" * 80, :green
-    say "Successfully generated per-family provider: #{class_name}", :green
+    say "Successfully generated per-family #{options[:type]} provider: #{class_name}", :green
     say "=" * 80, :green
 
     say "\nGenerated files:", :cyan
@@ -519,8 +528,13 @@ class Provider::FamilyGenerator < Rails::Generators::NamedBase
     say "     - app/models/#{file_name}_item/importer.rb"
     say "     - app/models/#{file_name}_account/data_helpers.rb"
     say "     - app/models/#{file_name}_account/processor.rb"
-    say "     - app/models/#{file_name}_account/holdings_processor.rb"
-    say "     - app/models/#{file_name}_account/activities_processor.rb"
+    if investment_provider?
+      say "     - app/models/#{file_name}_account/holdings_processor.rb"
+      say "     - app/models/#{file_name}_account/activities_processor.rb"
+    end
+    if banking_provider?
+      say "     - app/models/#{file_name}_account/transactions/processor.rb"
+    end
     say "     - app/models/family/#{file_name}_connectable.rb"
     say "  🔌 Provider:"
     say "     - app/models/provider/#{file_name}.rb (SDK wrapper)"
@@ -532,7 +546,9 @@ class Provider::FamilyGenerator < Rails::Generators::NamedBase
     say "     - app/views/#{file_name}_items/select_existing_account.html.erb"
     say "     - app/views/#{file_name}_items/_#{file_name}_item.html.erb"
     say "  ⚡ Jobs:"
-    say "     - app/jobs/#{file_name}_activities_fetch_job.rb"
+    if investment_provider?
+      say "     - app/jobs/#{file_name}_activities_fetch_job.rb"
+    end
     say "     - app/jobs/#{file_name}_connection_cleanup_job.rb"
     say "  🧪 Tests:"
     say "     - test/models/#{file_name}_account/data_helpers_test.rb"
@@ -552,7 +568,11 @@ class Provider::FamilyGenerator < Rails::Generators::NamedBase
 
     say "\nDatabase tables created:", :cyan
     say "  - #{table_name} (stores per-family credentials)"
-    say "  - #{file_name}_accounts (stores individual account data with investment support)"
+    if investment_provider?
+      say "  - #{file_name}_accounts (stores individual account data with holdings/activities support)"
+    else
+      say "  - #{file_name}_accounts (stores individual account data with transactions support)"
+    end
 
     say "\nNext steps:", :yellow
     say "  1. Run migrations:"
@@ -561,17 +581,26 @@ class Provider::FamilyGenerator < Rails::Generators::NamedBase
     say "  2. Implement the provider SDK in:"
     say "     app/models/provider/#{file_name}.rb"
     say "     - Add API client initialization"
-    say "     - Implement list_accounts, get_holdings, get_activities methods"
+    if investment_provider?
+      say "     - Implement list_accounts, get_holdings, get_activities methods"
+    else
+      say "     - Implement list_accounts, get_transactions methods"
+    end
     say ""
     say "  3. Customize the Importer class:"
     say "     app/models/#{file_name}_item/importer.rb"
     say "     - Map API response fields to account fields"
     say ""
     say "  4. Customize the Processors:"
-    say "     app/models/#{file_name}_account/holdings_processor.rb"
-    say "     app/models/#{file_name}_account/activities_processor.rb"
-    say "     - Map provider field names to Sure fields"
-    say "     - Customize activity type mappings"
+    if investment_provider?
+      say "     app/models/#{file_name}_account/holdings_processor.rb"
+      say "     app/models/#{file_name}_account/activities_processor.rb"
+      say "     - Map provider field names to Sure fields"
+      say "     - Customize activity type mappings"
+    else
+      say "     app/models/#{file_name}_account/transactions/processor.rb"
+      say "     - Map provider transaction format to Sure entries"
+    end
     say ""
     say "  5. Test the integration:"
     say "     Visit /settings/providers and configure credentials"
@@ -704,7 +733,7 @@ class Provider::FamilyGenerator < Rails::Generators::NamedBase
       account_dir = "app/models/#{file_name}_account"
       FileUtils.mkdir_p(account_dir) unless options[:pretend]
 
-      # DataHelpers concern
+      # DataHelpers concern (both types benefit from parse_decimal, parse_date, extract_currency)
       data_helpers_path = "#{account_dir}/data_helpers.rb"
       if File.exist?(data_helpers_path)
         say "DataHelpers concern already exists: #{data_helpers_path}", :skip
@@ -722,22 +751,38 @@ class Provider::FamilyGenerator < Rails::Generators::NamedBase
         say "Created Processor class: #{processor_path}", :green
       end
 
-      # HoldingsProcessor class
-      holdings_processor_path = "#{account_dir}/holdings_processor.rb"
-      if File.exist?(holdings_processor_path)
-        say "HoldingsProcessor class already exists: #{holdings_processor_path}", :skip
-      else
-        template "holdings_processor.rb.tt", holdings_processor_path
-        say "Created HoldingsProcessor class: #{holdings_processor_path}", :green
+      if investment_provider?
+        # HoldingsProcessor class (investment only)
+        holdings_processor_path = "#{account_dir}/holdings_processor.rb"
+        if File.exist?(holdings_processor_path)
+          say "HoldingsProcessor class already exists: #{holdings_processor_path}", :skip
+        else
+          template "holdings_processor.rb.tt", holdings_processor_path
+          say "Created HoldingsProcessor class: #{holdings_processor_path}", :green
+        end
+
+        # ActivitiesProcessor class (investment only)
+        activities_processor_path = "#{account_dir}/activities_processor.rb"
+        if File.exist?(activities_processor_path)
+          say "ActivitiesProcessor class already exists: #{activities_processor_path}", :skip
+        else
+          template "activities_processor.rb.tt", activities_processor_path
+          say "Created ActivitiesProcessor class: #{activities_processor_path}", :green
+        end
       end
 
-      # ActivitiesProcessor class
-      activities_processor_path = "#{account_dir}/activities_processor.rb"
-      if File.exist?(activities_processor_path)
-        say "ActivitiesProcessor class already exists: #{activities_processor_path}", :skip
-      else
-        template "activities_processor.rb.tt", activities_processor_path
-        say "Created ActivitiesProcessor class: #{activities_processor_path}", :green
+      if banking_provider?
+        # TransactionsProcessor class (banking only)
+        transactions_dir = "#{account_dir}/transactions"
+        FileUtils.mkdir_p(transactions_dir) unless options[:pretend]
+
+        transactions_processor_path = "#{transactions_dir}/processor.rb"
+        if File.exist?(transactions_processor_path)
+          say "TransactionsProcessor class already exists: #{transactions_processor_path}", :skip
+        else
+          template "transactions_processor.rb.tt", transactions_processor_path
+          say "Created TransactionsProcessor class: #{transactions_processor_path}", :green
+        end
       end
     end
 
@@ -756,6 +801,14 @@ class Provider::FamilyGenerator < Rails::Generators::NamedBase
 
     def migration_version
       "[#{Rails::VERSION::MAJOR}.#{Rails::VERSION::MINOR}]"
+    end
+
+    def banking_provider?
+      options[:type] == "banking"
+    end
+
+    def investment_provider?
+      options[:type] == "investment"
     end
 
     def parsed_fields
