@@ -153,9 +153,10 @@ module Enrichable
       # Find attributes that were locked by AI enrichment
       ai_enriched_attrs = data_enrichments.where(source: "ai").pluck(:attribute_name).uniq
 
-      # Remove locks for AI-enriched attributes
-      ai_enriched_attrs.each do |attr|
-        unlock_attr!(attr) if locked?(attr)
+      # Batch unlock all AI-enriched attributes in a single update
+      if ai_enriched_attrs.any?
+        new_locked_attrs = locked_attributes.except(*ai_enriched_attrs)
+        update_column(:locked_attributes, new_locked_attrs) if new_locked_attrs != locked_attributes
       end
 
       # Delete AI enrichment records
