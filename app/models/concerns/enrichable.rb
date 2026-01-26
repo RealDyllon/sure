@@ -150,17 +150,23 @@ module Enrichable
 
   def clear_ai_cache
     ActiveRecord::Base.transaction do
-      # Find attributes that were locked by AI enrichment
-      ai_enriched_attrs = data_enrichments.where(source: "ai").pluck(:attribute_name).uniq
+      ai_enrichments = data_enrichments.where(source: "ai")
 
-      # Batch unlock all AI-enriched attributes in a single update
-      if ai_enriched_attrs.any?
-        new_locked_attrs = locked_attributes.except(*ai_enriched_attrs)
+      # Only unlock attributes where current value still matches what AI set
+      # If user changed the value, they took ownership - don't unlock
+      attrs_to_unlock = ai_enrichments.select do |enrichment|
+        current_value = send(enrichment.attribute_name) rescue self[enrichment.attribute_name]
+        current_value.to_s == enrichment.value.to_s
+      end.map(&:attribute_name).uniq
+
+      # Batch unlock in a single update
+      if attrs_to_unlock.any?
+        new_locked_attrs = locked_attributes.except(*attrs_to_unlock)
         update_column(:locked_attributes, new_locked_attrs) if new_locked_attrs != locked_attributes
       end
 
       # Delete AI enrichment records
-      data_enrichments.where(source: "ai").delete_all
+      ai_enrichments.delete_all
     end
   end
 
