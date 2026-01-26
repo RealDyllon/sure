@@ -292,6 +292,7 @@ Rails.application.routes.draw do
       delete :destroy_all
       get :confirm_all
       post :apply_all
+      post :clear_ai_cache
     end
   end
 
