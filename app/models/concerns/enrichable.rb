@@ -15,11 +15,35 @@ module Enrichable
   InvalidAttributeError = Class.new(StandardError)
 
   included do
+    has_many :data_enrichments, as: :enrichable, dependent: :destroy
+
     scope :enrichable, ->(attrs) {
       attrs = Array(attrs).map(&:to_s)
       json_condition = attrs.each_with_object({}) { |attr, hash| hash[attr] = true }
       where.not(Arel.sql("#{table_name}.locked_attributes ?| array[:keys]"), keys: attrs)
     }
+  end
+
+  class_methods do
+    def clear_ai_cache(family)
+      # Get all records that belong to this family
+      records = if respond_to?(:joins)
+        case name
+        when "Transaction"
+          joins(entry: :account).where(accounts: { family_id: family.id })
+        when "Entry"
+          joins(:account).where(accounts: { family_id: family.id })
+        else
+          none
+        end
+      else
+        none
+      end
+
+      records.find_each do |record|
+        record.clear_ai_cache
+      end
+    end
   end
 
   # Convenience method for a single attribute
@@ -121,6 +145,21 @@ module Enrichable
   def lock_saved_attributes!
     saved_changes.keys.reject { |attr| ignored_enrichable_attributes.include?(attr) }.each do |attr|
       lock_attr!(attr)
+    end
+  end
+
+  def clear_ai_cache
+    ActiveRecord::Base.transaction do
+      # Find attributes that were locked by AI enrichment
+      ai_enriched_attrs = data_enrichments.where(source: "ai").pluck(:attribute_name).uniq
+
+      # Remove locks for AI-enriched attributes
+      ai_enriched_attrs.each do |attr|
+        unlock_attr!(attr) if locked?(attr)
+      end
+
+      # Delete AI enrichment records
+      data_enrichments.where(source: "ai").delete_all
     end
   end
 
