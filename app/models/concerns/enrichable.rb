@@ -25,24 +25,18 @@ module Enrichable
   end
 
   class_methods do
-    def clear_ai_cache(family)
-      # Get all records that belong to this family
-      records = if respond_to?(:joins)
-        case name
-        when "Transaction"
-          joins(entry: :account).where(accounts: { family_id: family.id })
-        when "Entry"
-          joins(:account).where(accounts: { family_id: family.id })
-        else
-          none
-        end
-      else
-        none
-      end
+    # Override in models to define family-scoped query
+    def family_scope(family)
+      none
+    end
 
-      records.find_each do |record|
+    def clear_ai_cache(family)
+      count = 0
+      family_scope(family).find_each do |record|
         record.clear_ai_cache
+        count += 1
       end
+      count
     end
   end
 
@@ -155,7 +149,8 @@ module Enrichable
       # Only unlock attributes where current value still matches what AI set
       # If user changed the value, they took ownership - don't unlock
       attrs_to_unlock = ai_enrichments.select do |enrichment|
-        current_value = send(enrichment.attribute_name) rescue self[enrichment.attribute_name]
+        attr_name = enrichment.attribute_name
+        current_value = respond_to?(attr_name) ? send(attr_name) : self[attr_name]
         current_value.to_s == enrichment.value.to_s
       end.map(&:attribute_name).uniq
 
