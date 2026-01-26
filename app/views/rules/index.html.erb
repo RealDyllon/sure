@@ -5,14 +5,14 @@
       <%= render DS::Menu.new do |menu| %>
         <% menu.with_item(
           variant: "button",
-          text: "Reset AI cache",
+          text: t("rules.clear_ai_cache.button"),
           href: clear_ai_cache_rules_path,
           icon: "refresh-cw",
           method: :post,
           confirm: CustomConfirm.new(
-            title: "Reset AI cache?",
-            body: "Are you sure you want to reset the AI cache? This will allow AI rules to re-process all transactions. This may incur additional API costs.",
-            btn_text: "Reset Cache"
+            title: t("rules.clear_ai_cache.confirm_title"),
+            body: t("rules.clear_ai_cache.confirm_body"),
+            btn_text: t("rules.clear_ai_cache.confirm_button")
           )) %>
         <% menu.with_item(
           variant: "button",

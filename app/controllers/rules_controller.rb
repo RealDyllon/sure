@@ -130,7 +130,7 @@ class RulesController < ApplicationController
 
   def clear_ai_cache
     ClearAiCacheJob.perform_later(Current.family)
-    redirect_to rules_path, notice: "AI cache is being cleared. This may take a few moments."
+    redirect_to rules_path, notice: t("rules.clear_ai_cache.success")
   end
 
   private
