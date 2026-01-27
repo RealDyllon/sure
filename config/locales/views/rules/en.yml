@@ -43,3 +43,9 @@ en:
       confirm_body: Are you sure you want to reset the AI cache? This will allow AI rules to re-process all transactions. This may incur additional API costs.
       confirm_button: Reset Cache
       success: AI cache is being cleared. This may take a few moments.
+    condition_filters:
+      transaction_type:
+        income: Income
+        expense: Expense
+        transfer: Transfer
+        equal_to: Equal to
