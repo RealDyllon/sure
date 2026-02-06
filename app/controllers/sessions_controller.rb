@@ -10,6 +10,7 @@ class SessionsController < ApplicationController
   end
 
   def new
+    store_pending_invitation_if_valid
     # Clear any stale mobile SSO session flag from an abandoned mobile flow
     session.delete(:mobile_sso)
 
@@ -64,6 +65,7 @@ class SessionsController < ApplicationController
       else
         log_super_admin_override_login(user)
         @session = create_session_for(user)
+        flash[:notice] = t("invitations.accept_choice.joined_household") if accept_pending_invitation_for(user)
         redirect_to root_path
       end
     else
@@ -180,6 +182,7 @@ class SessionsController < ApplicationController
         redirect_to verify_mfa_path
       else
         @session = create_session_for(user)
+        flash[:notice] = t("invitations.accept_choice.joined_household") if accept_pending_invitation_for(user)
         redirect_to root_path
       end
     else
