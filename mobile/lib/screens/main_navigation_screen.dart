@@ -139,15 +139,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       actions: [
         Padding(
-          padding: const EdgeInsets.only(top: 12, right: 12),
-          child: InkWell(
-            onTap: () {
-              _handleSelectSettings(authProvider, introLayout);
-            },
-            child: const SizedBox(
-              width: 36,
-              height: 36,
-              child: Icon(Icons.settings_outlined),
+          padding: const EdgeInsets.only(right: 12),
+          child: Center(
+            child: InkWell(
+              onTap: () {
+                _handleSelectSettings(authProvider, introLayout);
+              },
+              child: const SizedBox(
+                width: 36,
+                height: 36,
+                child: Icon(Icons.settings_outlined),
+              ),
             ),
           ),
         ),
