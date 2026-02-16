@@ -52,7 +52,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       const NavigationDestination(
         icon: Icon(Icons.chat_bubble_outline),
         selectedIcon: Icon(Icons.chat_bubble),
-        label: 'AI Chat',
+        label: 'Assistant',
       ),
     );
 
