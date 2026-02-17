@@ -74,7 +74,9 @@ static String _baseUrl = 'https://your-sure-server.com';
 flutter run -d android
 
 # For iOS
-flutter run -d ios
+flutter run -d <simulator-device-UDID>
+# or
+flutter run -d "iPhone 17 Pro"
 
 # For web (development only)
 flutter run -d chrome
