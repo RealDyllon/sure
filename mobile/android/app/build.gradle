@@ -13,14 +13,27 @@ if (localPropertiesFile.exists()) {
 }
 
 def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
-if (flutterVersionCode == null) {
-    flutterVersionCode = '1'
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+
+if (flutterVersionName == null || flutterVersionCode == null) {
+    def pubspecFile = rootProject.file('../pubspec.yaml')
+    if (pubspecFile.exists()) {
+        def pubspec = pubspecFile.text
+        def versionMatch = pubspec =~ /version:\s*['"]?([^\s'"]+)['"]?/
+        if (versionMatch) {
+            def version = versionMatch[0][1].trim()
+            if (flutterVersionName == null) {
+                flutterVersionName = version.contains('+') ? version.split('+')[0].trim() : version
+            }
+            if (flutterVersionCode == null) {
+                flutterVersionCode = version.contains('+') ? version.split('+')[1].trim() : '1'
+            }
+        }
+    }
 }
 
-def flutterVersionName = localProperties.getProperty('flutter.versionName')
-if (flutterVersionName == null) {
-    flutterVersionName = '1.0'
-}
+if (flutterVersionCode == null) flutterVersionCode = '1'
+if (flutterVersionName == null) flutterVersionName = '1.0'
 
 def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file('key.properties')
