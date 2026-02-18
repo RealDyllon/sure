@@ -9,6 +9,12 @@ This repository now includes `.github/workflows/ios-testflight.yml`, which build
   - Bundle ID `am.sure.mobile` (or your custom value in the workflow)
 - Flutter assets and source already in `mobile/`
 
+## Trigger paths
+
+- Manual dispatch from the workflow UI.
+- Tag push matching `ios-v*`.
+- Called from `.github/workflows/mobile-release.yml` after the shared build job, so tagging `mobile-v*` now creates the GitHub release and uploads to TestFlight in one pipeline.
+
 ## Required GitHub Secrets
 
 Set these in **Settings → Secrets and variables → Actions**:
@@ -26,7 +32,7 @@ Set these in **Settings → Secrets and variables → Actions**:
 - `IOS_PROVISIONING_PROFILE_NAME`
 - `IOS_PROVISIONING_PROFILE_BASE64`
 
-> Do **not** commit private keys, `.p12` files, or `.p8` files to the repository.
+> Do **not** commit private keys, `.p12`, `.mobileprovision` or `.p8` files to the repository.
 
 ## Triggering
 

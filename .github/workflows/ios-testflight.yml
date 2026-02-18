@@ -7,6 +7,12 @@ on:
         description: "TestFlight release notes"
         required: false
         type: string
+  workflow_call:
+    inputs:
+      notes:
+        description: "TestFlight release notes"
+        required: false
+        type: string
   push:
     tags:
       - 'ios-v*'

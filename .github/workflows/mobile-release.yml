@@ -15,6 +15,14 @@ jobs:
     uses: ./.github/workflows/flutter-build.yml
     secrets: inherit
 
+  testflight:
+    name: Upload iOS to TestFlight
+    needs: [build]
+    uses: ./.github/workflows/ios-testflight.yml
+    with:
+      notes: "Mobile release ${{ github.ref_name }}"
+    secrets: inherit
+
   release:
     name: Create Mobile GitHub Release
     needs: [build]
