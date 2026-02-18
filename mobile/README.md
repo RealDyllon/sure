@@ -151,6 +151,9 @@ The app includes automated CI/CD via GitHub Actions (`.github/workflows/flutter-
 - **Android Build**: Generates release APK and AAB artifacts
 - **iOS Build**: Generates iOS release build (unsigned)
 - **Quality Checks**: Code analysis and tests run before building
+- **TestFlight**: Use `.github/workflows/ios-testflight.yml` for signed distribution uploads to App Store Connect
+
+See [mobile/docs/iOS_TESTFLIGHT](mobile/docs/iOS_TESTFLIGHT.md) for required secrets and setup.
 
 ### Downloading Build Artifacts
 
