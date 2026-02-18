@@ -197,24 +197,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: 80,
                       height: 80,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 24),
                     Text.rich(
                       TextSpan(
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
                         children: [
-                          const TextSpan(text: 'Please '),
+                          const TextSpan(text: 'Demo account or '),
                           TextSpan(
                             text: 'Sign Up',
                             style: TextStyle(
                               color: colorScheme.primary,
-                              decoration: TextDecoration.underline,
                               fontWeight: FontWeight.w600,
                             ),
                             recognizer: _signUpTapRecognizer,
                           ),
-                          const TextSpan(text: ' first!'),
+                          const TextSpan(text: '!'),
                         ],
                       ),
                       textAlign: TextAlign.center,
