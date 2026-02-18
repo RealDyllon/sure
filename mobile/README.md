@@ -6,7 +6,7 @@ A Flutter mobile application for [Sure](https://github.com/we-promise/sure) pers
 
 This app is a mobile companion to the [Sure personal finance management system](https://github.com/we-promise/sure). It provides basic functionality to:
 
-- **Login** - Authenticate with your Sure Finance server
+- **Login** - Authenticate with your Sure Finances server
 - **View Balance** - See all your accounts and their balances
 
 For more detailed technical documentation, see [docs/TECHNICAL_GUIDE.md](docs/TECHNICAL_GUIDE.md).
@@ -54,7 +54,7 @@ This step generates the app icons for all platforms based on the source icon in 
 
 ### 4. Configure API Endpoint
 
-Edit `lib/services/api_config.dart` to point to your Sure Finance server:
+Edit `lib/services/api_config.dart` to point to your Sure Finances server:
 
 ```dart
 // For local development with Android emulator
@@ -113,7 +113,7 @@ flutter run -d chrome
 
 ## API Integration
 
-This app integrates with the Sure Finance Rails API:
+This app integrates with the Sure Finances Rails API:
 
 ### Authentication
 - `POST /api/v1/auth/login` - User authentication
