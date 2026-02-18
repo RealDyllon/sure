@@ -441,34 +441,38 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 24),
 
                     // Backend URL info
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Sure server URL:',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            ApiConfig.baseUrl,
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.primary,
-                                      fontFamily: 'monospace',
-                                    ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                    InkWell(
+                      onTap: widget.onGoToSettings,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Sure server URL:',
+                              style:
+                                  Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: colorScheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              ApiConfig.baseUrl,
+                              style:
+                                  Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: colorScheme.primary,
+                                        fontFamily: 'monospace',
+                                      ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 
