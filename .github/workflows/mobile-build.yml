@@ -26,7 +26,13 @@ jobs:
 
           # Sanitise branch name for use in file names and git tags
           # e.g. feature/foo-bar → feature-foo-bar
-          RAW_BRANCH="${{ github.ref_name }}"
+          # When workflow_dispatch is triggered from a tag, fall back to the
+          # default branch so filenames use "main" instead of the tag name.
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            RAW_BRANCH="${{ github.event.repository.default_branch }}"
+          else
+            RAW_BRANCH="${{ github.ref_name }}"
+          fi
           BRANCH="$(echo "$RAW_BRANCH" | sed 's/[^a-zA-Z0-9._-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')"
 
           VERSION="${BRANCH}-${STAMP}"
