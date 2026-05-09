@@ -126,6 +126,89 @@ class StatementImportTest < ActiveSupport::TestCase
     assert_equal BigDecimal("-1002.00"), statement_import.entries.find_by!(external_id: "dbs:00000009:pdf:salary").amount
   end
 
+  test "publish creates transactions profiles and balances for multiple DBS PDF accounts" do
+    statement_import = @family.imports.create!(
+      type: "StatementImport",
+      date_format: "%Y-%m-%d",
+      extracted_data: {
+        "provider" => "dbs",
+        "file_type" => "pdf",
+        "statement_period" => { "end_date" => "2026-04-30" },
+        "review_confirmed" => true,
+        "accounts" => [
+          {
+            "source_id" => "dbs:00000009",
+            "name" => "Fixture Account 3",
+            "account_type" => "Depository",
+            "subtype" => "checking",
+            "currency" => "SGD",
+            "closing_balance" => "1027.00",
+            "balance_date" => "2026-04-30",
+            "transactions" => [
+              {
+                "date" => "2026-04-10",
+                "name" => "Coffee",
+                "amount" => "-5.50",
+                "currency" => "SGD",
+                "external_id" => "dbs:00000009:pdf:coffee"
+              }
+            ],
+            "review" => {
+              "action" => "create",
+              "account_type" => "Depository",
+              "account_subtype" => "checking",
+              "account_name" => "DBS Current",
+              "currency" => "SGD"
+            }
+          },
+          {
+            "source_id" => "dbs:00000018",
+            "name" => "DBS Savings Plus",
+            "account_type" => "Depository",
+            "subtype" => "savings",
+            "currency" => "SGD",
+            "closing_balance" => "1010.00",
+            "balance_date" => "2026-04-30",
+            "transactions" => [
+              {
+                "date" => "2026-04-15",
+                "name" => "Interest",
+                "amount" => "1.25",
+                "currency" => "SGD",
+                "external_id" => "dbs:00000018:pdf:interest"
+              }
+            ],
+            "review" => {
+              "action" => "create",
+              "account_type" => "Depository",
+              "account_subtype" => "savings",
+              "account_name" => "DBS Savings",
+              "currency" => "SGD"
+            }
+          }
+        ]
+      }
+    )
+
+    assert_difference -> { Account.count }, 2 do
+      assert_difference -> { Transaction.count }, 2 do
+        assert_difference -> { StatementProfile.count }, 2 do
+          statement_import.publish
+        end
+      end
+    end
+
+    current = @family.accounts.find_by!(name: "DBS Current")
+    savings = @family.accounts.find_by!(name: "DBS Savings")
+
+    assert_equal "checking", current.subtype
+    assert_equal "savings", savings.subtype
+    assert_equal BigDecimal("5.50"), current.entries.find_by!(external_id: "dbs:00000009:pdf:coffee").amount
+    assert_equal BigDecimal("-1.25"), savings.entries.find_by!(external_id: "dbs:00000018:pdf:interest").amount
+    assert_equal current, @family.statement_profiles.find_by!(provider: "dbs", source_id: "dbs:00000009").account
+    assert_equal savings, @family.statement_profiles.find_by!(provider: "dbs", source_id: "dbs:00000018").account
+  end
+
   test "publish creates IBKR brokerage trades cash transactions balance profile and skips duplicates" do
     Security::Resolver.any_instance.stubs(:resolve).returns(securities(:aapl))
 

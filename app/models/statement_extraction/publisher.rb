@@ -25,6 +25,8 @@ module StatementExtraction
       def account_for(account_payload)
         review = account_payload.fetch("review")
         return statement_import.family.accounts.find(review["account_id"]) if review["action"] == "match"
+        profile_account = reuse_profile_account(account_payload)
+        return profile_account if profile_account
 
         account_type = review["account_type"].presence || account_payload["account_type"]
         account_class = Accountable.from_type(account_type) || Depository
@@ -45,6 +47,16 @@ module StatementExtraction
           },
           skip_initial_sync: true
         )
+      end
+
+      def reuse_profile_account(account_payload)
+        profile = statement_import.family.statement_profiles.find_by(
+          provider: statement_import.provider,
+          source_id: account_payload["source_id"]
+        )
+        return unless profile&.account
+
+        profile.account if profile.metadata["last_import_id"].to_s == statement_import.id.to_s
       end
 
       def publish_transactions(account, account_payload)
