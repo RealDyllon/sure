@@ -10,6 +10,7 @@ fr:
       toggle_section: "Basculer la visibilité de la section"
       periods:
         monthly: Mensuel
+        last_month: Mois dernier
         quarterly: Trimestriel
         ytd: Depuis le début de l'année
         last_6_months: 6 derniers mois

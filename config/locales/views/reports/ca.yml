@@ -48,6 +48,7 @@ ca:
       periods:
         custom: Rang personalitzat
         last_6_months: Últims 6 mesos
+        last_month: Mes passat
         monthly: Mensual
         quarterly: Trimestral
         ytd: Any fins avui

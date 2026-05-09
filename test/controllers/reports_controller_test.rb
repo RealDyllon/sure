@@ -13,6 +13,16 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :ok
   end
 
+  test "index defaults to last month period" do
+    travel_to Date.new(2026, 5, 9) do
+      get reports_path
+    end
+
+    assert_response :ok
+    assert_includes @response.body, I18n.t("reports.index.periods.last_month")
+    assert_includes @response.body, "Showing data from Apr 1, 2026 to Apr 30, 2026"
+  end
+
   test "index with monthly period" do
     get reports_path(period_type: :monthly)
     assert_response :ok

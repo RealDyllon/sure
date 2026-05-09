@@ -10,6 +10,7 @@ pl:
       toggle_section: Przełącz widoczność sekcji
       periods:
         monthly: Miesięcznie
+        last_month: Poprzedni miesiąc
         quarterly: Kwartalnie
         ytd: Od początku roku
         last_6_months: Ostatnie 6 miesięcy

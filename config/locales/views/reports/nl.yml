@@ -10,6 +10,7 @@ nl:
       toggle_section: "Zichtbaarheid sectie wijzigen"
       periods:
         monthly: Maandelijks
+        last_month: Vorige maand
         quarterly: Per kwartaal
         ytd: Jaar tot nu toe
         last_6_months: Laatste 6 maanden

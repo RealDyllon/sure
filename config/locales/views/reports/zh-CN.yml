@@ -47,6 +47,7 @@ zh-CN:
       periods:
         custom: 自定义范围
         last_6_months: 过去6个月
+        last_month: 上个月
         monthly: 月度
         quarterly: 季度
         ytd: 本年度至今

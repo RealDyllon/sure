@@ -10,6 +10,7 @@ en:
       toggle_section: "Toggle section visibility"
       periods:
         monthly: Monthly
+        last_month: Last Month
         quarterly: Quarterly
         ytd: Year to Date
         last_6_months: Last 6 Months
