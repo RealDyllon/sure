@@ -94,7 +94,7 @@ class StatementImport < PdfImport
   end
 
   def original_filename
-    pdf_file.attached? ? pdf_file.filename.to_s : "statement.csv"
+    pdf_file.attached? ? pdf_file.filename.to_s : statement_original_filename.presence || "statement.csv"
   end
 
   private

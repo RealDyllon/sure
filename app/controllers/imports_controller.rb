@@ -182,6 +182,7 @@ class ImportsController < ApplicationController
         end
 
         statement_import.statement_pdf_password = params.dig(:import, :statement_pdf_password)
+        statement_import.statement_original_filename = file.original_filename.to_s
         statement_import.pdf_file.attach(file)
       elsif Import::ALLOWED_CSV_MIME_TYPES.include?(file.content_type) || File.extname(file.original_filename.to_s).downcase == ".csv"
         if file.size > Import::MAX_CSV_SIZE
@@ -190,6 +191,7 @@ class ImportsController < ApplicationController
           return
         end
 
+        statement_import.statement_original_filename = file.original_filename.to_s
         statement_import.raw_file_str = file.read
       else
         statement_import.destroy
