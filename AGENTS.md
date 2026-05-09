@@ -29,6 +29,7 @@
 ## Commit & Pull Request Guidelines
 - Commits: Imperative subject ≤ 72 chars (e.g., "Add account balance validation"). Include rationale in body and reference issues (`#123`).
 - PRs: Clear description, linked issues, screenshots for UI changes, and migration notes if applicable. Ensure CI passes, tests added/updated, and `rubocop`/Biome are clean.
+- Create PRs only against the `origin` (`RealDyllon`) repository. Do not open PRs against `upstream` (`we-promise`).
 
 ## Security & Configuration Tips
 - Never commit secrets. Start from `.env.local.example`; use `.env.local` for development only.
