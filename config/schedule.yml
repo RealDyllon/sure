@@ -13,6 +13,12 @@ clean_syncs:
   queue: "scheduled"
   description: "Cleans up stale syncs"
 
+recover_stalled_statement_imports:
+  cron: "*/5 * * * *" # every 5 minutes
+  class: "RecoverStalledStatementImportsJob"
+  queue: "scheduled"
+  description: "Queues one retry for stalled statement imports"
+
 run_security_health_checks:
   cron: "0 2 * * 1-5" # 2:00 AM EST / 3:00 AM EDT (NY time) Monday through Friday
   class: "SecurityHealthCheckJob"

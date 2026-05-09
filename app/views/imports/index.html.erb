@@ -52,8 +52,16 @@
                       <%= t("imports.table.row.status.in_progress") %>
                     <% end %>
                   <% elsif import.importing? %>
-                    <%= render "shared/badge", color: "warning", pulse: true do %>
-                      <%= t("imports.table.row.status.uploading") %>
+                    <% if import.is_a?(StatementImport) %>
+                      <% stalled = import.respond_to?(:processing_progress_stale?) && import.processing_progress_stale? %>
+                      <%= render "shared/badge", color: "warning", pulse: !stalled do %>
+                        <%= t("imports.table.row.status.#{stalled ? "stalled" : "processing"}") %>
+                      <% end %>
+                      <%= render "imports/processing_progress", import: import, mode: :compact %>
+                    <% else %>
+                      <%= render "shared/badge", color: "warning", pulse: true do %>
+                        <%= t("imports.table.row.status.uploading") %>
+                      <% end %>
                     <% end %>
                   <% elsif import.failed? %>
                     <%= render "shared/badge", color: "error" do %>

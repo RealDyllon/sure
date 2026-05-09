@@ -1,6 +1,8 @@
 require "test_helper"
 
 class StatementImportTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
   setup do
     @family = families(:dylan_family)
   end
@@ -78,6 +80,120 @@ class StatementImportTest < ActiveSupport::TestCase
     )
 
     assert_equal "uob_statement.csv", statement_import.original_filename
+  end
+
+  test "processing progress helpers merge values and compute percent" do
+    statement_import = @family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "Date,Description,Amount\n2026-04-01,Test,1.00"
+    )
+
+    statement_import.update_processing_progress!(
+      phase: :extracting,
+      message: "Processing chunk 1 of 4",
+      current: 1,
+      total: 4,
+      job_id: "job-1",
+      retry_count: 0
+    )
+
+    progress = statement_import.reload.processing_progress
+    assert_equal "extracting", progress["phase"]
+    assert_equal "Processing chunk 1 of 4", progress["message"]
+    assert_equal 1, progress["current"]
+    assert_equal 4, progress["total"]
+    assert_equal 25, progress["percent"]
+    assert_equal "job-1", progress["job_id"]
+    assert_equal 0, progress["retry_count"]
+    assert_not_nil progress["started_at"]
+    assert_not_nil progress["last_updated_at"]
+    assert_nil progress["finished_at"]
+    assert_equal 25, statement_import.processing_progress_percent
+
+    statement_import.update_processing_progress!(
+      phase: :extracting,
+      message: "Processing chunk 2 of 4",
+      current: 2,
+      total: 4,
+      job_id: nil
+    )
+
+    progress = statement_import.reload.processing_progress
+    assert_equal "job-1", progress["job_id"]
+    assert_equal 0, progress["retry_count"]
+    assert_equal 50, progress["percent"]
+
+    statement_import.finish_processing_progress!(message: "Ready for review")
+
+    progress = statement_import.reload.processing_progress
+    assert_equal "complete", progress["phase"]
+    assert_equal "Ready for review", progress["message"]
+    assert_equal 4, progress["current"]
+    assert_equal 4, progress["total"]
+    assert_equal 100, progress["percent"]
+    assert_not_nil progress["finished_at"]
+
+    statement_import.clear_processing_progress!
+    assert_equal({}, statement_import.reload.processing_progress)
+  end
+
+  test "process with ai later replaces stale job ownership" do
+    statement_import = @family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "Date,Description,Amount\n2026-04-01,Test,1.00",
+      processing_progress: {
+        "job_id" => "old-job",
+        "phase" => "failed",
+        "message" => "Incorrect password",
+        "retry_count" => 0
+      }
+    )
+
+    assert_enqueued_with(job: ProcessStatementImportJob) do
+      statement_import.process_with_ai_later
+    end
+
+    progress = statement_import.reload.processing_progress
+    assert_equal "queued", progress["phase"]
+    assert_equal I18n.t("imports.progress.default_message"), progress["message"]
+    assert_equal 0, progress["current"]
+    assert_equal 0, progress["retry_count"]
+    assert progress["job_id"].present?
+    assert_not_equal "old-job", progress["job_id"]
+  end
+
+  test "processing progress stale and retryable stall detection" do
+    statement_import = @family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "Date,Description,Amount\n2026-04-01,Test,1.00",
+      status: "importing",
+      processing_progress: {
+        "phase" => "extracting",
+        "last_updated_at" => (Import::PROCESSING_PROGRESS_STALE_AFTER + 1.minute).ago.iso8601,
+        "retry_count" => 0
+      }
+    )
+
+    assert statement_import.processing_progress_stale?
+    assert statement_import.retryable_processing_stall?
+
+    statement_import.update!(processing_progress: statement_import.processing_progress.merge("retry_count" => StatementImport::MAX_PROCESSING_RETRIES))
+    assert_not statement_import.retryable_processing_stall?
+
+    statement_import.update!(processing_progress: statement_import.processing_progress.merge("last_updated_at" => Time.current.iso8601, "retry_count" => 0))
+    assert_not statement_import.processing_progress_stale?
+
+    statement_import.update!(processing_progress: {}, updated_at: Time.current)
+    assert_not statement_import.processing_progress_stale?
+
+    statement_import.update!(updated_at: (Import::PROCESSING_PROGRESS_STALE_AFTER + 1.minute).ago)
+    assert statement_import.processing_progress_stale?
+
+    statement_import.update!(processing_progress: statement_import.processing_progress.merge("last_updated_at" => "not-a-time"))
+    assert statement_import.processing_progress_stale?
+
+    statement_import.update!(status: "pending")
+    assert_not statement_import.processing_progress_stale?
   end
 
   test "publish normalizes PDF transaction signs to Sure entry convention" do

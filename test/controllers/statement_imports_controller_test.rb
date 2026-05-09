@@ -5,6 +5,7 @@ class StatementImportsControllerTest < ActionDispatch::IntegrationTest
 
   setup do
     sign_in @user = users(:family_admin)
+    ensure_tailwind_build
   end
 
   test "uploads csv statement as StatementImport" do
@@ -207,8 +208,6 @@ class StatementImportsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "review page preselects matched manual account but still requires publish review" do
-    ensure_tailwind_build
-
     account = accounts(:depository)
     account.update!(name: "DBS Multiplier 00000018", currency: "SGD")
 
@@ -241,7 +240,9 @@ class StatementImportsControllerTest < ActionDispatch::IntegrationTest
       }
     )
 
-    get import_url(statement_import)
+    assert_no_enqueued_jobs only: ProcessStatementImportJob do
+      get import_url(statement_import)
+    end
 
     assert_response :success
     assert_select "[data-controller='statement-review']", 1
@@ -305,11 +306,160 @@ class StatementImportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "[data-controller='page-polling'][data-page-polling-url-value='#{import_path(statement_import)}'][data-page-polling-interval-value='3000']"
+    assert_select "[role='progressbar'][aria-valuenow='0'][aria-valuemin='0'][aria-valuemax='100']", 1
+    assert_select "p", text: I18n.t("imports.progress.default_message")
     assert_select "a[href='#{import_path(statement_import)}']", text: "Check status"
   end
 
-  private
+  test "processing page renders progress and stale retry button" do
+    statement_import = @user.family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "processing statement",
+      status: :importing,
+      date_format: "%Y-%m-%d"
+    )
 
+    StatementImport.any_instance.stubs(:processing_progress).returns({
+      "message" => "Extracting transactions",
+      "current" => 7,
+      "total" => 10,
+      "percent" => 70,
+      "last_updated_at" => 10.minutes.ago.iso8601,
+      "retry_count" => 0
+    })
+    StatementImport.any_instance.stubs(:processing_progress_percent).returns(70)
+    StatementImport.any_instance.stubs(:processing_progress_stale?).returns(true)
+
+    get import_url(statement_import)
+
+    assert_response :success
+    assert_select "[role='progressbar'][aria-valuenow='70'][aria-valuemin='0'][aria-valuemax='100']", 1
+    assert_select "p", text: "Extracting transactions"
+    assert_select "span", text: "7 / 10"
+    assert_select "p", text: I18n.t("imports.progress.stale_message")
+    assert_select "form[action='#{retry_processing_import_path(statement_import)}'][method='post'] button", text: I18n.t("imports.progress.retry_processing")
+  end
+
+  test "retry processing queues a statement import and resets progress" do
+    statement_import = @user.family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "processing statement",
+      status: :importing,
+      error: "Timed out",
+      date_format: "%Y-%m-%d",
+      processing_progress: {
+        "message" => "Extracting transactions",
+        "current" => 4,
+        "total" => 10,
+        "percent" => 40,
+        "last_updated_at" => 10.minutes.ago.iso8601,
+        "retry_count" => 0
+      }
+    )
+
+    assert_enqueued_with(job: ProcessStatementImportJob) do
+      post retry_processing_import_url(statement_import)
+    end
+
+    assert_redirected_to import_url(statement_import)
+    assert_equal I18n.t("imports.retry_processing.started"), flash[:notice]
+    statement_import.reload
+    assert_equal "pending", statement_import.status
+    assert_nil statement_import.error
+    assert_equal "queued", statement_import.processing_progress["phase"]
+    assert_equal I18n.t("imports.progress.retry_queued"), statement_import.processing_progress["message"]
+    assert_equal 0, statement_import.processing_progress["current"]
+    assert_equal 10, statement_import.processing_progress["total"]
+    assert_equal 1, statement_import.processing_progress["retry_count"]
+    assert statement_import.processing_progress["job_id"].present?
+  end
+
+  test "retry processing rejects active non-stale imports" do
+    statement_import = @user.family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "processing statement",
+      status: :importing,
+      date_format: "%Y-%m-%d",
+      processing_progress: {
+        "message" => "Extracting transactions",
+        "current" => 4,
+        "total" => 10,
+        "percent" => 40,
+        "last_updated_at" => Time.current.iso8601,
+        "retry_count" => 0
+      }
+    )
+
+    assert_no_enqueued_jobs only: ProcessStatementImportJob do
+      post retry_processing_import_url(statement_import)
+    end
+
+    assert_redirected_to import_url(statement_import)
+    assert_equal I18n.t("imports.retry_processing.not_retryable"), flash[:alert]
+    assert_equal "importing", statement_import.reload.status
+  end
+
+  test "retry processing rejects imports at retry limit" do
+    statement_import = @user.family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "processing statement",
+      status: :importing,
+      date_format: "%Y-%m-%d",
+      processing_progress: {
+        "message" => "Extracting transactions",
+        "current" => 4,
+        "total" => 10,
+        "percent" => 40,
+        "last_updated_at" => 10.minutes.ago.iso8601,
+        "retry_count" => StatementImport::MAX_PROCESSING_RETRIES
+      }
+    )
+
+    assert_no_enqueued_jobs only: ProcessStatementImportJob do
+      post retry_processing_import_url(statement_import)
+    end
+
+    assert_redirected_to import_url(statement_import)
+    assert_equal I18n.t("imports.retry_processing.not_retryable"), flash[:alert]
+  end
+
+  test "pdf password retry replaces stale processing job ownership" do
+    statement_import = @user.family.imports.create!(
+      type: "StatementImport",
+      status: :failed,
+      error: "Incorrect password",
+      date_format: "%Y-%m-%d",
+      processing_progress: {
+        "job_id" => "old-job",
+        "phase" => "failed",
+        "message" => "Incorrect password",
+        "retry_count" => 0
+      }
+    )
+    statement_import.pdf_file.attach(
+      io: file_fixture("imports/sample_bank_statement.pdf").open,
+      filename: "sample_bank_statement.pdf",
+      content_type: "application/pdf"
+    )
+
+    assert_enqueued_with(job: ProcessStatementImportJob) do
+      patch import_url(statement_import), params: {
+        statement_import: {
+          statement_pdf_password: "secret"
+        }
+      }
+    end
+
+    assert_redirected_to import_url(statement_import)
+    progress = statement_import.reload.processing_progress
+    assert_equal "pending", statement_import.status
+    assert_nil statement_import.error
+    assert_equal "queued", progress["phase"]
+    assert_not_equal "old-job", progress["job_id"]
+    assert progress["job_id"].present?
+  end
+
+  private
     def statement_import_with_review_accounts(accounts)
       @user.family.imports.create!(
         type: "StatementImport",
