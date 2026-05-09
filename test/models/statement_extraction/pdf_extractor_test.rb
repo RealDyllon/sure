@@ -60,8 +60,8 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
           period: { start_date: "2026-04-01", end_date: "2026-04-30" },
           accounts: [
             {
-              account_name: "DBS Multiplier Account",
-              account_number: "120-852720-3",
+              account_name: "Example Checking Account",
+              account_number: "120-852222-2",
               account_type: "Depository",
               subtype: "checking",
               currency: "SGD",
@@ -101,11 +101,11 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
     current = result.accounts.first
     savings = result.accounts.second
 
-    assert_equal "dbs:7203", current["source_id"]
-    assert_equal "DBS Multiplier Account", current["name"]
+    assert_equal "dbs:2222", current["source_id"]
+    assert_equal "Example Checking Account", current["name"]
     assert_equal "checking", current["subtype"]
     assert_equal "900.00", current["closing_balance"]
-    assert_equal "dbs:7203:2026-04-10:-5.50:Coffee", current["transactions"].first["external_id"]
+    assert_equal "dbs:2222:2026-04-10:-5.50:Coffee", current["transactions"].first["external_id"]
 
     assert_equal "dbs:5678", savings["source_id"]
     assert_equal "DBS Savings Plus", savings["name"]
@@ -128,12 +128,12 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
           ],
           accounts: [
             {
-              account_name: "One Account",
+              account_name: "Example Reserve Account",
               account_number: "770-344-095-2",
               account_type: "Depository",
               subtype: "checking",
               currency: "SGD",
-              closing_balance: "15350.42",
+              closing_balance: "3456.78",
               transactions: []
             }
           ]
@@ -151,7 +151,7 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
 
     account = result.accounts.first
     assert_equal "uob:0952", account["source_id"]
-    assert_equal "One Account", account["name"]
+    assert_equal "Example Reserve Account", account["name"]
     assert_equal 2, account["transactions"].size
     assert_equal "uob:0952:2026-04-15:-5.50:Coffee", account["transactions"].first["external_id"]
     assert_equal "uob:0952:2026-04-30:0.71:Interest Credit", account["transactions"].second["external_id"]
@@ -170,7 +170,7 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
           ],
           accounts: [
             {
-              account_name: "DBS Multiplier Account",
+              account_name: "Example Checking Account",
               account_number: "1234",
               account_type: "Depository",
               subtype: "checking",
@@ -209,6 +209,78 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
     assert_equal "Unassigned DBS Activity", unassigned["name"]
     assert_equal 1, unassigned["transactions"].size
     assert_equal "dbs:unassigned:2026-04-15:-5.50:Unassigned Row", unassigned["transactions"].first["external_id"]
+  end
+
+  test "merges duplicate bank account payloads and skips duplicated document activity" do
+    provider = mock("default_llm_provider")
+    provider.expects(:extract_bank_statement).returns(
+      Provider::Response.new(
+        success?: true,
+        data: {
+          bank_name: "DBS Bank",
+          period: { start_date: "2026-04-01", end_date: "2026-04-30" },
+          currency: "SGD",
+          cash_balance: "2345.67",
+          transactions: [
+            { date: "2026-04-10", name: "Coffee", amount: "-5.50", currency: "SGD" },
+            { date: "2026-04-15", name: "Interest", amount: "0.71", currency: "SGD" }
+          ],
+          accounts: [
+            {
+              account_name: "Example Savings Account",
+              account_number: "1111",
+              account_type: "Depository",
+              subtype: "savings",
+              currency: "SGD",
+              closing_balance: "123.45",
+              cash_balance: "123.45",
+              transactions: [
+                { date: "2026-04-15", name: "Interest", amount: "0.71", currency: "SGD" }
+              ]
+            },
+            {
+              account_name: "Example Checking Account",
+              account_number: "2222",
+              account_type: "Depository",
+              subtype: "savings",
+              currency: "SGD",
+              closing_balance: "2222.22",
+              cash_balance: "2222.22",
+              transactions: []
+            },
+            {
+              account_name: "Example Checking Account",
+              account_number: "2222",
+              account_type: "Depository",
+              subtype: "checking",
+              currency: "SGD",
+              transactions: [
+                { date: "2026-04-10", name: "Coffee", amount: "-5.50", currency: "SGD" }
+              ]
+            }
+          ]
+        },
+        error: nil
+      )
+    )
+    Provider::Registry.expects(:get_provider).never
+    Provider::Registry.stubs(:default_llm_provider).returns(provider)
+
+    statement_import = StatementImport.new(family: @family, statement_original_filename: "dbs-apr.pdf")
+    statement_import.stubs(:pdf_file_content).returns("pdf")
+
+    result = StatementExtraction::PdfExtractor.new(statement_import).extract
+
+    assert_equal 2, result.accounts.size
+    assert_equal [ "dbs:1111", "dbs:2222" ], result.accounts.map { |account| account["source_id"] }
+
+    dbs = result.accounts.find { |account| account["source_id"] == "dbs:2222" }
+    assert_equal "Example Checking Account", dbs["name"]
+    assert_equal "checking", dbs["subtype"]
+    assert_equal "2222.22", dbs["closing_balance"]
+    assert_equal "2222.22", dbs["cash_balance"]
+    assert_equal 1, dbs["transactions"].size
+    assert_equal "dbs:2222:2026-04-10:-5.50:Coffee", dbs["transactions"].first["external_id"]
   end
 
   test "keeps source ids unique for accounts with duplicate suffixes" do
@@ -265,10 +337,10 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
         data: {
           bank_name: "UOB",
           period: { start_date: "2026-04-01", end_date: "2026-04-30" },
-          account_name: "One Account",
+          account_name: "Example Reserve Account",
           account_number: "770-344-095-2",
           currency: "SGD",
-          closing_balance: "15350.42",
+          closing_balance: "3456.78",
           transactions: [
             { date: "2024-04-01", name: "Funds Transfer", amount: "-2000.00", currency: "SGD" },
             { date: "2024-04-30", name: "Interest Credit", amount: "0.71", currency: "SGD" }

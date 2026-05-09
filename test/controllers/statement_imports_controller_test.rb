@@ -133,7 +133,7 @@ class StatementImportsControllerTest < ActionDispatch::IntegrationTest
             action: "create",
             account_type: "Depository",
             account_subtype: "savings",
-            account_name: "UOB One Account",
+            account_name: "Example Reserve Account",
             currency: "SGD"
           }
         }
@@ -159,7 +159,7 @@ class StatementImportsControllerTest < ActionDispatch::IntegrationTest
     assert_nil created_review["account_id"]
     assert_equal "Depository", created_review["account_type"]
     assert_equal "savings", created_review["account_subtype"]
-    assert_equal "UOB One Account", created_review["account_name"]
+    assert_equal "Example Reserve Account", created_review["account_name"]
     assert_equal "SGD", created_review["currency"]
   end
 
@@ -222,7 +222,7 @@ class StatementImportsControllerTest < ActionDispatch::IntegrationTest
         "accounts" => [
           {
             "source_id" => "dbs:5678",
-            "name" => "DBS Multiplier Account",
+            "name" => "Example Checking Account",
             "account_type" => "Depository",
             "subtype" => "checking",
             "currency" => "SGD",
@@ -268,13 +268,13 @@ class StatementImportsControllerTest < ActionDispatch::IntegrationTest
         "accounts" => [
           {
             "source_id" => "uob:one",
-            "name" => "One Account",
+            "name" => "Example Reserve Account",
             "account_type" => "Depository",
             "currency" => "SGD",
             "transactions" => [],
             "review" => {
               "action" => "create",
-              "account_name" => "One Account",
+              "account_name" => "Example Reserve Account",
               "account_type" => "Depository",
               "currency" => "SGD"
             }

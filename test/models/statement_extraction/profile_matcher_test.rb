@@ -43,7 +43,7 @@ class StatementExtraction::ProfileMatcherTest < ActiveSupport::TestCase
       accounts: [
         {
           "source_id" => "dbs:5678",
-          "name" => "DBS Multiplier Account",
+          "name" => "Example Checking Account",
           "account_type" => "Depository",
           "subtype" => "checking",
           "currency" => "SGD"
@@ -60,6 +60,32 @@ class StatementExtraction::ProfileMatcherTest < ActiveSupport::TestCase
     assert_equal "checking", review["account_subtype"]
     assert_equal "DBS Multiplier 5678", review["account_name"]
     assert_equal "SGD", review["currency"]
+  end
+
+  test "suggests a unique compatible manual account by exact account name" do
+    account = accounts(:depository)
+    account.update!(name: "Example Checking Account", currency: "SGD")
+
+    result = StatementExtraction::Result.new(
+      provider: "dbs",
+      file_type: "pdf",
+      accounts: [
+        {
+          "source_id" => "dbs:2222",
+          "name" => "Example Checking Account",
+          "account_type" => "Depository",
+          "subtype" => "checking",
+          "currency" => "SGD"
+        }
+      ]
+    )
+
+    matched = StatementExtraction::ProfileMatcher.new(family: account.family, result: result).call
+    review = matched.accounts.first["review"]
+
+    assert_equal "match", review["action"]
+    assert_equal account.id, review["account_id"]
+    assert_equal "Example Checking Account", review["account_name"]
   end
 
   test "does not suggest an account when heuristic matches are ambiguous" do

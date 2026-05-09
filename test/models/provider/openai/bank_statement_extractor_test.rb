@@ -68,7 +68,7 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
             },
             "accounts" => [
               {
-                "account_name" => "DBS Multiplier Account",
+                "account_name" => "Example Checking Account",
                 "account_number" => "1234",
                 "account_type" => "Depository",
                 "subtype" => "checking",
@@ -114,7 +114,7 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
     current = result[:accounts].first
     savings = result[:accounts].second
 
-    assert_equal "DBS Multiplier Account", current[:account_name]
+    assert_equal "Example Checking Account", current[:account_name]
     assert_equal "1234", current[:account_number]
     assert_equal "checking", current[:subtype]
     assert_equal 900.00, current[:closing_balance]
@@ -137,12 +137,12 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
             "bank_name" => "DBS Bank",
             "accounts" => [
               {
-                "account_name" => "DBS Multiplier Account",
-                "account_number" => "120-852720-3",
+                "account_name" => "Example Checking Account",
+                "account_number" => "120-852222-2",
                 "account_type" => "Depository",
                 "subtype" => "checking",
                 "currency" => "SGD",
-                "closing_balance" => 9433.78,
+                "closing_balance" => 1234.56,
                 "transactions" => []
               }
             ]
@@ -156,8 +156,8 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
           "content" => {
             "accounts" => [
               {
-                "account_name" => "DBS Multiplier Account",
-                "account_number" => "27203",
+                "account_name" => "Example Checking Account",
+                "account_number" => "22222",
                 "account_type" => "Depository",
                 "subtype" => "checking",
                 "currency" => "SGD",
@@ -188,9 +188,9 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
 
     assert_equal 1, result[:accounts].size
     account = result[:accounts].first
-    assert_equal "7203", account[:account_number]
-    assert_equal "DBS Multiplier Account", account[:account_name]
-    assert_equal 9433.78, account[:closing_balance]
+    assert_equal "2222", account[:account_number]
+    assert_equal "Example Checking Account", account[:account_name]
+    assert_equal 1234.56, account[:closing_balance]
     assert_equal 1, account[:transactions].size
     assert_equal "Interest Earned", account[:transactions].first[:name]
   end
@@ -203,7 +203,7 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
             "bank_name" => "DBS Bank",
             "accounts" => [
               {
-                "account_name" => "DBS Multiplier Account",
+                "account_name" => "Example Checking Account",
                 "account_number" => "1234",
                 "account_type" => "Depository",
                 "subtype" => "checking",
@@ -246,7 +246,7 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
     depository = result[:accounts].detect { |account| account[:account_type] == "Depository" }
     credit_card = result[:accounts].detect { |account| account[:account_type] == "CreditCard" }
 
-    assert_equal "DBS Multiplier Account", depository[:account_name]
+    assert_equal "Example Checking Account", depository[:account_name]
     assert_equal 900.00, depository[:closing_balance]
     assert_equal [ "Salary" ], depository[:transactions].map { |transaction| transaction[:name] }
 
@@ -263,7 +263,7 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
             "bank_name" => "DBS Bank",
             "accounts" => [
               {
-                "account_name" => "DBS Multiplier Account",
+                "account_name" => "Example Checking Account",
                 "account_type" => "Depository",
                 "subtype" => "savings",
                 "currency" => "SGD",
@@ -271,12 +271,12 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
                 "transactions" => []
               },
               {
-                "account_name" => "POSB eEveryday Savings Account",
-                "account_number" => "1594",
+                "account_name" => "Example Savings Account",
+                "account_number" => "1111",
                 "account_type" => "Depository",
                 "subtype" => "savings",
                 "currency" => "SGD",
-                "closing_balance" => 231.46,
+                "closing_balance" => 234.56,
                 "transactions" => []
               }
             ]
@@ -290,8 +290,8 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
           "content" => {
             "accounts" => [
               {
-                "account_name" => "DBS Multiplier Account",
-                "account_number" => "7203",
+                "account_name" => "Example Checking Account",
+                "account_number" => "2222",
                 "account_type" => "Depository",
                 "subtype" => "savings",
                 "currency" => "SGD",
@@ -322,16 +322,16 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
 
     assert_equal 2, result[:accounts].size
 
-    multiplier = result[:accounts].detect { |account| account[:account_name] == "DBS Multiplier Account" }
-    savings = result[:accounts].detect { |account| account[:account_name] == "POSB eEveryday Savings Account" }
+    multiplier = result[:accounts].detect { |account| account[:account_name] == "Example Checking Account" }
+    savings = result[:accounts].detect { |account| account[:account_name] == "Example Savings Account" }
 
-    assert_equal "7203", multiplier[:account_number]
+    assert_equal "2222", multiplier[:account_number]
     assert_equal 10_751.51, multiplier[:closing_balance]
     assert_equal 1, multiplier[:transactions].size
     assert_equal "Salary Credit", multiplier[:transactions].first[:name]
 
-    assert_equal "1594", savings[:account_number]
-    assert_equal 231.46, savings[:closing_balance]
+    assert_equal "1111", savings[:account_number]
+    assert_equal 234.56, savings[:closing_balance]
     assert_empty savings[:transactions]
   end
 
@@ -456,8 +456,8 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
             "bank_name" => "DBS Bank",
             "accounts" => [
               {
-                "account_name" => "DBS Multiplier Account",
-                "account_number" => "7203",
+                "account_name" => "Example Checking Account",
+                "account_number" => "2222",
                 "account_type" => "Depository",
                 "subtype" => "checking",
                 "currency" => "SGD",
@@ -476,8 +476,8 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
           "content" => {
             "accounts" => [
               {
-                "account_name" => "DBS Multiplier Account",
-                "account_number" => "7203",
+                "account_name" => "Example Checking Account",
+                "account_number" => "2222",
                 "account_type" => "Depository",
                 "subtype" => "checking",
                 "currency" => "SGD",
@@ -497,8 +497,8 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
           "content" => {
             "accounts" => [
               {
-                "account_name" => "DBS Multiplier Account",
-                "account_number" => "7203",
+                "account_name" => "Example Checking Account",
+                "account_number" => "2222",
                 "account_type" => "Depository",
                 "subtype" => "checking",
                 "currency" => "SGD",
