@@ -169,6 +169,8 @@ en:
           sure_import: "Sure"
         status:
           in_progress: In progress
+          processing: Processing
+          stalled: Stalled
           uploading: Processing rows
           reverting: Reverting
           revert_failed: Revert failed
@@ -222,6 +224,16 @@ en:
       statement_processing: Your statement is being processed.
     update:
       statement_review_saved: Statement review saved.
+    progress:
+      default_message: Processing statement
+      stale_message: Processing has not reported progress recently.
+      retry_processing: Retry processing
+      retry_queued: Processing retry queued.
+      auto_retry_queued: Processing appeared stalled, so we queued one retry.
+    retry_processing:
+      unsupported: This import cannot be retried.
+      not_retryable: This import is not ready to retry.
+      started: Processing retry queued.
     show:
       finalize_upload: Please finalize your file upload.
       finalize_mappings: Please finalize your mappings before proceeding.

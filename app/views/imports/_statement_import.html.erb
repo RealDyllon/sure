@@ -13,7 +13,14 @@
         <h1 class="font-medium text-primary text-center text-3xl"><%= t("imports.statement_import.processing_title", default: "Processing statement") %></h1>
         <p class="text-sm text-secondary"><%= t("imports.statement_import.processing_description", default: "We are extracting accounts, balances, and transactions for review.") %></p>
       </div>
+      <%= render "imports/processing_progress", import: import, mode: :full %>
       <div class="space-y-2 flex flex-col">
+        <% if import.respond_to?(:processing_progress_stale?) && import.processing_progress_stale? %>
+          <%= button_to t("imports.progress.retry_processing"),
+                retry_processing_import_path(import),
+                method: :post,
+                class: "w-full font-medium text-sm px-3 py-2 rounded-lg text-inverse bg-inverse hover:bg-inverse-hover" %>
+        <% end %>
         <%= render DS::Link.new(text: t("imports.pdf_import.check_status", default: "Check status"), href: import_path(import), variant: "primary", full_width: true) %>
         <%= render DS::Link.new(text: t("imports.pdf_import.back_to_imports", default: "Back to imports"), href: imports_path, variant: "secondary", full_width: true) %>
       </div>

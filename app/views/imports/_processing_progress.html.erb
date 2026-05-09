@@ -1,0 +1,46 @@
+<%# locals: (import:, mode: :full) %>
+<%
+  progress = import.respond_to?(:processing_progress) ? import.processing_progress : {}
+  progress ||= {}
+  current = progress["current"]
+  total = progress["total"]
+  percent = if import.respond_to?(:processing_progress_percent)
+    import.processing_progress_percent
+  else
+    progress["percent"]
+  end
+  if percent.blank? && current.present? && total.to_i.positive?
+    percent = ((current.to_f / total.to_f) * 100).round
+  end
+  percent = percent.to_i.clamp(0, 100)
+  message = progress["message"].presence || t("imports.progress.default_message")
+  stale = import.respond_to?(:processing_progress_stale?) && import.processing_progress_stale?
+  compact = mode.to_sym == :compact
+%>
+
+<% if progress.present? || !compact %>
+  <div class="<%= class_names(compact ? "mt-2 space-y-1.5 min-w-36 max-w-56" : "space-y-2 rounded-lg bg-container-inset p-3") %>">
+    <div class="<%= class_names("flex items-center justify-between gap-3", compact ? "text-xs" : "text-sm") %>">
+      <p class="<%= class_names("text-secondary truncate", stale && "text-warning") %>"><%= message %></p>
+      <% if current.present? && total.present? %>
+        <span class="text-subdued tabular-nums shrink-0"><%= current %> / <%= total %></span>
+      <% end %>
+    </div>
+
+    <div class="h-1.5 rounded-full bg-gray-tint-5 overflow-hidden"
+         role="progressbar"
+         aria-valuenow="<%= percent %>"
+         aria-valuemin="0"
+         aria-valuemax="100"
+         aria-label="<%= t("imports.progress.default_message") %>">
+      <div class="<%= class_names("h-full rounded-full transition-all", stale ? "bg-warning" : "bg-inverse") %>" style="width: <%= percent %>%"></div>
+    </div>
+
+    <% if stale && !compact %>
+      <p class="flex items-center gap-1.5 text-xs text-warning">
+        <%= icon "triangle-alert", size: "sm", class: "shrink-0" %>
+        <%= t("imports.progress.stale_message") %>
+      </p>
+    <% end %>
+  </div>
+<% end %>

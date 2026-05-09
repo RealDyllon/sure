@@ -724,6 +724,50 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
     assert_includes names, "Gas Station"
   end
 
+  test "emits progress callback before processing chunks" do
+    first_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "Test Bank",
+            "transactions" => []
+          }.to_json
+        }
+      } ]
+    }
+    second_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "transactions" => []
+          }.to_json
+        }
+      } ]
+    }
+    events = []
+
+    @client.expects(:chat).twice.returns(first_response, second_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model,
+      progress_callback: ->(**event) { events << event }
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([
+      "Page 1 " * 500,
+      "Page 2 " * 500
+    ])
+
+    extractor.extract
+
+    assert_equal [
+      { current: 0, total: 2, message: "Preparing 2 chunks" },
+      { current: 1, total: 2, message: "Processing chunk 1 of 2" },
+      { current: 2, total: 2, message: "Processing chunk 2 of 2" }
+    ], events
+  end
+
   test "normalizes transaction amounts" do
     mock_response = {
       "choices" => [ {
