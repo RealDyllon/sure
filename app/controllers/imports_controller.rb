@@ -4,6 +4,11 @@ class ImportsController < ApplicationController
   before_action :set_import, only: %i[show update publish destroy revert apply_template]
 
   def update
+    if @import.is_a?(StatementImport)
+      update_statement_import
+      return
+    end
+
     # Handle both pdf_import[account_id] and import[account_id] param formats
     account_id = params.dig(:pdf_import, :account_id) || params.dig(:import, :account_id)
 
@@ -43,6 +48,11 @@ class ImportsController < ApplicationController
 
   def create
     file = import_params[:import_file]
+
+    if file.present? && statement_import_request?
+      create_statement_import(file)
+      return
+    end
 
     if file.present? && document_upload_request?
       create_document_import(file)
@@ -152,6 +162,47 @@ class ImportsController < ApplicationController
       redirect_to import_path(pdf_import), notice: t("imports.create.pdf_processing")
     end
 
+    def create_statement_import(file)
+      statement_import = Current.family.imports.create!(
+        type: "StatementImport",
+        date_format: "%Y-%m-%d"
+      )
+
+      if Import::ALLOWED_PDF_MIME_TYPES.include?(file.content_type) || File.extname(file.original_filename.to_s).downcase == ".pdf"
+        unless valid_pdf_file?(file)
+          statement_import.destroy
+          redirect_to new_import_path, alert: t("imports.create.invalid_pdf")
+          return
+        end
+
+        if file.size > Import::MAX_PDF_SIZE
+          statement_import.destroy
+          redirect_to new_import_path, alert: t("imports.create.pdf_too_large", max_size: Import::MAX_PDF_SIZE / 1.megabyte)
+          return
+        end
+
+        statement_import.statement_pdf_password = params.dig(:import, :statement_pdf_password)
+        statement_import.pdf_file.attach(file)
+      elsif Import::ALLOWED_CSV_MIME_TYPES.include?(file.content_type) || File.extname(file.original_filename.to_s).downcase == ".csv"
+        if file.size > Import::MAX_CSV_SIZE
+          statement_import.destroy
+          redirect_to new_import_path, alert: t("imports.create.file_too_large", max_size: Import::MAX_CSV_SIZE / 1.megabyte)
+          return
+        end
+
+        statement_import.raw_file_str = file.read
+      else
+        statement_import.destroy
+        redirect_to new_import_path, alert: t("imports.create.invalid_statement_file_type", default: "Invalid statement file type. Please upload a PDF or CSV file.")
+        return
+      end
+
+      statement_import.save!
+      statement_import.process_with_ai_later
+
+      redirect_to import_path(statement_import), notice: t("imports.create.statement_processing", default: "Your statement is being processed.")
+    end
+
     def create_document_import(file)
       adapter = VectorStore.adapter
       unless adapter
@@ -206,6 +257,10 @@ class ImportsController < ApplicationController
       params.dig(:import, :type) == "DocumentImport"
     end
 
+    def statement_import_request?
+      params.dig(:import, :type) == "StatementImport"
+    end
+
     def sure_import_request?
       params.dig(:import, :type) == "SureImport"
     end
@@ -244,5 +299,34 @@ class ImportsController < ApplicationController
       header = file.read(5)
       file.rewind
       header&.start_with?("%PDF-")
+    end
+
+    def update_statement_import
+      if params.dig(:statement_import, :statement_pdf_password).present?
+        @import.update!(
+          statement_pdf_password: params.dig(:statement_import, :statement_pdf_password),
+          status: :pending,
+          error: nil
+        )
+        @import.process_with_ai_later
+        redirect_to import_path(@import), notice: t("imports.create.statement_processing", default: "Your statement is being processed.")
+        return
+      end
+
+      review_params = params.fetch(:statement_import, {}).fetch(:accounts, {})
+      review_params.each_value do |review|
+        account = accessible_accounts.find_by(id: review[:account_id]) if review[:account_id].present?
+        @import.update_review_account!(
+          review[:source_id],
+          action: review[:action].presence || (account ? "match" : "create"),
+          account_id: account&.id,
+          account_type: review[:account_type],
+          account_subtype: review[:account_subtype],
+          account_name: review[:account_name],
+          currency: review[:currency]
+        )
+      end
+
+      redirect_to import_path(@import), notice: t("imports.update.statement_review_saved", default: "Statement review saved.")
     end
 end

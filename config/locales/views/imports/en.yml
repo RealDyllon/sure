@@ -134,6 +134,7 @@ en:
       category_import: "Category import"
       rule_import: "Rule import"
       pdf_import: "PDF import"
+      statement_import: "Statement import"
       document_import: "Document import"
       sure_import: "Sure import"
     steps:
@@ -163,6 +164,7 @@ en:
           category_import: "Category"
           rule_import: "Rule"
           pdf_import: "PDF"
+          statement_import: "Statement"
           document_import: "Document"
           sure_import: "Sure"
         status:
@@ -193,6 +195,8 @@ en:
       import_qif: Import from Quicken (QIF)
       import_sure: Import from Sure
       import_sure_description: Full-export .ndjson file
+      import_statement: Import bank, card, or CPF statement
+      import_statement_description: DBS, PayLah, UOB, and CPF PDF or CSV
       import_file: Import document
       import_file_description: AI-powered analysis for PDFs and searchable file upload
       requires_account: Import accounts first to unlock this option.
@@ -214,6 +218,10 @@ en:
       invalid_ndjson_file_type: Invalid file type or format. Please upload a valid .ndjson or .json export file.
       ndjson_uploaded: NDJSON file uploaded successfully.
       document_provider_not_configured: No vector store is configured for document uploads.
+      invalid_statement_file_type: Invalid statement file type. Please upload a PDF or CSV file.
+      statement_processing: Your statement is being processed.
+    update:
+      statement_review_saved: Statement review saved.
     show:
       finalize_upload: Please finalize your file upload.
       finalize_mappings: Please finalize your mappings before proceeding.
@@ -255,3 +263,22 @@ en:
       unknown_state_description: This import is in an unexpected state. Please return to imports.
       processing_failed_with_message: "%{message}"
       processing_failed_generic: "Processing failed: %{error}"
+    statement_import:
+      processing_title: Processing statement
+      processing_description: We are extracting accounts, balances, and transactions for review.
+      failed_title: Statement processing failed
+      password_placeholder: PDF password
+      retry_with_password: Retry with password
+      complete_title: Statement imported
+      complete_description: Accounts, balances, and transactions from this statement have been applied.
+      review_title: Review statement import
+      review_description: Confirm where each detected statement account should be imported before publishing.
+      provider: Provider
+      file_type: File type
+      action: Action
+      existing_account: Existing account
+      account_name: Account name
+      account_type: Account type
+      save_review: Save review
+      publish: Publish statement import
+      save_before_publish: Save review decisions before publishing.

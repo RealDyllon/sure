@@ -4,7 +4,9 @@
 
 <%= content_for :previous_path, @import.is_a?(PdfImport) ? imports_path : import_confirm_path(@import) %>
 
-<% if @import.is_a?(PdfImport) %>
+<% if @import.is_a?(StatementImport) %>
+  <%= render "imports/statement_import", import: @import %>
+<% elsif @import.is_a?(PdfImport) %>
   <%= render "imports/pdf_import", import: @import %>
 <% elsif @import.importing? %>
   <%= render "imports/importing", import: @import %>

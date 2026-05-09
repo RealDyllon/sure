@@ -3,6 +3,7 @@ class ProcessPdfJob < ApplicationJob
 
   def perform(pdf_import)
     return unless pdf_import.is_a?(PdfImport)
+    return if pdf_import.is_a?(StatementImport)
     return unless pdf_import.pdf_uploaded?
     return if pdf_import.status == "complete"
     return if pdf_import.ai_processed? && (!pdf_import.statement_with_transactions? || pdf_import.rows_count > 0)
