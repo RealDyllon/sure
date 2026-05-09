@@ -219,7 +219,7 @@ class Provider::Openai::BankStatementExtractor
 
     def same_account?(first, second)
       key = account_key(first)
-      return true if key.present? && key == account_key(second)
+      return true if key.present? && key == account_key(second) && compatible_account_metadata?(first, second)
 
       return false unless account_activity_count(first).zero? || account_activity_count(second).zero?
 
