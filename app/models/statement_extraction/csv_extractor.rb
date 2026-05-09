@@ -46,7 +46,7 @@ module StatementExtraction
       end
 
       def ibkr_statement?(downcased_filename)
-          downcased_filename.include?("ibkr") ||
+        downcased_filename.include?("ibkr") ||
           downcased_filename.include?("interactivebrokers") ||
           downcased_filename.include?("interactive brokers") ||
           downcased_filename.include?("interactive_brokers") ||
@@ -96,28 +96,29 @@ module StatementExtraction
       end
 
       def extract_cpf(rows)
-        accounts = rows.map do |row|
-          bucket_name = value_at(row, "account").to_s.downcase
-          bucket_key, name, subtype = CPF_BUCKETS.fetch(bucket_name) do
-            normalized = bucket_name.presence || "other"
-            [ normalized.parameterize, "CPF #{normalized.titleize}", "cpf_other" ]
-          end
+        grouped = rows.group_by { |row| cpf_bucket_for(row).first }
+        accounts = grouped.map do |bucket_key, account_rows|
+          _, name, subtype = cpf_bucket_for(account_rows.first)
+          balance_row = latest_cpf_balance_row(account_rows)
 
-          date = cpf_date_for(row)
-          contribution = decimal_string(value_at(row, "contribution"))
-          withdrawal = decimal_string(value_at(row, "withdrawal"))
-          transactions = []
-          transactions << cpf_transaction("Contribution", contribution, date, bucket_key, row) unless contribution.to_d.zero?
-          transactions << cpf_transaction("Withdrawal", withdrawal, date, bucket_key, row) unless withdrawal.to_d.zero?
+          transactions = account_rows.flat_map do |row|
+            date = cpf_date_for(row)
+            contribution = decimal_string(value_at(row, "contribution"))
+            withdrawal = decimal_string(value_at(row, "withdrawal"))
+            row_transactions = []
+            row_transactions << cpf_transaction("Contribution", contribution, date, bucket_key, row) unless contribution.to_d.zero?
+            row_transactions << cpf_transaction("Withdrawal", withdrawal, date, bucket_key, row) unless withdrawal.to_d.zero?
+            row_transactions
+          end
 
           {
             "source_id" => "cpf:#{bucket_key}",
             "name" => name,
             "account_type" => "Investment",
             "subtype" => subtype,
-            "currency" => currency_for(row),
-            "closing_balance" => decimal_string(value_at(row, "closing balance", "balance")),
-            "balance_date" => date,
+            "currency" => currency_for(balance_row),
+            "closing_balance" => decimal_string(value_at(balance_row, "closing balance", "balance")),
+            "balance_date" => cpf_date_for(balance_row),
             "transactions" => transactions
           }
         end
@@ -128,6 +129,20 @@ module StatementExtraction
           statement_period: period_from(accounts),
           accounts: accounts
         )
+      end
+
+      def cpf_bucket_for(row)
+        bucket_name = value_at(row, "account").to_s.downcase
+        CPF_BUCKETS.fetch(bucket_name) do
+          normalized = bucket_name.presence || "other"
+          [ normalized.parameterize, "CPF #{normalized.titleize}", "cpf_other" ]
+        end
+      end
+
+      def latest_cpf_balance_row(rows)
+        rows.each_with_index.max_by do |row, index|
+          [ parse_date(cpf_date_for(row)) || Date.new(1, 1, 1), index ]
+        end&.first || rows.last
       end
 
       def extract_ibkr(rows)

@@ -44,6 +44,32 @@ class StatementExtraction::CsvExtractorTest < ActiveSupport::TestCase
     assert_equal 1, ordinary["transactions"].size
   end
 
+  test "groups multiple CPF rows for the same bucket into one account with latest balance" do
+    csv = <<~CSV
+      Month,Account,Contribution,Withdrawal,Closing Balance,Currency
+      2026-04,Ordinary Account,1002.00,0.00,21002.00,SGD
+      2026-05,Ordinary Account,800.00,0.00,21800.00,SGD
+      2026-05,Special Account,1025.00,0.00,13000.00,SGD
+    CSV
+
+    result = StatementExtraction::CsvExtractor.new(
+      raw_csv: csv,
+      filename: "cpf_statement.csv"
+    ).extract
+
+    assert_equal "cpf", result.provider
+    assert_equal 2, result.accounts.size
+    assert_equal [ "cpf:ordinary", "cpf:special" ], result.accounts.map { |account| account["source_id"] }
+
+    ordinary = result.accounts.find { |account| account["source_id"] == "cpf:ordinary" }
+    assert_equal "CPF Ordinary Account", ordinary["name"]
+    assert_equal "21800.00", ordinary["closing_balance"]
+    assert_equal "2026-05-31", ordinary["balance_date"]
+    assert_equal 2, ordinary["transactions"].size
+    assert_equal [ "2026-04-30", "2026-05-31" ], ordinary["transactions"].map { |txn| txn["date"] }
+    assert_equal [ "-1002.00", "-800.00" ], ordinary["transactions"].map { |txn| txn["amount"] }
+  end
+
   test "extracts IBKR activity statement trades cash activity balances and positions" do
     result = StatementExtraction::CsvExtractor.new(
       raw_csv: file_fixture("imports/ibkr_activity_statement.csv").read,
