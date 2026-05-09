@@ -276,6 +276,17 @@ class UserTest < ActiveSupport::TestCase
     Setting.openai_access_token = previous
   end
 
+  test "ai_available? returns true when codex llm provider is configured" do
+    Rails.application.config.app_mode.stubs(:self_hosted?).returns(true)
+
+    with_env_overrides OPENAI_ACCESS_TOKEN: nil, LLM_PROVIDER: "codex" do
+      Provider::OpenaiViaCodex.stubs(:configured?).returns(true)
+      Provider::OpenaiViaCodex::Client.stubs(:new).returns(stub)
+
+      assert @user.ai_available?
+    end
+  end
+
   test "ai_available? returns true when external assistant is configured and family type is external" do
     Rails.application.config.app_mode.stubs(:self_hosted?).returns(true)
     previous = Setting.openai_access_token

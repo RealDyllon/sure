@@ -47,7 +47,7 @@ class ChatTest < ActiveSupport::TestCase
       chat = @user.chats.start!(prompt, model: nil)
 
       assert_equal 2, chat.messages.count
-      assert_equal Provider::Openai::DEFAULT_MODEL, chat.messages.find_by!(type: "UserMessage").ai_model
+      assert_equal Provider::Registry.default_llm_model, chat.messages.find_by!(type: "UserMessage").ai_model
     end
   end
 
@@ -58,7 +58,7 @@ class ChatTest < ActiveSupport::TestCase
       chat = @user.chats.start!(prompt, model: "")
 
       assert_equal 2, chat.messages.count
-      assert_equal Provider::Openai::DEFAULT_MODEL, chat.messages.find_by!(type: "UserMessage").ai_model
+      assert_equal Provider::Registry.default_llm_model, chat.messages.find_by!(type: "UserMessage").ai_model
     end
   end
 
@@ -69,6 +69,16 @@ class ChatTest < ActiveSupport::TestCase
       chat = @user.chats.start!(prompt, model: "")
 
       assert_equal "custom-model", chat.messages.find_by!(type: "UserMessage").ai_model
+    end
+  end
+
+  test "creates with codex default model when codex provider is selected" do
+    prompt = "Test prompt"
+
+    with_env_overrides LLM_PROVIDER: "codex", OPENAI_MODEL: nil do
+      chat = @user.chats.start!(prompt, model: "")
+
+      assert_equal "openai-codex/gpt-5.4", chat.messages.find_by!(type: "UserMessage").ai_model
     end
   end
 
