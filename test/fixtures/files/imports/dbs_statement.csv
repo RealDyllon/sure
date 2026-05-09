@@ -1,0 +1,4 @@
+Transaction Date,Description,Debit,Credit,Balance,Account Number,Currency
+2026-04-01,PayNow Transfer,12.50,,987.50,001-2300000017-8,SGD
+2026-04-02,Salary,,3000.00,3987.50,001-2300000017-8,SGD
+2026-04-03,DBS Card Spend,42.10,,3945.40,001-2300000017-8,SGD

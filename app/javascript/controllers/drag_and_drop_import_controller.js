@@ -53,12 +53,13 @@ export default class extends Controller {
 
     if (event.dataTransfer.files.length > 0) {
       const file = event.dataTransfer.files[0]
-      // Simple validation
-      if (file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv")) {
+      // Simple validation for importable statement/raw-data files.
+      const filename = file.name.toLowerCase()
+      if (file.type === "text/csv" || file.type === "application/pdf" || filename.endsWith(".csv") || filename.endsWith(".pdf")) {
         this.inputTarget.files = event.dataTransfer.files
         this.formTarget.requestSubmit()
       } else {
-        alert("Please upload a valid CSV file.")
+        alert("Please upload a valid CSV or PDF file.")
       }
     }
   }
