@@ -54,8 +54,13 @@ x-rails-env: &rails_env
   SELF_HOSTED: "true"
   RAILS_FORCE_SSL: "false"
   RAILS_ASSUME_SSL: "false"
-  DB_HOST: db
-  DB_PORT: 5432
+  # Defaults to the bundled Compose Postgres service.
+  # For a host/external Postgres instance, set DB_HOST and DB_PORT in .env
+  # and comment out the `db` service plus the web/worker `depends_on: db`
+  # entries below. On Docker Desktop for macOS, host Postgres is usually
+  # reachable from containers at host.docker.internal.
+  DB_HOST: ${DB_HOST:-db}
+  DB_PORT: ${DB_PORT:-5432}
   REDIS_URL: redis://redis:6379/1
   # LLM provider config.
   #
@@ -97,6 +102,8 @@ services:
       <<: *rails_env
       # BINDING: "::"  # Uncomment for IPv6 dual-stack inside the container
     depends_on:
+      # If DB_HOST points to an external Postgres instance, remove this
+      # dependency so Compose does not start or wait for the bundled db service.
       db:
         condition: service_healthy
       redis:
@@ -121,6 +128,8 @@ services:
       - ${CODEX_HOME_HOST:-${HOME}/.codex}:/rails/.codex
     restart: unless-stopped
     depends_on:
+      # If DB_HOST points to an external Postgres instance, remove this
+      # dependency so Compose does not start or wait for the bundled db service.
       db:
         condition: service_healthy
       redis:
@@ -134,6 +143,9 @@ services:
       - sure_net
 
   db:
+    # Optional when using a host/external Postgres instance. If DB_HOST points
+    # outside this Compose stack, comment out this service and the
+    # `postgres-data` volume below.
     image: postgres:16
     restart: unless-stopped
     volumes:
@@ -156,7 +168,7 @@ services:
     volumes:
       - /opt/sure-data/backups:/backups # Change this path to your desired backup location on the host machine
     environment:
-      - POSTGRES_HOST=db
+      - POSTGRES_HOST=${DB_HOST:-db}
       - POSTGRES_DB=${POSTGRES_DB:-sure_production}
       - POSTGRES_USER=${POSTGRES_USER:-sure_user}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sure_password} # pipelock:ignore
@@ -184,6 +196,7 @@ services:
 
 volumes:
   app-storage:
+  # Optional when using a host/external Postgres instance.
   postgres-data:
   redis-data:
 
