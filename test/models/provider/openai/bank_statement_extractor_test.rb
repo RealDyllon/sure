@@ -195,6 +195,66 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
     assert_equal "Interest Earned", account[:transactions].first[:name]
   end
 
+  test "does not merge accounts with same last four but incompatible metadata" do
+    mock_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "DBS Bank",
+            "accounts" => [
+              {
+                "account_name" => "DBS Multiplier Account",
+                "account_number" => "1234",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "closing_balance" => 900.00,
+                "transactions" => [
+                  { "date" => "2026-04-10", "description" => "Salary", "amount" => 1000.00, "currency" => "SGD" }
+                ]
+              },
+              {
+                "account_name" => "DBS Visa Card",
+                "account_number" => "1234",
+                "account_type" => "CreditCard",
+                "subtype" => "credit_card",
+                "currency" => "SGD",
+                "closing_balance" => -120.00,
+                "transactions" => [
+                  { "date" => "2026-04-11", "description" => "Card Spend", "amount" => -45.00, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).returns(mock_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([ "DBS consolidated statement text" ])
+
+    result = extractor.extract
+
+    assert_equal 2, result[:accounts].size
+
+    depository = result[:accounts].detect { |account| account[:account_type] == "Depository" }
+    credit_card = result[:accounts].detect { |account| account[:account_type] == "CreditCard" }
+
+    assert_equal "DBS Multiplier Account", depository[:account_name]
+    assert_equal 900.00, depository[:closing_balance]
+    assert_equal [ "Salary" ], depository[:transactions].map { |transaction| transaction[:name] }
+
+    assert_equal "DBS Visa Card", credit_card[:account_name]
+    assert_equal(-120.00, credit_card[:closing_balance])
+    assert_equal [ "Card Spend" ], credit_card[:transactions].map { |transaction| transaction[:name] }
+  end
+
   test "merges DBS summary-only account chunk into same named activity account" do
     first_response = {
       "choices" => [ {
