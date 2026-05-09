@@ -58,8 +58,10 @@ module StatementExtraction
       end
 
       def normalize_transactions(provider_name, account_number, data)
+        statement_period = data["period"].presence || data["statement_period"].presence || {}
+
         Array(data["transactions"].presence || data["cash_transactions"]).map do |txn|
-          date = txn["date"].to_s
+          date = normalize_date_to_statement_period(txn["date"], statement_period)
           name = txn["name"] || txn["description"] || "Imported transaction"
           amount = txn["amount"].to_s
           {
@@ -70,6 +72,34 @@ module StatementExtraction
             "external_id" => [ provider_name, account_number, date, amount, name ].join(":")
           }
         end
+      end
+
+      def normalize_date_to_statement_period(date, statement_period)
+        parsed_date = parse_date(date)
+        return date.to_s unless parsed_date
+
+        period_start = parse_date(statement_period["start_date"])
+        period_end = parse_date(statement_period["end_date"])
+        return parsed_date.iso8601 unless period_start && period_end
+        return parsed_date.iso8601 if parsed_date.between?(period_start, period_end)
+
+        candidate_date_for_period(parsed_date, period_start, period_end)&.iso8601 || parsed_date.iso8601
+      end
+
+      def candidate_date_for_period(parsed_date, period_start, period_end)
+        [ period_start.year, period_end.year ].uniq.filter_map do |year|
+          Date.new(year, parsed_date.month, parsed_date.day)
+        rescue Date::Error
+          nil
+        end.find { |candidate| candidate.between?(period_start, period_end) }
+      end
+
+      def parse_date(value)
+        return if value.blank?
+
+        Date.parse(value.to_s)
+      rescue ArgumentError
+        nil
       end
 
       def detect_provider(data)

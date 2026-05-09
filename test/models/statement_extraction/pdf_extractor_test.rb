@@ -113,4 +113,38 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
     assert_equal "2500.00", savings["closing_balance"]
     assert_equal "dbs:5678:2026-04-15:1.25:Interest", savings["transactions"].first["external_id"]
   end
+
+  test "normalizes PDF transaction dates to statement period year when rows omit the year" do
+    provider = mock("default_llm_provider")
+    provider.expects(:extract_bank_statement).returns(
+      Provider::Response.new(
+        success?: true,
+        data: {
+          bank_name: "UOB",
+          period: { start_date: "2026-04-01", end_date: "2026-04-30" },
+          account_name: "One Account",
+          account_number: "770-344-095-2",
+          currency: "SGD",
+          closing_balance: "15350.42",
+          transactions: [
+            { date: "2024-04-01", name: "Funds Transfer", amount: "-2000.00", currency: "SGD" },
+            { date: "2024-04-30", name: "Interest Credit", amount: "0.71", currency: "SGD" }
+          ]
+        },
+        error: nil
+      )
+    )
+    Provider::Registry.expects(:get_provider).never
+    Provider::Registry.stubs(:default_llm_provider).returns(provider)
+
+    statement_import = StatementImport.new(family: @family, statement_original_filename: "uob-apr.pdf")
+    statement_import.stubs(:pdf_file_content).returns("pdf")
+
+    result = StatementExtraction::PdfExtractor.new(statement_import).extract
+
+    account = result.accounts.first
+    assert_equal "uob:0952", account["source_id"]
+    assert_equal [ "2026-04-01", "2026-04-30" ], account["transactions"].map { |txn| txn["date"] }
+    assert_equal "uob:0952:2026-04-30:0.71:Interest Credit", account["transactions"].last["external_id"]
+  end
 end
