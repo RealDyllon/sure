@@ -174,6 +174,109 @@ class StatementImportTest < ActiveSupport::TestCase
     assert_equal "complete", statement_import.reload.status
   end
 
+  test "publish imports reviewed match into existing account without creating account" do
+    account = accounts(:depository)
+    account.update!(name: "DBS Multiplier Account", currency: "SGD")
+
+    statement_import = build_reviewed_statement_import(
+      source_id: "dbs:matched",
+      account_name: "DBS Multiplier Account",
+      closing_balance: "1234.56",
+      transactions: [
+        {
+          "date" => "2026-04-12",
+          "name" => "Matched Account Coffee",
+          "amount" => "-6.25",
+          "currency" => "SGD",
+          "external_id" => "dbs:matched:coffee"
+        }
+      ],
+      review: {
+        "action" => "match",
+        "account_id" => account.id,
+        "account_type" => "Depository",
+        "account_subtype" => "checking",
+        "account_name" => account.name,
+        "currency" => "SGD"
+      }
+    )
+
+    enqueued_transaction_ids = nil
+    StatementImportEnrichmentJob.expects(:perform_later).with do |import, transaction_ids:|
+      enqueued_transaction_ids = transaction_ids
+      import == statement_import && transaction_ids.size == 1
+    end.once
+
+    assert_no_difference -> { Account.count } do
+      assert_difference -> { Transaction.count }, 1 do
+        assert_difference -> { StatementProfile.count }, 1 do
+          statement_import.publish
+        end
+      end
+    end
+
+    entry = account.entries.find_by!(source: "statement_import", external_id: "dbs:matched:coffee")
+    assert_equal statement_import, entry.import
+    assert_equal BigDecimal("6.25"), entry.amount
+    assert_equal [ entry.entryable_id ], enqueued_transaction_ids
+    assert_equal BigDecimal("1234.56"), account.reload.balance
+    assert_equal account, @family.statement_profiles.find_by!(provider: "dbs", source_id: "dbs:matched").account
+  end
+
+  test "publish reuses current import statement profile account for create review" do
+    account = accounts(:depository)
+    account.update!(name: "Reusable DBS Account", currency: "SGD")
+
+    statement_import = build_reviewed_statement_import(
+      source_id: "dbs:reuse",
+      account_name: "DBS Reuse",
+      closing_balance: "432.10",
+      transactions: [
+        {
+          "date" => "2026-04-13",
+          "name" => "Reusable Account Interest",
+          "amount" => "0.25",
+          "currency" => "SGD",
+          "external_id" => "dbs:reuse:interest"
+        }
+      ],
+      review: {
+        "action" => "create",
+        "account_id" => nil,
+        "account_type" => "Depository",
+        "account_subtype" => "checking",
+        "account_name" => "New DBS Account",
+        "currency" => "SGD"
+      }
+    )
+
+    @family.statement_profiles.create!(
+      account: account,
+      provider: "dbs",
+      source_id: "dbs:reuse",
+      source_name: "DBS Reuse",
+      account_type: "Depository",
+      account_subtype: "checking",
+      currency: "SGD",
+      metadata: { "last_import_id" => statement_import.id }
+    )
+
+    StatementImportEnrichmentJob.expects(:perform_later).once
+
+    assert_no_difference -> { Account.count } do
+      assert_difference -> { Transaction.count }, 1 do
+        statement_import.publish
+      end
+    end
+
+    assert_nil @family.accounts.find_by(name: "New DBS Account")
+    assert account.entries.exists?(source: "statement_import", external_id: "dbs:reuse:interest")
+
+    profile = @family.statement_profiles.find_by!(provider: "dbs", source_id: "dbs:reuse")
+    assert_equal account, profile.account
+    assert_equal statement_import.id, profile.metadata["last_import_id"]
+  end
+
   test "publish creates transactions profiles and balances for multiple DBS PDF accounts" do
     statement_import = @family.imports.create!(
       type: "StatementImport",
@@ -317,4 +420,33 @@ class StatementImportTest < ActiveSupport::TestCase
       StatementExtraction::Publisher.new(statement_import).publish!
     end
   end
+
+  private
+
+    def build_reviewed_statement_import(source_id:, account_name:, closing_balance:, transactions:, review:)
+      @family.imports.create!(
+        type: "StatementImport",
+        date_format: "%Y-%m-%d",
+        extracted_data: {
+          "provider" => "dbs",
+          "file_type" => "pdf",
+          "statement_period" => { "end_date" => "2026-04-30" },
+          "review_confirmed" => true,
+          "accounts" => [
+            {
+              "source_id" => source_id,
+              "name" => account_name,
+              "account_type" => "Depository",
+              "subtype" => "checking",
+              "currency" => "SGD",
+              "closing_balance" => closing_balance,
+              "cash_balance" => closing_balance,
+              "balance_date" => "2026-04-30",
+              "transactions" => transactions,
+              "review" => review
+            }
+          ]
+        }
+      )
+    end
 end
