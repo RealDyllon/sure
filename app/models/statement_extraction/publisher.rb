@@ -13,6 +13,7 @@ module StatementExtraction
         statement_import.extracted_accounts.each do |account_payload|
           account = account_for(account_payload)
           publish_transactions(account, account_payload)
+          publish_trades(account, account_payload)
           publish_balance(account, account_payload)
           upsert_profile(account, account_payload)
         end
@@ -29,13 +30,14 @@ module StatementExtraction
         account_class = Accountable.from_type(account_type) || Depository
         subtype = review["account_subtype"].presence || account_payload["subtype"]
         balance = BigDecimal(account_payload["closing_balance"].presence || "0")
+        cash_balance = BigDecimal(account_payload["cash_balance"].presence || account_payload["closing_balance"].presence || "0")
 
         Account.create_and_sync(
           {
             family: statement_import.family,
             name: review["account_name"].presence || account_payload["name"],
             balance: balance,
-            cash_balance: balance,
+            cash_balance: cash_balance,
             currency: review["currency"].presence || account_payload["currency"].presence || statement_import.family.currency,
             accountable_type: account_class.name,
             accountable_attributes: subtype.present? ? { subtype: subtype } : {},
@@ -68,6 +70,37 @@ module StatementExtraction
         end
       end
 
+      def publish_trades(account, account_payload)
+        Array(account_payload["trades"]).each do |trade_payload|
+          external_id = trade_payload["external_id"].presence || fallback_trade_external_id(account_payload, trade_payload)
+          next if account.entries.exists?(source: "statement_import", external_id: external_id)
+
+          security = security_for(trade_payload)
+          next unless security
+
+          trade = Trade.new(
+            security: security,
+            qty: BigDecimal(trade_payload["qty"].to_s),
+            price: BigDecimal(trade_payload["price"].to_s),
+            currency: trade_payload["currency"].presence || account.currency,
+            investment_activity_label: trade_payload["activity_label"].presence || activity_label_for(trade_payload["qty"])
+          )
+          entry = Entry.new(
+            account: account,
+            date: Date.parse(trade_payload["date"].to_s),
+            amount: BigDecimal(trade_payload["amount"].presence || "0"),
+            currency: trade_payload["currency"].presence || account.currency,
+            name: trade_payload["name"].presence || trade_name_for(trade_payload),
+            import: statement_import,
+            import_locked: true,
+            source: "statement_import",
+            external_id: external_id,
+            entryable: trade
+          )
+          entry.save!
+        end
+      end
+
       def publish_balance(account, account_payload)
         return if account_payload["closing_balance"].blank?
 
@@ -81,6 +114,7 @@ module StatementExtraction
         raise result.error_message unless result.success?
 
         account.update!(balance: BigDecimal(account_payload["closing_balance"].to_s))
+        account.update!(cash_balance: BigDecimal(account_payload["cash_balance"].to_s)) if account_payload["cash_balance"].present?
       end
 
       def upsert_profile(account, account_payload)
@@ -97,13 +131,50 @@ module StatementExtraction
           last_statement_end_on: balance_date_for(account_payload),
           metadata: {
             "file_type" => statement_import.file_type,
-            "last_import_id" => statement_import.id
+            "last_import_id" => statement_import.id,
+            "counts" => {
+              "transactions" => Array(account_payload["transactions"]).size,
+              "trades" => Array(account_payload["trades"]).size,
+              "positions" => Array(account_payload["positions"]).size
+            }
           }
         )
       end
 
       def fallback_external_id(account_payload, txn)
         [ account_payload["source_id"], txn["date"], txn["amount"], txn["name"] ].join(":")
+      end
+
+      def fallback_trade_external_id(account_payload, trade_payload)
+        [
+          account_payload["source_id"],
+          "trade",
+          trade_payload["date"],
+          trade_payload["ticker"],
+          trade_payload["qty"],
+          trade_payload["price"],
+          trade_payload["amount"]
+        ].join(":")
+      end
+
+      def security_for(trade_payload)
+        ticker = trade_payload["ticker"].to_s.upcase
+        return nil if ticker.blank?
+
+        @security_cache ||= {}
+        cache_key = [ ticker, trade_payload["exchange_operating_mic"] ].compact.join(":")
+        @security_cache[cache_key] ||= Security::Resolver.new(
+          ticker,
+          exchange_operating_mic: trade_payload["exchange_operating_mic"].presence
+        ).resolve
+      end
+
+      def activity_label_for(qty)
+        BigDecimal(qty.to_s).negative? ? "Sell" : "Buy"
+      end
+
+      def trade_name_for(trade_payload)
+        Trade.build_name(activity_label_for(trade_payload["qty"]).downcase, trade_payload["qty"], trade_payload["ticker"])
       end
 
       def balance_date_for(account_payload)

@@ -258,7 +258,33 @@ class ImportsController < ApplicationController
     end
 
     def statement_import_request?
-      params.dig(:import, :type) == "StatementImport"
+      params.dig(:import, :type) == "StatementImport" || statement_like_file?(params.dig(:import, :import_file))
+    end
+
+    def statement_like_file?(file)
+      return false unless file.present?
+
+      filename = file.original_filename.to_s.downcase
+      extension = File.extname(filename)
+      return false unless extension.in?(%w[.pdf .csv])
+
+      statement_provider_filename_tokens.any? do |provider|
+        filename.include?(provider)
+      end
+    end
+
+    def statement_provider_filename_tokens
+      %w[
+        dbs
+        paylah
+        uob
+        cpf
+        ibkr
+        interactivebrokers
+        interactive-brokers
+        interactive_brokers
+        interactive\ brokers
+      ]
     end
 
     def sure_import_request?

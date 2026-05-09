@@ -1,5 +1,5 @@
 class StatementProfile < ApplicationRecord
-  PROVIDERS = %w[dbs paylah uob cpf].freeze
+  PROVIDERS = %w[dbs paylah uob cpf ibkr].freeze
 
   belongs_to :family
   belongs_to :account

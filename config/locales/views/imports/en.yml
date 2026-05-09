@@ -195,8 +195,8 @@ en:
       import_qif: Import from Quicken (QIF)
       import_sure: Import from Sure
       import_sure_description: Full-export .ndjson file
-      import_statement: Import bank, card, or CPF statement
-      import_statement_description: DBS, PayLah, UOB, and CPF PDF or CSV
+      import_statement: Import bank, card, CPF, or brokerage statement
+      import_statement_description: DBS, PayLah, UOB, CPF, and IBKR PDF or CSV
       import_file: Import document
       import_file_description: AI-powered analysis for PDFs and searchable file upload
       requires_account: Import accounts first to unlock this option.
@@ -279,6 +279,8 @@ en:
       existing_account: Existing account
       account_name: Account name
       account_type: Account type
+      trades: Trades
+      positions: Positions
       save_review: Save review
       publish: Publish statement import
       save_before_publish: Save review decisions before publishing.

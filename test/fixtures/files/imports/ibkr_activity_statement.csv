@@ -1,0 +1,7 @@
+Section,Type,Subsection,Account ID,Base Currency,Currency,Date,Description,Symbol,Quantity,Price,Amount,Closing Balance,Net Liquidation Value
+Statement,Data,Account Information,U1234567,USD,,,,,,,,
+Trades,Data,Trades,U1234567,USD,USD,2026-04-02,Buy 10 AAPL,AAPL,10,170.00,-1701.00,,
+Cash Transactions,Data,Dividends,U1234567,USD,USD,2026-04-15,AAPL Dividend,AAPL,,,12.34,,
+Cash Transactions,Data,Deposits & Withdrawals,U1234567,USD,USD,2026-04-20,ACH Deposit,,,,5000.00,,
+Positions,Data,Open Positions,U1234567,USD,USD,2026-04-30,Apple Inc,AAPL,12,173.00,2076.00,,
+Net Asset Value,Data,Net Asset Value,U1234567,USD,USD,2026-04-30,Ending Value,,,,,7100.00,7100.00
