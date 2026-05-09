@@ -90,8 +90,67 @@ class StatementImportsControllerTest < ActionDispatch::IntegrationTest
     get import_url(statement_import)
 
     assert_response :success
+    assert_select "[data-controller='statement-review']", 1
+    assert_select "[data-controller='statement-review-form'][data-statement-review-form-clean-value='false']", 1
+    assert_select "form[data-action='input->statement-review-form#markDirty change->statement-review-form#markDirty']", 1
+    assert_select "input[type='submit'][data-statement-review-form-target='saveButton'].bg-inverse", 1
     assert_select "select[name='statement_import[accounts][0][account_id]'] option[selected][value='#{account.id}']", text: account.name
+    assert_select "[data-statement-review-target='existingAccountField'].invisible", 0
     assert_select "form[action='#{import_path(statement_import)}']"
     assert_select "form[action='#{publish_import_path(statement_import)}']", 0
+    assert_select "[data-controller='page-polling']", 0
+  end
+
+  test "review page hides existing account selector when creating account" do
+    statement_import = @user.family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "already extracted",
+      date_format: "%Y-%m-%d",
+      extracted_data: {
+        "provider" => "uob",
+        "file_type" => "pdf",
+        "review_confirmed" => true,
+        "accounts" => [
+          {
+            "source_id" => "uob:one",
+            "name" => "Fixture Account 5",
+            "account_type" => "Depository",
+            "currency" => "SGD",
+            "transactions" => [],
+            "review" => {
+              "action" => "create",
+              "account_name" => "Fixture Account 5",
+              "account_type" => "Depository",
+              "currency" => "SGD"
+            }
+          }
+        ]
+      }
+    )
+
+    get import_url(statement_import)
+
+    assert_response :success
+    assert_select "[data-controller='statement-review']", 1
+    assert_select "[data-controller='statement-review-form'][data-statement-review-form-clean-value='true']", 1
+    assert_select "[data-statement-review-target='existingAccountField'].invisible[aria-hidden='true']", 1
+    assert_select "select[name='statement_import[accounts][0][account_id]'][disabled]", 1
+    assert_select "input[type='submit'][data-statement-review-form-target='saveButton'].bg-surface-inset", 1
+    assert_select "button[type='submit'][data-statement-review-form-target='publishButton'].bg-inverse", 1
+  end
+
+  test "processing page polls the import status page" do
+    statement_import = @user.family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "processing statement",
+      status: :importing,
+      date_format: "%Y-%m-%d"
+    )
+
+    get import_url(statement_import)
+
+    assert_response :success
+    assert_select "[data-controller='page-polling'][data-page-polling-url-value='#{import_path(statement_import)}'][data-page-polling-interval-value='3000']"
+    assert_select "a[href='#{import_path(statement_import)}']", text: "Check status"
   end
 end
