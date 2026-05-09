@@ -9,6 +9,8 @@ module StatementExtraction
     def publish!
       raise Import::MappingError, "Statement import requires account review before publishing" unless statement_import.review_complete?
 
+      @published_transaction_ids = []
+
       Import.transaction do
         statement_import.extracted_accounts.each do |account_payload|
           account = account_for(account_payload)
@@ -18,6 +20,8 @@ module StatementExtraction
           upsert_profile(account, account_payload)
         end
       end
+
+      enqueue_enrichment_job
     end
 
     private
@@ -79,7 +83,14 @@ module StatementExtraction
             entryable: transaction
           )
           entry.save!
+          @published_transaction_ids << transaction.id
         end
+      end
+
+      def enqueue_enrichment_job
+        return if @published_transaction_ids.blank?
+
+        StatementImportEnrichmentJob.perform_later(statement_import, transaction_ids: @published_transaction_ids)
       end
 
       def publish_trades(account, account_payload)

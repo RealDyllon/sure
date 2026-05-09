@@ -27,6 +27,12 @@ class StatementImportTest < ActiveSupport::TestCase
       currency: "SGD"
     )
 
+    enqueued_transaction_ids = nil
+    StatementImportEnrichmentJob.expects(:perform_later).with do |import, transaction_ids:|
+      enqueued_transaction_ids = transaction_ids
+      import == statement_import && transaction_ids.size == 3
+    end.once
+
     assert_difference -> { Account.count }, 1 do
       assert_difference -> { Transaction.count }, 3 do
         assert_difference -> { StatementProfile.count }, 1 do
@@ -40,6 +46,7 @@ class StatementImportTest < ActiveSupport::TestCase
     assert_equal "SGD", account.currency
     assert_equal 3, statement_import.entries.where(entryable_type: "Transaction").count
     assert statement_import.entries.exists?(source: "statement_import", external_id: "dbs:5678:2026-04-01:12.50:PayNow Transfer")
+    assert_equal statement_import.entries.where(entryable_type: "Transaction").pluck(:entryable_id).sort, enqueued_transaction_ids.sort
 
     profile = @family.statement_profiles.find_by!(provider: "dbs", source_id: "dbs:5678")
     assert_equal account, profile.account
@@ -124,6 +131,47 @@ class StatementImportTest < ActiveSupport::TestCase
     assert_equal "complete", statement_import.reload.status
     assert_equal BigDecimal("5.50"), statement_import.entries.find_by!(external_id: "dbs:1234:pdf:coffee").amount
     assert_equal BigDecimal("-1000.00"), statement_import.entries.find_by!(external_id: "dbs:1234:pdf:salary").amount
+  end
+
+  test "publish does not enqueue enrichment when no new transactions are created" do
+    statement_import = @family.imports.create!(
+      type: "StatementImport",
+      date_format: "%Y-%m-%d",
+      extracted_data: {
+        "provider" => "dbs",
+        "file_type" => "pdf",
+        "statement_period" => { "end_date" => "2026-04-30" },
+        "review_confirmed" => true,
+        "accounts" => [
+          {
+            "source_id" => "dbs:balance-only",
+            "name" => "DBS Balance Only",
+            "account_type" => "Depository",
+            "subtype" => "checking",
+            "currency" => "SGD",
+            "closing_balance" => "900.00",
+            "balance_date" => "2026-04-30",
+            "transactions" => [],
+            "trades" => [],
+            "review" => {
+              "action" => "create",
+              "account_type" => "Depository",
+              "account_subtype" => "checking",
+              "account_name" => "DBS Balance Only",
+              "currency" => "SGD"
+            }
+          }
+        ]
+      }
+    )
+
+    StatementImportEnrichmentJob.expects(:perform_later).never
+
+    assert_no_difference -> { Transaction.count } do
+      statement_import.publish
+    end
+
+    assert_equal "complete", statement_import.reload.status
   end
 
   test "publish creates transactions profiles and balances for multiple DBS PDF accounts" do
@@ -262,6 +310,8 @@ class StatementImportTest < ActiveSupport::TestCase
     assert_equal account, profile.account
     assert_equal Date.parse("2026-04-30"), profile.last_statement_end_on
     assert_equal "1", profile.metadata.dig("counts", "positions").to_s
+
+    StatementImportEnrichmentJob.expects(:perform_later).never
 
     assert_no_difference -> { Entry.count } do
       StatementExtraction::Publisher.new(statement_import).publish!
