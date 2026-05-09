@@ -180,10 +180,10 @@ class Provider::Openai::BankStatementExtractor
           currency: account["currency"],
           base_currency: account["base_currency"],
           opening_balance: parse_amount(account["opening_balance"]),
-          closing_balance: parse_amount(account["closing_balance"] || account["net_liquidation_value"]),
+          closing_balance: parse_amount(account["closing_balance"].presence || account["net_liquidation_value"]),
           cash_balance: parse_amount(account["cash_balance"]),
           net_liquidation_value: parse_amount(account["net_liquidation_value"]),
-          transactions: normalize_transactions(account["transactions"] || account["cash_transactions"] || []),
+          transactions: normalize_transactions(Array(account["transactions"]).presence || account["cash_transactions"] || []),
           trades: normalize_trades(account["trades"] || []),
           positions: normalize_positions(account["positions"] || [])
         }.compact
@@ -214,7 +214,7 @@ class Provider::Openai::BankStatementExtractor
       [
         account[:account_id].presence,
         account[:account_number].presence
-      ].compact.first
+      ].compact.map { |value| normalized_account_number(value) }.first
     end
 
     def same_account?(first, second)
@@ -254,7 +254,7 @@ class Provider::Openai::BankStatementExtractor
       first.merge(second) do |key, old_value, new_value|
         case key
         when :transactions
-          deduplicate_transactions(Array(old_value) + Array(new_value))
+          deduplicate_transactions(Array(old_value) + Array(new_value), strip_chunk_index: false)
         when :trades, :positions
           Array(old_value) + Array(new_value)
         when :account_number, :account_id, :subtype
@@ -290,7 +290,7 @@ class Provider::Openai::BankStatementExtractor
       { "transactions" => [] }
     end
 
-    def deduplicate_transactions(transactions)
+    def deduplicate_transactions(transactions, strip_chunk_index: true)
       # Deduplicates transactions that appear in consecutive chunks (chunking artifacts).
       #
       # KNOWN LIMITATION: Legitimate duplicate transactions (same date, amount, merchant)
@@ -310,7 +310,7 @@ class Provider::Openai::BankStatementExtractor
 
         seen << key
         !duplicate
-      end.map { |t| t.except(:chunk_index) }
+      end.map { |t| strip_chunk_index ? t.except(:chunk_index) : t }
     end
 
     def normalize_transactions(transactions)

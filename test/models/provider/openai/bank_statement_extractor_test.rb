@@ -448,6 +448,199 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
     assert_equal [ 0, 1 ], result[:accounts].map { |account| account[:transactions].size }
   end
 
+  test "preserves chunk indexes across repeated account merges" do
+    first_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "DBS Bank",
+            "accounts" => [
+              {
+                "account_name" => "DBS Multiplier Account",
+                "account_number" => "7203",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "transactions" => [
+                  { "date" => "2026-04-01", "description" => "Opening Transfer", "amount" => 100.00, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+    second_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "accounts" => [
+              {
+                "account_name" => "DBS Multiplier Account",
+                "account_number" => "7203",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "transactions" => [
+                  { "date" => "2026-04-01", "description" => "Opening Transfer", "amount" => 100.00, "currency" => "SGD" },
+                  { "date" => "2026-04-02", "description" => "Card Spend", "amount" => -20.00, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+    third_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "accounts" => [
+              {
+                "account_name" => "DBS Multiplier Account",
+                "account_number" => "7203",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "transactions" => [
+                  { "date" => "2026-04-02", "description" => "Card Spend", "amount" => -20.00, "currency" => "SGD" },
+                  { "date" => "2026-04-03", "description" => "Interest", "amount" => 0.02, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).times(3).returns(first_response, second_response, third_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([
+      "Page 1 " * 500,
+      "Page 2 " * 500,
+      "Page 3 " * 500
+    ])
+
+    result = extractor.extract
+
+    account = result[:accounts].first
+    assert_equal 1, result[:accounts].size
+    assert_equal [ "Opening Transfer", "Card Spend", "Interest" ], account[:transactions].map { |transaction| transaction[:name] }
+  end
+
+  test "uses net liquidation value when account closing balance is blank and keeps cash transactions" do
+    mock_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "Interactive Brokers",
+            "accounts" => [
+              {
+                "account_name" => "IBKR Brokerage",
+                "account_id" => "U1234567",
+                "account_type" => "Investment",
+                "subtype" => "brokerage",
+                "base_currency" => "USD",
+                "closing_balance" => "",
+                "net_liquidation_value" => "7100.00",
+                "transactions" => [],
+                "cash_transactions" => [
+                  { "date" => "2026-04-15", "description" => "AAPL Dividend", "amount" => 12.34, "currency" => "USD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).returns(mock_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([ "IBKR activity statement" ])
+
+    result = extractor.extract
+
+    account = result[:accounts].first
+    assert_equal 7100.00, account[:closing_balance]
+    assert_equal 7100.00, account[:net_liquidation_value]
+    assert_equal 1, account[:transactions].size
+    assert_equal "AAPL Dividend", account[:transactions].first[:name]
+  end
+
+  test "merges chunks when account id and account number identify same suffix" do
+    first_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "Interactive Brokers",
+            "accounts" => [
+              {
+                "account_name" => "IBKR Brokerage",
+                "account_id" => "U1234567",
+                "account_type" => "Investment",
+                "subtype" => "brokerage",
+                "base_currency" => "USD",
+                "transactions" => [
+                  { "date" => "2026-04-15", "description" => "Dividend", "amount" => 12.34, "currency" => "USD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+    second_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "accounts" => [
+              {
+                "account_name" => "IBKR Brokerage",
+                "account_number" => "4567",
+                "account_type" => "Investment",
+                "subtype" => "brokerage",
+                "base_currency" => "USD",
+                "transactions" => [
+                  { "date" => "2026-04-16", "description" => "Deposit", "amount" => 1000.00, "currency" => "USD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).twice.returns(first_response, second_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([
+      "Page 1 " * 500,
+      "Page 2 " * 500
+    ])
+
+    result = extractor.extract
+
+    account = result[:accounts].first
+    assert_equal 1, result[:accounts].size
+    assert_equal "U1234567", account[:account_id]
+    assert_equal "4567", account[:account_number]
+    assert_equal [ "Dividend", "Deposit" ], account[:transactions].map { |transaction| transaction[:name] }
+  end
+
   test "handles empty PDF content" do
     extractor = Provider::Openai::BankStatementExtractor.new(
       client: @client,
