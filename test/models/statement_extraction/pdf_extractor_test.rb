@@ -114,6 +114,97 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
     assert_equal "dbs:00000018:2026-04-15:1.25:Interest", savings["transactions"].first["external_id"]
   end
 
+  test "preserves top-level PDF transactions when single account metadata has no rows" do
+    provider = mock("default_llm_provider")
+    provider.expects(:extract_bank_statement).returns(
+      Provider::Response.new(
+        success?: true,
+        data: {
+          bank_name: "UOB",
+          period: { start_date: "2026-04-01", end_date: "2026-04-30" },
+          transactions: [
+            { date: "2026-04-15", name: "Coffee", amount: "-5.50", currency: "SGD" },
+            { date: "2026-04-30", name: "Interest Credit", amount: "0.71", currency: "SGD" }
+          ],
+          accounts: [
+            {
+              account_name: "Fixture Account 5",
+              account_number: "00000001-2",
+              account_type: "Depository",
+              subtype: "checking",
+              currency: "SGD",
+              closing_balance: "1001.00",
+              transactions: []
+            }
+          ]
+        },
+        error: nil
+      )
+    )
+    Provider::Registry.expects(:get_provider).never
+    Provider::Registry.stubs(:default_llm_provider).returns(provider)
+
+    statement_import = StatementImport.new(family: @family, statement_original_filename: "uob-apr.pdf")
+    statement_import.stubs(:pdf_file_content).returns("pdf")
+
+    result = StatementExtraction::PdfExtractor.new(statement_import).extract
+
+    account = result.accounts.first
+    assert_equal "uob:0952", account["source_id"]
+    assert_equal "Fixture Account 5", account["name"]
+    assert_equal 2, account["transactions"].size
+    assert_equal "uob:0952:2026-04-15:-5.50:Coffee", account["transactions"].first["external_id"]
+    assert_equal "uob:0952:2026-04-30:0.71:Interest Credit", account["transactions"].second["external_id"]
+  end
+
+  test "does not copy top-level PDF transactions into multiple detected accounts" do
+    provider = mock("default_llm_provider")
+    provider.expects(:extract_bank_statement).returns(
+      Provider::Response.new(
+        success?: true,
+        data: {
+          bank_name: "DBS Bank",
+          period: { start_date: "2026-04-01", end_date: "2026-04-30" },
+          transactions: [
+            { date: "2026-04-15", name: "Unassigned Row", amount: "-5.50", currency: "SGD" }
+          ],
+          accounts: [
+            {
+              account_name: "Fixture Account 3",
+              account_number: "00000009",
+              account_type: "Depository",
+              subtype: "checking",
+              currency: "SGD",
+              closing_balance: "1027.00",
+              transactions: []
+            },
+            {
+              account_name: "DBS Savings Plus",
+              account_number: "00000018",
+              account_type: "Depository",
+              subtype: "savings",
+              currency: "SGD",
+              closing_balance: "1010.00",
+              transactions: []
+            }
+          ]
+        },
+        error: nil
+      )
+    )
+    Provider::Registry.expects(:get_provider).never
+    Provider::Registry.stubs(:default_llm_provider).returns(provider)
+
+    statement_import = StatementImport.new(family: @family, statement_original_filename: "dbs-apr.pdf")
+    statement_import.stubs(:pdf_file_content).returns("pdf")
+
+    result = StatementExtraction::PdfExtractor.new(statement_import).extract
+
+    assert_equal 2, result.accounts.size
+    assert_empty result.accounts.first["transactions"]
+    assert_empty result.accounts.second["transactions"]
+  end
+
   test "normalizes PDF transaction dates to statement period year when rows omit the year" do
     provider = mock("default_llm_provider")
     provider.expects(:extract_bank_statement).returns(
