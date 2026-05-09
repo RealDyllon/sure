@@ -7,7 +7,7 @@ module StatementExtraction
     end
 
     def extract
-      provider = Provider::Registry.get_provider(:openai)
+      provider = Provider::Registry.default_llm_provider
       raise "AI provider not configured" unless provider
 
       response = provider.extract_bank_statement(
@@ -19,19 +19,121 @@ module StatementExtraction
 
       data = response.data.deep_stringify_keys
       provider_name = detect_provider(data)
-      account_number = data["account_number"].presence || data["account_id"].presence || "default"
-      account = {
-        "source_id" => source_id_for(provider_name, account_number),
-        "name" => account_name_for(provider_name, account_number),
-        "account_type" => account_type_for(provider_name, data),
-        "subtype" => subtype_for(provider_name, data),
-        "currency" => data["currency"].presence || data["base_currency"].presence || statement_import.family.currency,
-        "opening_balance" => data["opening_balance"].to_s,
-        "closing_balance" => (data["closing_balance"].presence || data["net_liquidation_value"]).to_s,
-        "cash_balance" => data["cash_balance"].to_s,
-        "balance_date" => data.dig("period", "end_date"),
-        "transactions" => Array(data["transactions"].presence || data["cash_transactions"]).map do |txn|
-          date = txn["date"].to_s
+      account_payloads = extracted_account_payloads(data)
+      use_document_activity_fallback = data["accounts"].present? && account_payloads.one?
+      accounts = account_payloads.map do |account_data|
+        normalize_account(provider_name, account_data, data, use_document_activity_fallback: use_document_activity_fallback)
+      end
+      accounts << normalize_account(provider_name, unassigned_account_payload(provider_name, data), data) if unassigned_document_activity?(data, account_payloads)
+      accounts = ensure_unique_source_ids(accounts)
+
+      Result.new(
+        provider: provider_name,
+        file_type: "pdf",
+        statement_period: data["period"] || data["statement_period"] || {},
+        accounts: accounts
+      )
+    end
+
+    private
+      def extracted_account_payloads(data)
+        accounts = Array(data["accounts"]).reject(&:blank?)
+        accounts.presence || [ data ]
+      end
+
+      def unassigned_document_activity?(data, account_payloads)
+        data["accounts"].present? && account_payloads.many? && document_activity_present?(data)
+      end
+
+      def document_activity_present?(data)
+        %w[transactions cash_transactions trades positions].any? { |key| Array(data[key]).present? }
+      end
+
+      def unassigned_account_payload(provider_name, data)
+        {
+          "account_name" => "Unassigned #{provider_name.upcase} Activity",
+          "account_number" => "unassigned",
+          "account_type" => account_type_for(provider_name, data),
+          "subtype" => subtype_for(provider_name, data),
+          "currency" => data["currency"].presence || data["base_currency"].presence || statement_import.family.currency,
+          "transactions" => Array(data["transactions"]),
+          "cash_transactions" => Array(data["cash_transactions"]),
+          "trades" => Array(data["trades"]),
+          "positions" => Array(data["positions"])
+        }
+      end
+
+      def normalize_account(provider_name, account_data, document_data, use_document_activity_fallback: false)
+        data = document_data.merge(account_data)
+        data = apply_document_activity_fallback(data, account_data, document_data) if use_document_activity_fallback
+        account_number = normalized_account_number(data["account_number"]).presence || data["account_id"].presence || "default"
+
+        {
+          "source_id" => source_id_for(provider_name, account_number),
+          "name" => data["account_name"].presence || data["name"].presence || account_name_for(provider_name, account_number),
+          "account_type" => account_type_for(provider_name, data),
+          "subtype" => subtype_for(provider_name, data),
+          "currency" => data["currency"].presence || data["base_currency"].presence || statement_import.family.currency,
+          "opening_balance" => decimal_string(data["opening_balance"]),
+          "closing_balance" => decimal_string(data["closing_balance"].presence || data["net_liquidation_value"]),
+          "cash_balance" => decimal_string(data["cash_balance"]),
+          "balance_date" => data["balance_date"].presence || data.dig("period", "end_date") || document_data.dig("period", "end_date") || document_data.dig("statement_period", "end_date"),
+          "transactions" => normalize_transactions(provider_name, account_number, data),
+          "trades" => normalize_trades(provider_name, account_number, data),
+          "positions" => normalize_positions(data)
+        }
+      end
+
+      def ensure_unique_source_ids(accounts)
+        seen = {}
+
+        accounts.map.with_index do |account, index|
+          source_id = account["source_id"]
+          if seen[source_id]
+            account = account.merge("source_id" => unique_source_id(source_id, account, index, seen))
+          end
+
+          seen[account["source_id"]] = true
+          account
+        end
+      end
+
+      def unique_source_id(source_id, account, index, seen)
+        suffix = source_id_suffix(account).presence || "account-#{index + 1}"
+        candidate = "#{source_id}-#{suffix}"
+        counter = 2
+
+        while seen[candidate]
+          candidate = "#{source_id}-#{suffix}-#{counter}"
+          counter += 1
+        end
+
+        candidate
+      end
+
+      def source_id_suffix(account)
+        [
+          account["name"],
+          account["subtype"]
+        ].compact_blank.join("-").parameterize
+      end
+
+      def apply_document_activity_fallback(data, account_data, document_data)
+        %w[transactions cash_transactions trades positions].each do |key|
+          next if Array(account_data[key]).present?
+          next if Array(document_data[key]).blank?
+
+          data[key] = document_data[key]
+        end
+
+        data
+      end
+
+      def normalize_transactions(provider_name, account_number, data)
+        statement_period = data["period"].presence || data["statement_period"].presence || {}
+
+        Array(data["transactions"].presence || data["cash_transactions"]).map do |txn|
+          date = normalize_date_to_statement_period(txn["date"], statement_period)
           name = txn["name"] || txn["description"] || "Imported transaction"
           amount = txn["amount"].to_s
           {
@@ -41,20 +143,36 @@ module StatementExtraction
             "currency" => txn["currency"].presence || data["currency"].presence || data["base_currency"].presence || statement_import.family.currency,
             "external_id" => [ provider_name, account_number, date, amount, name ].join(":")
           }
-        end,
-        "trades" => normalize_trades(provider_name, account_number, data),
-        "positions" => normalize_positions(data)
-      }
+        end
+      end
 
-      Result.new(
-        provider: provider_name,
-        file_type: "pdf",
-        statement_period: data["period"] || {},
-        accounts: [ account ]
-      )
-    end
+      def normalize_date_to_statement_period(date, statement_period)
+        parsed_date = parse_date(date)
+        return date.to_s unless parsed_date
 
-    private
+        period_start = parse_date(statement_period["start_date"])
+        period_end = parse_date(statement_period["end_date"])
+        return parsed_date.iso8601 unless period_start && period_end
+        return parsed_date.iso8601 if parsed_date.between?(period_start, period_end)
+
+        candidate_date_for_period(parsed_date, period_start, period_end)&.iso8601 || parsed_date.iso8601
+      end
+
+      def candidate_date_for_period(parsed_date, period_start, period_end)
+        [ period_start.year, period_end.year ].uniq.filter_map do |year|
+          Date.new(year, parsed_date.month, parsed_date.day)
+        rescue Date::Error
+          nil
+        end.find { |candidate| candidate.between?(period_start, period_end) }
+      end
+
+      def parse_date(value)
+        return if value.blank?
+
+        Date.parse(value.to_s)
+      rescue ArgumentError
+        nil
+      end
 
       def detect_provider(data)
         text = [ data["bank_name"], statement_import.original_filename ].join(" ").downcase
@@ -68,7 +186,7 @@ module StatementExtraction
       end
 
       def source_id_for(provider_name, account_number)
-        suffix = provider_name == "ibkr" ? account_number.to_s.scan(/\d/).last(4).join.presence : account_number
+        suffix = normalized_account_number(account_number)
         "#{provider_name}:#{suffix.presence || "default"}"
       end
 
@@ -80,12 +198,14 @@ module StatementExtraction
 
       def account_type_for(provider_name, data)
         return "Investment" if provider_name == "ibkr"
+        return data["account_type"] if data["account_type"].present?
 
         data["document_type"] == "credit_card_statement" ? "CreditCard" : "Depository"
       end
 
       def subtype_for(provider_name, data)
         return "brokerage" if provider_name == "ibkr"
+        return data["subtype"] if data["subtype"].present?
 
         data["document_type"] == "credit_card_statement" ? "credit_card" : "checking"
       end
@@ -128,6 +248,20 @@ module StatementExtraction
             "currency" => position["currency"].presence || data["currency"].presence || data["base_currency"].presence || statement_import.family.currency
           }
         end
+      end
+
+      def decimal_string(value)
+        return nil if value.blank?
+        return format("%.2f", value) if value.is_a?(Numeric)
+
+        value.to_s
+      end
+
+      def normalized_account_number(account_number)
+        return if account_number.blank?
+
+        digits = account_number.to_s.scan(/\d/)
+        digits.size >= 4 ? digits.last(4).join : account_number.to_s
       end
   end
 end

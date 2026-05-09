@@ -55,6 +55,592 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
     assert_equal(-5.50, first_txn[:amount])
   end
 
+  test "extracts multiple accounts from consolidated DBS statement response" do
+    mock_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "DBS Bank",
+            "account_holder" => "John Doe",
+            "statement_period" => {
+              "start_date" => "2026-04-01",
+              "end_date" => "2026-04-30"
+            },
+            "accounts" => [
+              {
+                "account_name" => "Fixture Account 3",
+                "account_number" => "00000009",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "opening_balance" => 1002.00,
+                "closing_balance" => 1027.00,
+                "transactions" => [
+                  { "date" => "2026-04-10", "description" => "Coffee", "amount" => -5.50, "currency" => "SGD" }
+                ]
+              },
+              {
+                "account_name" => "DBS Savings Plus",
+                "account_number" => "00000018",
+                "account_type" => "Depository",
+                "subtype" => "savings",
+                "currency" => "SGD",
+                "opening_balance" => 1006.00,
+                "closing_balance" => 1010.00,
+                "transactions" => [
+                  { "date" => "2026-04-15", "description" => "Interest", "amount" => 1.25, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).returns(mock_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([ "DBS consolidated statement text" ])
+
+    result = extractor.extract
+
+    assert_equal "DBS Bank", result[:bank_name]
+    assert_equal 2, result[:accounts].size
+
+    current = result[:accounts].first
+    savings = result[:accounts].second
+
+    assert_equal "Fixture Account 3", current[:account_name]
+    assert_equal "00000009", current[:account_number]
+    assert_equal "checking", current[:subtype]
+    assert_equal 1027.00, current[:closing_balance]
+    assert_equal 1, current[:transactions].size
+    assert_equal "Coffee", current[:transactions].first[:name]
+
+    assert_equal "DBS Savings Plus", savings[:account_name]
+    assert_equal "00000018", savings[:account_number]
+    assert_equal "savings", savings[:subtype]
+    assert_equal 1010.00, savings[:closing_balance]
+    assert_equal 1, savings[:transactions].size
+    assert_equal "Interest", savings[:transactions].first[:name]
+  end
+
+  test "merges DBS account chunks by normalized last four account number" do
+    first_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "DBS Bank",
+            "accounts" => [
+              {
+                "account_name" => "Fixture Account 3",
+                "account_number" => "120-00000006-3",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "closing_balance" => 1015.00,
+                "transactions" => []
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+    second_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "accounts" => [
+              {
+                "account_name" => "Fixture Account 3",
+                "account_number" => "00000008",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "closing_balance" => 1016.00,
+                "transactions" => [
+                  { "date" => "2026-04-30", "description" => "Interest Earned", "amount" => 0.02, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).twice.returns(first_response, second_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([
+      "Page 1 " * 500,
+      "Page 2 " * 500
+    ])
+
+    result = extractor.extract
+
+    assert_equal 1, result[:accounts].size
+    account = result[:accounts].first
+    assert_equal "00000019", account[:account_number]
+    assert_equal "Fixture Account 3", account[:account_name]
+    assert_equal 1015.00, account[:closing_balance]
+    assert_equal 1, account[:transactions].size
+    assert_equal "Interest Earned", account[:transactions].first[:name]
+  end
+
+  test "does not merge accounts with same last four but incompatible metadata" do
+    mock_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "DBS Bank",
+            "accounts" => [
+              {
+                "account_name" => "Fixture Account 3",
+                "account_number" => "00000009",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "closing_balance" => 1027.00,
+                "transactions" => [
+                  { "date" => "2026-04-10", "description" => "Salary", "amount" => 1002.00, "currency" => "SGD" }
+                ]
+              },
+              {
+                "account_name" => "DBS Visa Card",
+                "account_number" => "00000009",
+                "account_type" => "CreditCard",
+                "subtype" => "credit_card",
+                "currency" => "SGD",
+                "closing_balance" => -1018.00,
+                "transactions" => [
+                  { "date" => "2026-04-11", "description" => "Card Spend", "amount" => -45.00, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).returns(mock_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([ "DBS consolidated statement text" ])
+
+    result = extractor.extract
+
+    assert_equal 2, result[:accounts].size
+
+    depository = result[:accounts].detect { |account| account[:account_type] == "Depository" }
+    credit_card = result[:accounts].detect { |account| account[:account_type] == "CreditCard" }
+
+    assert_equal "Fixture Account 3", depository[:account_name]
+    assert_equal 1027.00, depository[:closing_balance]
+    assert_equal [ "Salary" ], depository[:transactions].map { |transaction| transaction[:name] }
+
+    assert_equal "DBS Visa Card", credit_card[:account_name]
+    assert_equal(-1018.00, credit_card[:closing_balance])
+    assert_equal [ "Card Spend" ], credit_card[:transactions].map { |transaction| transaction[:name] }
+  end
+
+  test "merges DBS summary-only account chunk into same named activity account when key is missing" do
+    first_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "DBS Bank",
+            "accounts" => [
+              {
+                "account_name" => "Fixture Account 3",
+                "account_type" => "Depository",
+                "subtype" => "savings",
+                "currency" => "SGD",
+                "closing_balance" => 10_751.51,
+                "transactions" => []
+              },
+              {
+                "account_name" => "Fixture Account 1",
+                "account_number" => "00000014",
+                "account_type" => "Depository",
+                "subtype" => "savings",
+                "currency" => "SGD",
+                "closing_balance" => 1022.00,
+                "transactions" => []
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+    second_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "accounts" => [
+              {
+                "account_name" => "Fixture Account 3",
+                "account_number" => "00000019",
+                "account_type" => "Depository",
+                "subtype" => "savings",
+                "currency" => "SGD",
+                "closing_balance" => 10_982.97,
+                "transactions" => [
+                  { "date" => "2026-03-31", "description" => "Salary Credit", "amount" => 1013.00, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).twice.returns(first_response, second_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([
+      "Page 1 " * 500,
+      "Page 2 " * 500
+    ])
+
+    result = extractor.extract
+
+    assert_equal 2, result[:accounts].size
+
+    multiplier = result[:accounts].detect { |account| account[:account_name] == "Fixture Account 3" }
+    savings = result[:accounts].detect { |account| account[:account_name] == "Fixture Account 1" }
+
+    assert_equal "00000019", multiplier[:account_number]
+    assert_equal 10_751.51, multiplier[:closing_balance]
+    assert_equal 1, multiplier[:transactions].size
+    assert_equal "Salary Credit", multiplier[:transactions].first[:name]
+
+    assert_equal "00000014", savings[:account_number]
+    assert_equal 1022.00, savings[:closing_balance]
+    assert_empty savings[:transactions]
+  end
+
+  test "does not merge accounts with same last four when name or subtype differs" do
+    mock_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "DBS Bank",
+            "accounts" => [
+              {
+                "account_name" => "DBS Current Account",
+                "account_number" => "00000009",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "closing_balance" => 1027.00,
+                "transactions" => [
+                  { "date" => "2026-04-10", "description" => "Salary", "amount" => 1002.00, "currency" => "SGD" }
+                ]
+              },
+              {
+                "account_name" => "DBS Savings Account",
+                "account_number" => "00000009",
+                "account_type" => "Depository",
+                "subtype" => "savings",
+                "currency" => "SGD",
+                "closing_balance" => 1003.00,
+                "transactions" => [
+                  { "date" => "2026-04-11", "description" => "Interest", "amount" => 1.00, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).returns(mock_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([ "DBS consolidated statement text" ])
+
+    result = extractor.extract
+
+    assert_equal 2, result[:accounts].size
+    assert_equal [ "DBS Current Account", "DBS Savings Account" ], result[:accounts].map { |account| account[:account_name] }
+    assert_equal [ "checking", "savings" ], result[:accounts].map { |account| account[:subtype] }
+  end
+
+  test "does not merge same named summary and activity accounts when keys disagree" do
+    first_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "DBS Bank",
+            "accounts" => [
+              {
+                "account_name" => "Savings Account",
+                "account_number" => "1111",
+                "account_type" => "Depository",
+                "subtype" => "savings",
+                "currency" => "SGD",
+                "closing_balance" => 1025.00,
+                "transactions" => []
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+    second_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "accounts" => [
+              {
+                "account_name" => "Savings Account",
+                "account_number" => "00000016",
+                "account_type" => "Depository",
+                "subtype" => "savings",
+                "currency" => "SGD",
+                "closing_balance" => 1026.00,
+                "transactions" => [
+                  { "date" => "2026-04-15", "description" => "Transfer", "amount" => 25.00, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).twice.returns(first_response, second_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([
+      "Page 1 " * 500,
+      "Page 2 " * 500
+    ])
+
+    result = extractor.extract
+
+    assert_equal 2, result[:accounts].size
+    assert_equal [ "1111", "00000016" ], result[:accounts].map { |account| account[:account_number] }
+    assert_equal [ 0, 1 ], result[:accounts].map { |account| account[:transactions].size }
+  end
+
+  test "preserves chunk indexes across repeated account merges" do
+    first_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "DBS Bank",
+            "accounts" => [
+              {
+                "account_name" => "Fixture Account 3",
+                "account_number" => "00000019",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "transactions" => [
+                  { "date" => "2026-04-01", "description" => "Opening Transfer", "amount" => 1017.00, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+    second_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "accounts" => [
+              {
+                "account_name" => "Fixture Account 3",
+                "account_number" => "00000019",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "transactions" => [
+                  { "date" => "2026-04-01", "description" => "Opening Transfer", "amount" => 1017.00, "currency" => "SGD" },
+                  { "date" => "2026-04-02", "description" => "Card Spend", "amount" => -20.00, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+    third_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "accounts" => [
+              {
+                "account_name" => "Fixture Account 3",
+                "account_number" => "00000019",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "transactions" => [
+                  { "date" => "2026-04-02", "description" => "Card Spend", "amount" => -20.00, "currency" => "SGD" },
+                  { "date" => "2026-04-03", "description" => "Interest", "amount" => 0.02, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).times(3).returns(first_response, second_response, third_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([
+      "Page 1 " * 500,
+      "Page 2 " * 500,
+      "Page 3 " * 500
+    ])
+
+    result = extractor.extract
+
+    account = result[:accounts].first
+    assert_equal 1, result[:accounts].size
+    assert_equal [ "Opening Transfer", "Card Spend", "Interest" ], account[:transactions].map { |transaction| transaction[:name] }
+  end
+
+  test "uses net liquidation value when account closing balance is blank and keeps cash transactions" do
+    mock_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "Interactive Brokers",
+            "accounts" => [
+              {
+                "account_name" => "IBKR Brokerage",
+                "account_id" => "U00000009567",
+                "account_type" => "Investment",
+                "subtype" => "brokerage",
+                "base_currency" => "USD",
+                "closing_balance" => "",
+                "net_liquidation_value" => "1014.00",
+                "transactions" => [],
+                "cash_transactions" => [
+                  { "date" => "2026-04-15", "description" => "AAPL Dividend", "amount" => 12.34, "currency" => "USD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).returns(mock_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([ "IBKR activity statement" ])
+
+    result = extractor.extract
+
+    account = result[:accounts].first
+    assert_equal 1014.00, account[:closing_balance]
+    assert_equal 1014.00, account[:net_liquidation_value]
+    assert_equal 1, account[:transactions].size
+    assert_equal "AAPL Dividend", account[:transactions].first[:name]
+  end
+
+  test "merges chunks when account id and account number identify same suffix" do
+    first_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "Interactive Brokers",
+            "accounts" => [
+              {
+                "account_name" => "IBKR Brokerage",
+                "account_id" => "U00000009567",
+                "account_type" => "Investment",
+                "subtype" => "brokerage",
+                "base_currency" => "USD",
+                "transactions" => [
+                  { "date" => "2026-04-15", "description" => "Dividend", "amount" => 12.34, "currency" => "USD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+    second_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "accounts" => [
+              {
+                "account_name" => "IBKR Brokerage",
+                "account_number" => "00000017",
+                "account_type" => "Investment",
+                "subtype" => "brokerage",
+                "base_currency" => "USD",
+                "transactions" => [
+                  { "date" => "2026-04-16", "description" => "Deposit", "amount" => 1002.00, "currency" => "USD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).twice.returns(first_response, second_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([
+      "Page 1 " * 500,
+      "Page 2 " * 500
+    ])
+
+    result = extractor.extract
+
+    account = result[:accounts].first
+    assert_equal 1, result[:accounts].size
+    assert_equal "U00000009567", account[:account_id]
+    assert_equal "00000017", account[:account_number]
+    assert_equal [ "Dividend", "Deposit" ], account[:transactions].map { |transaction| transaction[:name] }
+  end
+
   test "handles empty PDF content" do
     extractor = Provider::Openai::BankStatementExtractor.new(
       client: @client,

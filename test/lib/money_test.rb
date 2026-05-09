@@ -90,6 +90,10 @@ class MoneyTest < ActiveSupport::TestCase
     assert_equal "€ 1.000,12", Money.new(1000.12, :eur).format(locale: :nl)
   end
 
+  test "formats Singapore dollars with local shorthand" do
+    assert_equal "$S1,000.12", Money.new(1000.12, :sgd).to_s
+  end
+
   test "formats correctly for French locale" do
     # French uses non-breaking spaces (NBSP = \u00A0) between thousands and before currency symbol
     assert_equal "1\u00A0000,12\u00A0€", Money.new(1000.12, :eur).format(locale: :fr)

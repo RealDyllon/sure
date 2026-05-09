@@ -1,6 +1,9 @@
 <%# locals: (import:) %>
+<% center_content = import.importing? || (import.pending? && import.extracted_accounts.blank?) || import.failed? || import.complete? %>
+<% polling_processing = import.importing? || (import.pending? && import.extracted_accounts.blank?) %>
+<% polling_data = polling_processing ? { controller: "page-polling", page_polling_url_value: import_path(import), page_polling_interval_value: 3000 } : {} %>
 
-<div class="h-full flex flex-col justify-center items-center">
+<%= tag.div class: "#{center_content ? "h-full justify-center" : "min-h-full justify-start py-8 md:py-10"} flex flex-col items-center", data: polling_data do %>
   <div class="space-y-6 max-w-2xl w-full">
     <% if import.importing? || (import.pending? && import.extracted_accounts.blank?) %>
       <div class="mx-auto bg-gray-tint-5 h-8 w-8 rounded-full flex items-center justify-center">
@@ -62,92 +65,106 @@
         </div>
       </div>
 
-      <%= form_with model: import, url: import_path(import), scope: :statement_import, method: :patch, class: "space-y-4" do |form| %>
-        <% import.extracted_accounts.each_with_index do |account_payload, index| %>
-          <% review = account_payload["review"] || {} %>
-          <% selected_action = review["action"].presence || (account_payload["matched_account_id"].present? ? "match" : "create") %>
-          <div class="bg-container border border-primary rounded-xl p-4 space-y-4">
-            <div>
-              <h2 class="font-medium text-primary"><%= account_payload["name"] %></h2>
-              <p class="text-sm text-secondary">
-                <%= account_payload["transactions"].size %> transactions
-                <% if account_payload["trades"].present? %>
-                  · <%= account_payload["trades"].size %> trades
-                <% end %>
-                <% if account_payload["positions"].present? %>
-                  · <%= account_payload["positions"].size %> positions
-                <% end %>
-                ·
-                <%= account_payload["currency"] %>
-                <% if account_payload["closing_balance"].present? %>
-                  · balance <%= account_payload["closing_balance"] %>
-                <% end %>
-                <% if account_payload["cash_balance"].present? %>
-                  · cash <%= account_payload["cash_balance"] %>
-                <% end %>
-              </p>
-            </div>
-
-            <% if account_payload["trades"].present? || account_payload["positions"].present? %>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                <% if account_payload["trades"].present? %>
-                  <div class="bg-container-inset rounded-lg p-3">
-                    <p class="text-secondary mb-1"><%= t("imports.statement_import.trades", default: "Trades") %></p>
-                    <p class="text-primary font-medium">
-                      <%= account_payload["trades"].first(3).map { |trade| [ trade["activity_label"], trade["qty"], trade["ticker"] ].compact.join(" ") }.join(", ") %>
-                    </p>
-                  </div>
-                <% end %>
-                <% if account_payload["positions"].present? %>
-                  <div class="bg-container-inset rounded-lg p-3">
-                    <p class="text-secondary mb-1"><%= t("imports.statement_import.positions", default: "Positions") %></p>
-                    <p class="text-primary font-medium">
-                      <%= account_payload["positions"].first(3).map { |position| [ position["qty"], position["ticker"] ].compact.join(" ") }.join(", ") %>
-                    </p>
-                  </div>
-                <% end %>
+      <div class="space-y-4" data-controller="statement-review-form" data-statement-review-form-clean-value="<%= import.review_complete? %>">
+        <%= form_with model: import, url: import_path(import), scope: :statement_import, method: :patch, class: "space-y-4", data: { action: "input->statement-review-form#markDirty change->statement-review-form#markDirty" } do |form| %>
+          <% import.extracted_accounts.each_with_index do |account_payload, index| %>
+            <% review = account_payload["review"] || {} %>
+            <% selected_action = review["action"].presence || (account_payload["matched_account_id"].present? ? "match" : "create") %>
+            <div class="bg-container border border-primary rounded-xl p-4 space-y-4" data-controller="statement-review">
+              <div>
+                <h2 class="font-medium text-primary"><%= account_payload["name"] %></h2>
+                <p class="text-sm text-secondary">
+                  <%= account_payload["transactions"].size %> transactions
+                  <% if account_payload["trades"].present? %>
+                    · <%= account_payload["trades"].size %> trades
+                  <% end %>
+                  <% if account_payload["positions"].present? %>
+                    · <%= account_payload["positions"].size %> positions
+                  <% end %>
+                  ·
+                  <%= account_payload["currency"] %>
+                  <% if account_payload["closing_balance"].present? %>
+                    · balance <%= account_payload["closing_balance"] %>
+                  <% end %>
+                  <% if account_payload["cash_balance"].present? %>
+                    · cash <%= account_payload["cash_balance"] %>
+                  <% end %>
+                </p>
               </div>
-            <% end %>
 
-            <%= hidden_field_tag "statement_import[accounts][#{index}][source_id]", account_payload["source_id"] %>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label class="space-y-1">
-                <span class="text-sm text-secondary"><%= t("imports.statement_import.action", default: "Action") %></span>
-                <%= select_tag "statement_import[accounts][#{index}][action]",
-                      options_for_select([[ "Create account", "create" ], [ "Use existing account", "match" ]], selected_action),
-                      class: "form-field__input" %>
-              </label>
-              <label class="space-y-1">
-                <span class="text-sm text-secondary"><%= t("imports.statement_import.existing_account", default: "Existing account") %></span>
-                <%= select_tag "statement_import[accounts][#{index}][account_id]",
-                      options_for_select(Current.family.accounts.manual.alphabetically.map { |a| [ a.name, a.id ] }, review["account_id"] || account_payload["matched_account_id"]),
-                      include_blank: "Select account",
-                      class: "form-field__input" %>
-              </label>
-              <label class="space-y-1">
-                <span class="text-sm text-secondary"><%= t("imports.statement_import.account_name", default: "Account name") %></span>
-                <%= text_field_tag "statement_import[accounts][#{index}][account_name]", review["account_name"].presence || account_payload["name"], class: "form-field__input" %>
-              </label>
-              <label class="space-y-1">
-                <span class="text-sm text-secondary"><%= t("imports.statement_import.account_type", default: "Account type") %></span>
-                <%= select_tag "statement_import[accounts][#{index}][account_type]",
-                      options_for_select(Accountable::TYPES.map { |type| [ type.titleize, type ] }, review["account_type"].presence || account_payload["account_type"]),
-                      class: "form-field__input" %>
-              </label>
-              <%= hidden_field_tag "statement_import[accounts][#{index}][account_subtype]", review["account_subtype"].presence || account_payload["subtype"] %>
-              <%= hidden_field_tag "statement_import[accounts][#{index}][currency]", review["currency"].presence || account_payload["currency"].presence || Current.family.currency %>
+              <% if account_payload["trades"].present? || account_payload["positions"].present? %>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <% if account_payload["trades"].present? %>
+                    <div class="bg-container-inset rounded-lg p-3">
+                      <p class="text-secondary mb-1"><%= t("imports.statement_import.trades", default: "Trades") %></p>
+                      <p class="text-primary font-medium">
+                        <%= account_payload["trades"].first(3).map { |trade| [ trade["activity_label"], trade["qty"], trade["ticker"] ].compact.join(" ") }.join(", ") %>
+                      </p>
+                    </div>
+                  <% end %>
+                  <% if account_payload["positions"].present? %>
+                    <div class="bg-container-inset rounded-lg p-3">
+                      <p class="text-secondary mb-1"><%= t("imports.statement_import.positions", default: "Positions") %></p>
+                      <p class="text-primary font-medium">
+                        <%= account_payload["positions"].first(3).map { |position| [ position["qty"], position["ticker"] ].compact.join(" ") }.join(", ") %>
+                      </p>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+
+              <%= hidden_field_tag "statement_import[accounts][#{index}][source_id]", account_payload["source_id"] %>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label class="space-y-1">
+                  <span class="text-sm text-secondary"><%= t("imports.statement_import.action", default: "Action") %></span>
+                  <%= select_tag "statement_import[accounts][#{index}][action]",
+                        options_for_select([[ "Create account", "create" ], [ "Use existing account", "match" ]], selected_action),
+                        class: "form-field__input",
+                        data: { statement_review_target: "action", action: "change->statement-review#update" } %>
+                </label>
+                <label class="space-y-1 <%= "invisible" if selected_action == "create" %>" aria-hidden="<%= selected_action == "create" %>" data-statement-review-target="existingAccountField">
+                  <span class="text-sm text-secondary"><%= t("imports.statement_import.existing_account", default: "Existing account") %></span>
+                  <%= select_tag "statement_import[accounts][#{index}][account_id]",
+                        options_for_select(accessible_accounts.visible_manual.alphabetically.map { |a| [ a.name, a.id ] }, review["account_id"] || account_payload["matched_account_id"]),
+                        include_blank: "Select account",
+                        class: "form-field__input",
+                        disabled: selected_action == "create",
+                        data: { statement_review_target: "existingAccountSelect" } %>
+                </label>
+                <label class="space-y-1">
+                  <span class="text-sm text-secondary"><%= t("imports.statement_import.account_name", default: "Account name") %></span>
+                  <%= text_field_tag "statement_import[accounts][#{index}][account_name]", review["account_name"].presence || account_payload["name"], class: "form-field__input", autocomplete: "off" %>
+                </label>
+                <label class="space-y-1">
+                  <span class="text-sm text-secondary"><%= t("imports.statement_import.account_type", default: "Account type") %></span>
+                  <%= select_tag "statement_import[accounts][#{index}][account_type]",
+                        options_for_select(Accountable::TYPES.map { |type| [ type.titleize, type ] }, review["account_type"].presence || account_payload["account_type"]),
+                        class: "form-field__input" %>
+                </label>
+                <%= hidden_field_tag "statement_import[accounts][#{index}][account_subtype]", review["account_subtype"].presence || account_payload["subtype"] %>
+                <%= hidden_field_tag "statement_import[accounts][#{index}][currency]", review["currency"].presence || account_payload["currency"].presence || Current.family.currency %>
+              </div>
             </div>
-          </div>
+          <% end %>
+
+          <%= form.submit t("imports.statement_import.save_review", default: "Save review"),
+                class: class_names(
+                  "w-full font-medium text-sm px-3 py-2 rounded-lg",
+                  import.review_complete? ? "text-primary bg-surface-inset hover:bg-surface-inset-hover" : "text-inverse bg-inverse hover:bg-inverse-hover"
+                ),
+                data: { statement_review_form_target: "saveButton" } %>
         <% end %>
 
-        <%= form.submit t("imports.statement_import.save_review", default: "Save review"), class: "w-full font-medium text-sm px-3 py-2 rounded-lg text-inverse bg-inverse hover:bg-inverse-hover" %>
-      <% end %>
-
-      <% if import.publishable? %>
-        <%= button_to t("imports.statement_import.publish", default: "Publish statement import"), publish_import_path(import), method: :post, class: "w-full font-medium text-sm px-3 py-2 rounded-lg text-inverse bg-inverse hover:bg-inverse-hover" %>
-      <% else %>
-        <p class="text-center text-sm text-secondary"><%= t("imports.statement_import.save_before_publish", default: "Save review decisions before publishing.") %></p>
-      <% end %>
+        <% if import.publishable? %>
+          <%= button_to t("imports.statement_import.publish", default: "Publish statement import"),
+                publish_import_path(import),
+                method: :post,
+                class: "w-full font-medium text-sm px-3 py-2 rounded-lg text-inverse bg-inverse hover:bg-inverse-hover",
+                data: { statement_review_form_target: "publishButton" } %>
+        <% else %>
+          <p class="text-center text-sm text-secondary"><%= t("imports.statement_import.save_before_publish", default: "Save review decisions before publishing.") %></p>
+        <% end %>
+      </div>
     <% end %>
   </div>
-</div>
+<% end %>

@@ -1,6 +1,7 @@
 <%# locals: (import:) %>
+<% polling_data = { controller: "page-polling", page_polling_url_value: import_path(import), page_polling_interval_value: 3000 } %>
 
-<div class="h-full flex flex-col justify-center items-center">
+<%= tag.div class: "h-full flex flex-col justify-center items-center", data: polling_data do %>
   <div class="space-y-6 max-w-sm">
     <div class="mx-auto bg-gray-tint-5 h-8 w-8 rounded-full flex items-center justify-center">
       <%= icon "loader", class: "animate-pulse" %>
@@ -16,4 +17,4 @@
       <%= render DS::Link.new(text: "Back to dashboard", href: root_path, variant: "secondary", full_width: true) %>
     </div>
   </div>
-</div>
+<% end %>

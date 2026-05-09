@@ -10,6 +10,7 @@ es:
       toggle_section: "Mostrar / Ocultar sección"
       periods:
         monthly: Mensual
+        last_month: Mes pasado
         quarterly: Trimestral
         ytd: Año en curso
         last_6_months: Últimos 6 meses

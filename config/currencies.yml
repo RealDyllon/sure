@@ -172,7 +172,7 @@ sgd:
   iso_code: SGD
   iso_numeric: "702"
   html_code: "$"
-  symbol: "$"
+  symbol: "$S"
   minor_unit: Cent
   minor_unit_conversion: 100
   smallest_denomination: 1
