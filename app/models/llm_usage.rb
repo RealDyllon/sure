@@ -82,6 +82,7 @@ class LlmUsage < ApplicationRecord
   # Returns the provider name if found, or "openai" as default (for backward compatibility)
   def self.infer_provider(model)
     return "openai" if model.blank?
+    return "openai_codex" if model.start_with?(Provider::OpenaiViaCodex::MODEL_PREFIX)
 
     # Check each provider to see if they have pricing for this model
     PRICING.each do |provider_name, provider_pricing|
