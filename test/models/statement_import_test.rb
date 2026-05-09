@@ -292,11 +292,11 @@ class StatementImportTest < ActiveSupport::TestCase
 
   test "publish imports reviewed match into existing account without creating account" do
     account = accounts(:depository)
-    account.update!(name: "Fixture Account 3", currency: "SGD")
+    account.update!(name: "Example Checking Account", currency: "SGD")
 
     statement_import = build_reviewed_statement_import(
       source_id: "dbs:matched",
-      account_name: "Fixture Account 3",
+      account_name: "Example Checking Account",
       closing_balance: "1004.00",
       transactions: [
         {
@@ -405,7 +405,7 @@ class StatementImportTest < ActiveSupport::TestCase
         "accounts" => [
           {
             "source_id" => "dbs:00000009",
-            "name" => "Fixture Account 3",
+            "name" => "Example Checking Account",
             "account_type" => "Depository",
             "subtype" => "checking",
             "currency" => "SGD",

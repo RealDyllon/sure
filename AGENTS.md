@@ -33,6 +33,7 @@
 
 ## Security & Configuration Tips
 - Never commit secrets. Start from `.env.local.example`; use `.env.local` for development only.
+- Never commit real personal financial data. Do not store real account names, account numbers, account IDs, balances, transaction details, institution-specific account labels, screenshots, exports, or statement contents in code, tests, docs, fixtures, cassettes, logs, prompts, or examples. Use synthetic placeholders such as "Example Checking Account", account suffixes like "1111", and obviously fake balances.
 - Run `bin/brakeman` before major PRs. Prefer environment variables over hard-coded values.
 
 ## API Development Guidelines

@@ -107,7 +107,7 @@ class StatementImport < PdfImport
 
   def retryable_processing_stall?
     importing? &&
-      processing_progress_stale? &&
+      (orphaned_processing_progress? || processing_progress_stale?) &&
       processing_progress.to_h["retry_count"].to_i < MAX_PROCESSING_RETRIES
   end
 
@@ -169,6 +169,10 @@ class StatementImport < PdfImport
 
     def statement_document_type(result)
       %w[cpf ibkr].include?(result.provider) ? "investment_statement" : "bank_statement"
+    end
+
+    def orphaned_processing_progress?
+      processing_progress.to_h.blank?
     end
 
     def extracted_activity_count(accounts)
