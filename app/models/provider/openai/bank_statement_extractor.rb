@@ -218,8 +218,13 @@ class Provider::Openai::BankStatementExtractor
     end
 
     def same_account?(first, second)
-      key = account_key(first)
-      return true if key.present? && key == account_key(second) && compatible_account_metadata?(first, second)
+      first_key = account_key(first)
+      second_key = account_key(second)
+
+      if first_key.present? || second_key.present?
+        return true if first_key.present? && first_key == second_key && compatible_account_metadata?(first, second)
+        return false if first_key.present? && second_key.present?
+      end
 
       return false unless account_activity_count(first).zero? || account_activity_count(second).zero?
 
@@ -230,6 +235,10 @@ class Provider::Openai::BankStatementExtractor
     def compatible_account_metadata?(first, second)
       return false if first[:currency].present? && second[:currency].present? && first[:currency] != second[:currency]
       return false if first[:account_type].present? && second[:account_type].present? && first[:account_type] != second[:account_type]
+      return false if first[:subtype].present? && second[:subtype].present? && first[:subtype] != second[:subtype]
+      return false if normalized_account_name(first[:account_name]).present? &&
+        normalized_account_name(second[:account_name]).present? &&
+        normalized_account_name(first[:account_name]) != normalized_account_name(second[:account_name])
 
       true
     end
