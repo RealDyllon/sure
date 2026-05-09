@@ -31,6 +31,33 @@ class Provider::OpenaiViaCodex < Provider::Openai
     true
   end
 
+  def chat_response(
+    prompt,
+    model:,
+    instructions: nil,
+    functions: [],
+    function_results: [],
+    messages: nil,
+    streamer: nil,
+    previous_response_id: nil,
+    session_id: nil,
+    user_identifier: nil,
+    family: nil
+  )
+    generic_chat_response(
+      prompt: prompt,
+      model: model,
+      instructions: instructions,
+      functions: functions,
+      function_results: function_results,
+      messages: messages,
+      streamer: streamer,
+      session_id: session_id,
+      user_identifier: user_identifier,
+      family: family
+    )
+  end
+
   def provider_name
     "OpenAI via Codex"
   end

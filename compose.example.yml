@@ -39,7 +39,8 @@
 #     - "query1.finance.yahoo.com:98.136.48.169"
 #     - "query2.finance.yahoo.com:98.136.48.169"
 #
-# Or use explicit DNS servers that prefer IPv4 (already configured below).
+# Or use explicit DNS servers that prefer IPv4 by uncommenting the `dns`
+# sections on the web and worker services below.
 #
 
 x-db-env: &db_env
@@ -56,14 +57,35 @@ x-rails-env: &rails_env
   DB_HOST: db
   DB_PORT: 5432
   REDIS_URL: redis://redis:6379/1
-  # NOTE: enabling OpenAI will incur costs when you use AI-related features in the app (chat, rules).  Make sure you have set appropriate spend limits on your account before adding this.
-  OPENAI_ACCESS_TOKEN: ${OPENAI_ACCESS_TOKEN}
+  # LLM provider config.
+  #
+  # LLM_PROVIDER=openai uses OPENAI_ACCESS_TOKEN and may incur OpenAI API costs
+  # when you use AI-related features in the app (chat, rules). Make sure you
+  # have set appropriate spend limits on your account before adding this.
+  #
+  # LLM_PROVIDER=codex uses the server owner's Codex CLI ChatGPT auth. Run
+  # `codex login` on the host, then set CODEX_HOME_HOST to the host directory
+  # containing auth.json. Usage is backed by that ChatGPT/Codex plan rather than
+  # an OpenAI API token.
+  LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+  OPENAI_ACCESS_TOKEN: ${OPENAI_ACCESS_TOKEN:-}
+  OPENAI_MODEL: ${OPENAI_MODEL:-}
+  OPENAI_URI_BASE: ${OPENAI_URI_BASE:-}
+  CODEX_HOME: /rails/.codex
+  CODEX_AUTH_PATH: /rails/.codex/auth.json
 
 services:
   web:
-    image: ghcr.io/we-promise/sure:stable
+    image: ${SURE_IMAGE:-ghcr.io/we-promise/sure:stable}
+    # To run from a local checkout instead of the published image, uncomment
+    # this build block and set SURE_IMAGE=sure:local in your .env file.
+    # build:
+    #   context: .
+    #   args:
+    #     BUILD_COMMIT_SHA: ${BUILD_COMMIT_SHA:-local}
     volumes:
       - app-storage:/rails/storage
+      - ${CODEX_HOME_HOST:-${HOME}/.codex}:/rails/.codex
     ports:
       - ${PORT:-3000}:3000
       # To also publish on IPv6 (dual-stack), uncomment the line below AND
@@ -79,26 +101,33 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
+    # dns:
+    #   - 8.8.8.8
+    #   - 1.1.1.1
     networks:
       - sure_net
 
   worker:
-    image: ghcr.io/we-promise/sure:stable
+    image: ${SURE_IMAGE:-ghcr.io/we-promise/sure:stable}
+    # To run from a local checkout instead of the published image, uncomment
+    # this build block and set SURE_IMAGE=sure:local in your .env file.
+    # build:
+    #   context: .
+    #   args:
+    #     BUILD_COMMIT_SHA: ${BUILD_COMMIT_SHA:-local}
     command: bundle exec sidekiq
     volumes:
       - app-storage:/rails/storage
+      - ${CODEX_HOME_HOST:-${HOME}/.codex}:/rails/.codex
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
+    # dns:
+    #   - 8.8.8.8
+    #   - 1.1.1.1
     environment:
       <<: *rails_env
     networks:
