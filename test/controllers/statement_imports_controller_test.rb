@@ -51,4 +51,47 @@ class StatementImportsControllerTest < ActionDispatch::IntegrationTest
     created_import = StatementImport.order(:created_at).last
     assert_redirected_to import_url(created_import)
   end
+
+  test "review page preselects matched manual account but still requires publish review" do
+    ensure_tailwind_build
+
+    account = accounts(:depository)
+    account.update!(name: "DBS Multiplier 5678", currency: "SGD")
+
+    statement_import = account.family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "already extracted",
+      date_format: "%Y-%m-%d",
+      extracted_data: {
+        "provider" => "dbs",
+        "file_type" => "pdf",
+        "statement_period" => { "end_date" => "2026-04-30" },
+        "accounts" => [
+          {
+            "source_id" => "dbs:5678",
+            "name" => "DBS Multiplier Account",
+            "account_type" => "Depository",
+            "subtype" => "checking",
+            "currency" => "SGD",
+            "transactions" => [],
+            "review" => {
+              "action" => "match",
+              "account_id" => account.id,
+              "account_type" => "Depository",
+              "account_subtype" => "checking",
+              "account_name" => account.name,
+              "currency" => "SGD"
+            }
+          }
+        ]
+      }
+    )
+
+    get import_url(statement_import)
+
+    assert_response :success
+    assert_select "select[name='statement_import[accounts][0][account_id]'] option[selected][value='#{account.id}']", text: account.name
+    assert_select "form[action='#{import_path(statement_import)}']"
+    assert_select "form[action='#{publish_import_path(statement_import)}']", 0
+  end
 end

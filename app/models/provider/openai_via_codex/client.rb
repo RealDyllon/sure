@@ -134,16 +134,54 @@ class Provider::OpenaiViaCodex::Client
 
       input = messages.reject { |message| %w[system developer].include?(message[:role] || message["role"]) }
                       .flat_map { |message| chat_message_to_response_input(message) }
+      response_format = parameters[:response_format] || parameters["response_format"]
+      ensure_json_mode_input!(input, response_format)
 
       {
         model: parameters[:model] || parameters["model"],
         input: input,
         instructions: instructions,
         max_output_tokens: parameters[:max_tokens] || parameters["max_tokens"],
-        text: response_text_format(parameters[:response_format] || parameters["response_format"]),
+        text: response_text_format(response_format),
         tools: response_tools(parameters[:tools] || parameters["tools"]),
         store: false
       }.compact
+    end
+
+    def ensure_json_mode_input!(input, response_format)
+      type = response_format&.dig(:type) || response_format&.dig("type")
+      return unless type == "json_object"
+      return if input.any? { |item| response_input_contains_json?(item) }
+
+      message = input.reverse.find { |item| item[:role] == "user" || item["role"] == "user" }
+      if message
+        append_json_instruction!(message)
+      else
+        input << { role: "user", content: "Return JSON." }
+      end
+    end
+
+    def response_input_contains_json?(item)
+      content = item[:content] || item["content"]
+      content_text(content).match?(/json/i)
+    end
+
+    def content_text(content)
+      return content.to_s if content.is_a?(String)
+
+      Array(content).map do |part|
+        part[:text] || part["text"]
+      end.compact.join("\n")
+    end
+
+    def append_json_instruction!(message)
+      content = message[:content] || message["content"]
+
+      if content.is_a?(String)
+        message[:content] = "#{content}\n\nReturn JSON."
+      else
+        message[:content] = Array(content) + [ { type: "input_text", text: "Return JSON." } ]
+      end
     end
 
     def chat_message_to_response_input(message)

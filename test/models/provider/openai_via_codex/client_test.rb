@@ -118,6 +118,44 @@ class Provider::OpenaiViaCodex::ClientTest < ActiveSupport::TestCase
     assert_equal 8, response.dig("usage", "total_tokens")
   end
 
+  test "chat keeps json mode valid when only system instructions mention json" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with do |request|
+        body = JSON.parse(request.body)
+        body["text"] == { "format" => { "type" => "json_object" } } &&
+          body["instructions"].include?("JSON") &&
+          body["input"].any? { |item| item["role"] == "user" && item["content"].include?("Return JSON.") }
+      end
+      .to_return(
+        status: 200,
+        body: "data: #{{
+          type: "response.completed",
+          response: {
+            id: "resp_1",
+            output: [
+              { type: "message", content: [ { type: "output_text", text: "{\"ok\":true}" } ] }
+            ],
+            usage: { input_tokens: 5, output_tokens: 3, total_tokens: 8 }
+          }
+        }.to_json}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    response = client.chat(parameters: {
+      model: "openai-codex/gpt-5.4",
+      messages: [
+        { role: "system", content: "Respond with JSON only" },
+        { role: "user", content: "Extract transactions from this statement" }
+      ],
+      response_format: { type: "json_object" }
+    })
+
+    assert_equal "{\"ok\":true}", response.dig("choices", 0, "message", "content")
+  end
+
   test "chat uses streamed output text when completed response omits output content" do
     auth = stub(access_token_and_account_id: [ "access-token", nil ])
     client = Provider::OpenaiViaCodex::Client.new(auth: auth)
