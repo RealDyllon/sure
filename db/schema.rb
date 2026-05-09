@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_07_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_09_124000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -763,6 +763,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_07_120000) do
     t.text "ai_summary"
     t.string "document_type"
     t.jsonb "extracted_data"
+    t.text "statement_pdf_password"
+    t.string "statement_original_filename"
     t.index ["family_id"], name: "index_imports_on_family_id"
   end
 
@@ -1475,6 +1477,24 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_07_120000) do
     t.index ["name"], name: "index_sso_providers_on_name", unique: true
   end
 
+  create_table "statement_profiles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "family_id", null: false
+    t.uuid "account_id", null: false
+    t.string "provider", null: false
+    t.string "source_id", null: false
+    t.string "source_name"
+    t.string "account_type", null: false
+    t.string "account_subtype"
+    t.string "currency", null: false
+    t.date "last_statement_end_on"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_statement_profiles_on_account_id"
+    t.index ["family_id", "provider", "source_id"], name: "idx_statement_profiles_unique_source", unique: true
+    t.index ["family_id"], name: "index_statement_profiles_on_family_id"
+  end
+
   create_table "subscriptions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "family_id", null: false
     t.string "status", null: false
@@ -1746,6 +1766,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_07_120000) do
   add_foreign_key "sophtron_accounts", "sophtron_items"
   add_foreign_key "sophtron_items", "families"
   add_foreign_key "sso_audit_logs", "users"
+  add_foreign_key "statement_profiles", "accounts", on_delete: :cascade
+  add_foreign_key "statement_profiles", "families"
   add_foreign_key "subscriptions", "families"
   add_foreign_key "syncs", "syncs", column: "parent_id"
   add_foreign_key "taggings", "tags"
