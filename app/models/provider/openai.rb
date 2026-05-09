@@ -232,7 +232,7 @@ class Provider::Openai < Provider
     end
   end
 
-  def extract_bank_statement(pdf_content:, model: "", family: nil, pdf_password: nil)
+  def extract_bank_statement(pdf_content:, model: "", family: nil, pdf_password: nil, progress_callback: nil)
     with_provider_response do
       effective_model = model.presence || @default_model
 
@@ -245,7 +245,8 @@ class Provider::Openai < Provider
         client: client,
         pdf_content: pdf_content,
         model: effective_model,
-        pdf_password: pdf_password
+        pdf_password: pdf_password,
+        progress_callback: progress_callback
       ).extract
 
       upsert_langfuse_trace(trace: trace, output: { transaction_count: result[:transactions].size })

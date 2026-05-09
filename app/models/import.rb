@@ -4,6 +4,7 @@ class Import < ApplicationRecord
 
   MAX_CSV_SIZE = 10.megabytes
   MAX_PDF_SIZE = 25.megabytes
+  PROCESSING_PROGRESS_STALE_AFTER = 5.minutes
   ALLOWED_CSV_MIME_TYPES = %w[text/csv text/plain application/vnd.ms-excel application/csv].freeze
   ALLOWED_PDF_MIME_TYPES = %w[application/pdf].freeze
 
@@ -255,6 +256,89 @@ class Import < ApplicationRecord
     raw_file_str.present?
   end
 
+  def update_processing_progress!(phase:, message:, current: nil, total: nil, job_id: nil, retry_count: nil, guard_job_id: nil)
+    with_lock do
+      reload
+      now = Time.current.iso8601
+      progress = processing_progress.to_h.deep_stringify_keys
+      return false if guard_job_id.present? && progress["job_id"].present? && progress["job_id"] != guard_job_id
+
+      progress["phase"] = phase.to_s
+      progress["message"] = message.to_s
+      progress["current"] = current unless current.nil?
+      progress["total"] = total unless total.nil?
+      progress["started_at"] = now if progress["started_at"].blank?
+      progress["last_updated_at"] = now
+      progress["finished_at"] = nil
+      progress["job_id"] = job_id if job_id.present?
+      progress["retry_count"] = retry_count unless retry_count.nil?
+
+      percent = processing_progress_percent_for(progress["current"], progress["total"])
+      progress["percent"] = percent unless percent.nil?
+
+      update!(processing_progress: progress)
+    end
+    true
+  end
+
+  def finish_processing_progress!(message:, guard_job_id: nil)
+    with_lock do
+      reload
+      now = Time.current.iso8601
+      progress = processing_progress.to_h.deep_stringify_keys
+      return false if guard_job_id.present? && progress["job_id"].present? && progress["job_id"] != guard_job_id
+
+      total = progress["total"]
+
+      progress["phase"] = "complete"
+      progress["message"] = message.to_s
+      progress["current"] = total if total.present?
+      progress["percent"] = 100
+      progress["last_updated_at"] = now
+      progress["finished_at"] = now
+
+      update!(processing_progress: progress)
+    end
+    true
+  end
+
+  def fail_processing_progress!(message:, guard_job_id: nil)
+    with_lock do
+      reload
+      now = Time.current.iso8601
+      progress = processing_progress.to_h.deep_stringify_keys
+      return false if guard_job_id.present? && progress["job_id"].present? && progress["job_id"] != guard_job_id
+
+      progress["phase"] = "failed"
+      progress["message"] = message.to_s
+      progress["last_updated_at"] = now
+      progress["finished_at"] = now
+
+      update!(processing_progress: progress)
+    end
+    true
+  end
+
+  def clear_processing_progress!
+    update!(processing_progress: {})
+  end
+
+  def processing_progress_percent
+    processing_progress&.dig("percent")
+  end
+
+  def processing_progress_stale?
+    return false unless importing?
+
+    last_updated_at = processing_progress&.dig("last_updated_at")
+    return updated_at < PROCESSING_PROGRESS_STALE_AFTER.ago if last_updated_at.blank?
+
+    parsed_last_updated_at = Time.zone.parse(last_updated_at.to_s)
+    parsed_last_updated_at.blank? || parsed_last_updated_at < PROCESSING_PROGRESS_STALE_AFTER.ago
+  rescue ArgumentError, TypeError
+    true
+  end
+
   def configured?
     uploaded? && rows_count > 0
   end
@@ -362,6 +446,16 @@ class Import < ApplicationRecord
   private
     def row_count_exceeded?
       rows_count > max_row_count
+    end
+
+    def processing_progress_percent_for(current, total)
+      return unless current && total
+
+      total = total.to_i
+      return unless total.positive?
+
+      current = current.to_i
+      ((current.to_f / total) * 100).round.clamp(0, 100)
     end
 
     def import!

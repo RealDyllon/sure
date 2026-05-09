@@ -1,7 +1,7 @@
 class ImportsController < ApplicationController
   include SettingsHelper
 
-  before_action :set_import, only: %i[show update publish destroy revert apply_template]
+  before_action :set_import, only: %i[show update publish destroy revert apply_template retry_processing]
 
   def update
     if @import.is_a?(StatementImport)
@@ -134,6 +134,20 @@ class ImportsController < ApplicationController
     end
   end
 
+  def retry_processing
+    unless @import.is_a?(StatementImport)
+      redirect_back_or_to import_path(@import), alert: t("imports.retry_processing.unsupported")
+      return
+    end
+
+    unless queue_statement_processing_retry!(message: t("imports.progress.retry_queued"))
+      redirect_back_or_to import_path(@import), alert: t("imports.retry_processing.not_retryable")
+      return
+    end
+
+    redirect_to import_path(@import), notice: t("imports.retry_processing.started")
+  end
+
   def destroy
     @import.destroy
 
@@ -143,6 +157,10 @@ class ImportsController < ApplicationController
   private
     def set_import
       @import = Current.family.imports.includes(:account).find(params[:id])
+    end
+
+    def queue_statement_processing_retry!(message:)
+      @import.queue_processing_retry!(message: message)
     end
 
     def import_params

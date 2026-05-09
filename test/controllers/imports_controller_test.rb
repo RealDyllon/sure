@@ -3,6 +3,7 @@ require "test_helper"
 class ImportsControllerTest < ActionDispatch::IntegrationTest
   setup do
     sign_in @user = users(:family_admin)
+    ensure_tailwind_build
   end
 
   test "gets index" do
@@ -12,6 +13,36 @@ class ImportsControllerTest < ActionDispatch::IntegrationTest
 
     @user.family.imports.ordered.each do |import|
       assert_select "#" + dom_id(import), count: 1
+    end
+  end
+
+  test "index renders compact statement import progress" do
+    statement_import = @user.family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "processing statement",
+      status: :importing,
+      date_format: "%Y-%m-%d"
+    )
+
+    StatementImport.any_instance.stubs(:processing_progress).returns({
+      "message" => "Extracting transactions",
+      "current" => 7,
+      "total" => 10,
+      "percent" => 70,
+      "last_updated_at" => 2.minutes.ago.iso8601,
+      "retry_count" => 0
+    })
+    StatementImport.any_instance.stubs(:processing_progress_percent).returns(70)
+    StatementImport.any_instance.stubs(:processing_progress_stale?).returns(false)
+
+    get imports_url
+
+    assert_response :success
+    assert_select "##{dom_id(statement_import)}" do
+      assert_select "[role='progressbar'][aria-valuenow='70']", 1
+      assert_select "span", text: I18n.t("imports.table.row.status.processing")
+      assert_select "p", text: "Extracting transactions"
+      assert_select "span", text: "7 / 10"
     end
   end
 
