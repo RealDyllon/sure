@@ -18,7 +18,7 @@ class FamilyMerchantsController < ApplicationController
     @unlinked_merchants = ProviderMerchant.where(id: recently_unlinked_ids - assigned_ids).alphabetically
 
     @enhanceable_count = @provider_merchants.where(website_url: [ nil, "" ]).count
-    @llm_available = Provider::Registry.get_provider(:openai).present?
+    @llm_available = Provider::Registry.default_llm_provider.present?
 
     render layout: "settings"
   end

@@ -74,6 +74,47 @@ class Settings::HostingsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "can update llm provider when self hosting is enabled" do
+    previous = Setting.llm_provider
+    with_self_hosting do
+      patch settings_hosting_url, params: { setting: { llm_provider: "codex" } }
+
+      assert_equal "codex", Setting.llm_provider
+    end
+  ensure
+    Setting.llm_provider = previous
+  end
+
+  test "can switch to codex even when openai model is blank" do
+    previous_provider = Setting.llm_provider
+    previous_model = Setting.openai_model
+    previous_uri_base = Setting.openai_uri_base
+    with_self_hosting do
+      Setting.openai_model = ""
+
+      patch settings_hosting_url, params: { setting: { llm_provider: "codex", openai_uri_base: "https://api.example.com/v1", openai_model: "" } }
+
+      assert_redirected_to settings_hosting_url
+      assert_equal "codex", Setting.llm_provider
+    end
+  ensure
+    Setting.llm_provider = previous_provider
+    Setting.openai_model = previous_model
+    Setting.openai_uri_base = previous_uri_base
+  end
+
+  test "rejects invalid llm provider when self hosting is enabled" do
+    previous = Setting.llm_provider
+    with_self_hosting do
+      patch settings_hosting_url, params: { setting: { llm_provider: "bogus" } }
+
+      assert_response :unprocessable_entity
+      assert_match(/Invalid LLM provider/, flash[:alert])
+    end
+  ensure
+    Setting.llm_provider = previous
+  end
+
   test "can update openai uri base and model together when self hosting is enabled" do
     with_self_hosting do
       patch settings_hosting_url, params: { setting: { openai_uri_base: "https://api.example.com/v1", openai_model: "gpt-4" } }

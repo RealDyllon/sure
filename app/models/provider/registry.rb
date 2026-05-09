@@ -8,6 +8,18 @@ class Provider::Registry
   validates :concept, inclusion: { in: CONCEPTS }
 
   class << self
+    def default_llm_provider
+      send(default_llm_provider_key)
+    end
+
+    def default_llm_model
+      if default_llm_provider_key == :codex
+        Provider::OpenaiViaCodex.effective_model
+      else
+        Provider::Openai.effective_model.presence || Setting.openai_model
+      end
+    end
+
     def for_concept(concept)
       new(concept.to_sym)
     end
@@ -78,6 +90,12 @@ class Provider::Registry
         Provider::Openai.new(access_token, uri_base: uri_base, model: model)
       end
 
+      def codex
+        return nil unless Provider::OpenaiViaCodex.configured?
+
+        Provider::OpenaiViaCodex.new(model: Provider::OpenaiViaCodex.effective_model)
+      end
+
       def yahoo_finance
         Provider::YahooFinance.new
       end
@@ -113,6 +131,10 @@ class Provider::Registry
       def binance_public
         Provider::BinancePublic.new
       end
+
+      def default_llm_provider_key
+        Setting.effective_llm_provider == "codex" ? :codex : :openai
+      end
   end
 
   def initialize(concept)
@@ -147,7 +169,7 @@ class Provider::Registry
       when :securities
         %i[twelve_data yahoo_finance tiingo eodhd alpha_vantage mfapi binance_public]
       when :llm
-        %i[openai]
+        [ self.class.send(:default_llm_provider_key) ]
       else
         %i[plaid_us plaid_eu github openai]
       end

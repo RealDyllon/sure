@@ -19,21 +19,22 @@ Sure has **two separate AI systems** that operate independently. Understanding t
 
 The interactive chat where users ask questions about their finances. Routes through one of two backends:
 
-- **Builtin** (default): Uses the OpenAI-compatible provider configured via `OPENAI_ACCESS_TOKEN` / `OPENAI_URI_BASE` / `OPENAI_MODEL`. Calls Sure's function tools directly (get_accounts, get_transactions, etc.).
+- **Builtin** (default): Uses the selected LLM provider. `LLM_PROVIDER=openai` uses the OpenAI-compatible provider configured via `OPENAI_ACCESS_TOKEN` / `OPENAI_URI_BASE` / `OPENAI_MODEL`. `LLM_PROVIDER=codex` uses the server owner's Codex CLI ChatGPT login. Calls Sure's function tools directly (get_accounts, get_transactions, etc.).
 - **External**: Delegates the entire conversation to a remote AI agent. The agent calls back to Sure via MCP to access financial data. Set `ASSISTANT_TYPE=external` as a global override, or configure each family's assistant type in Settings.
 
 ### 2. Auto-Categorization and Merchant Detection (background)
 
-Background jobs that classify transactions and detect merchants. These **always** use the OpenAI-compatible provider (`OPENAI_ACCESS_TOKEN`), regardless of what the chat assistant uses. They rely on structured function calling with JSON schemas, not conversational chat.
+Background jobs that classify transactions and detect merchants use the selected builtin LLM provider. They rely on structured function calling with JSON schemas, not conversational chat.
 
 ### What this means in practice
 
 | Setting | Chat assistant | Auto-categorization |
 |---------|---------------|---------------------|
-| `ASSISTANT_TYPE=builtin` (default) | Uses OpenAI provider | Uses OpenAI provider |
-| `ASSISTANT_TYPE=external` | Uses external agent | Still uses OpenAI provider |
+| `ASSISTANT_TYPE=builtin` + `LLM_PROVIDER=openai` (default) | Uses OpenAI-compatible provider | Uses OpenAI-compatible provider |
+| `ASSISTANT_TYPE=builtin` + `LLM_PROVIDER=codex` | Uses Codex-backed provider | Uses Codex-backed provider |
+| `ASSISTANT_TYPE=external` | Uses external agent | Uses selected builtin LLM provider |
 
-If you use an external agent for chat, you still need `OPENAI_ACCESS_TOKEN` set for auto-categorization and merchant detection to work. The two systems are fully independent.
+If you use an external agent for chat, configure either `LLM_PROVIDER=openai` with an API token or `LLM_PROVIDER=codex` with Codex CLI auth for auto-categorization and merchant detection.
 
 ## Quickstart: OpenAI Token
 
@@ -113,6 +114,7 @@ Sure supports any OpenAI-compatible API endpoint. Here are tested providers:
 ### OpenAI (Primary Support)
 
 ```bash
+LLM_PROVIDER=openai
 OPENAI_ACCESS_TOKEN=sk-proj-...
 # No other configuration needed
 
@@ -126,6 +128,26 @@ OPENAI_ACCESS_TOKEN=sk-proj-...
 - `gpt-4o-mini` - Cheaper, good quality
 
 **Pricing:** See [OpenAI Pricing](https://openai.com/api/pricing/)
+
+### OpenAI via Codex CLI / ChatGPT Plan
+
+Self-hosted deployments can use the server owner's Codex CLI ChatGPT OAuth credentials instead of an OpenAI API key:
+
+```bash
+LLM_PROVIDER=codex
+# Optional; defaults to openai-codex/gpt-5.4
+OPENAI_MODEL=openai-codex/gpt-5.4
+```
+
+Requirements:
+
+- Install and authenticate Codex CLI on the same OS user that runs Sure: `codex login`.
+- Sure reads `CODEX_AUTH_PATH` if set, otherwise `$CODEX_HOME/auth.json`, otherwise `~/.codex/auth.json`.
+- The auth file must have `auth_mode: "chatgpt"` and be readable and writable by the app process so Sure can refresh near-expired access tokens.
+- Codex-backed model IDs in Sure use the `openai-codex/<model>` namespace. The upstream request sends the unprefixed model slug to the Codex backend.
+- Usage records for Codex-backed calls are stored with provider `openai_codex` and no estimated dollar cost, because subscription-backed usage is not priced by Sure.
+
+Codex mode powers builtin chat, auto-categorization, merchant detection, merchant enrichment, and PDF/bank-statement processing. It does not create per-Sure-user Codex connections; all requests use the server owner's Codex login.
 
 ### Google Gemini (via OpenRouter)
 

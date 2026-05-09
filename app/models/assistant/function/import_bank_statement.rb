@@ -93,12 +93,12 @@ class Assistant::Function::ImportBankStatement < Assistant::Function
     end
 
     # Extract transactions from the PDF using provider
-    provider = Provider::Registry.get_provider(:openai)
+    provider = Provider::Registry.default_llm_provider
     unless provider
       return {
         success: false,
         error: "provider_not_configured",
-        message: "OpenAI provider is not configured"
+        message: "LLM provider is not configured"
       }
     end
 
@@ -183,6 +183,6 @@ class Assistant::Function::ImportBankStatement < Assistant::Function
     end
 
     def openai_model
-      ENV["OPENAI_MODEL"].presence || Provider::Openai::DEFAULT_MODEL
+      Provider::Registry.default_llm_model
     end
 end
