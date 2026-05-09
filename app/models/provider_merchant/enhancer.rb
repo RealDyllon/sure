@@ -71,7 +71,7 @@ class ProviderMerchant::Enhancer
     end
 
     def llm_provider
-      @llm_provider ||= Provider::Registry.get_provider(:openai)
+      @llm_provider ||= Provider::Registry.default_llm_provider
     end
 
     def unenhanced_merchants

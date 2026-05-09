@@ -1,7 +1,9 @@
 <div class="space-y-4">
   <div>
     <h2 class="font-medium mb-1"><%= t(".title") %></h2>
-    <% if ENV["OPENAI_ACCESS_TOKEN"].present? %>
+    <% if ENV["LLM_PROVIDER"].present? %>
+      <p class="text-sm text-secondary"><%= t(".provider_env_configured_message", provider: ENV["LLM_PROVIDER"]) %></p>
+    <% elsif ENV["OPENAI_ACCESS_TOKEN"].present? %>
       <p class="text-sm text-secondary"><%= t(".env_configured_message") %></p>
     <% else %>
       <p class="text-secondary text-sm mb-4"><%= t(".description") %></p>
@@ -16,6 +18,26 @@
                          controller: "auto-submit-form",
                          "auto-submit-form-trigger-event-value": "blur"
                        } do |form| %>
+  <% effective_llm_provider = Setting.effective_llm_provider %>
+  <%= form.select :llm_provider,
+                  options_for_select(
+                    [
+                      [t(".provider_openai"), "openai"],
+                      [t(".provider_codex"), "codex"]
+                    ],
+                    effective_llm_provider
+                  ),
+                  { label: t(".provider_label") },
+                  { disabled: ENV["LLM_PROVIDER"].present?,
+                    data: { "auto-submit-form-target": "auto" } } %>
+  <p class="text-xs text-secondary mt-1"><%= t(".provider_help") %></p>
+
+  <% if effective_llm_provider == "codex" %>
+    <div class="text-xs text-secondary rounded-lg border border-secondary p-3">
+      <%= t(".codex_help") %>
+    </div>
+  <% end %>
+
   <%= form.password_field :openai_access_token,
                           label: t(".access_token_label"),
                           placeholder: t(".access_token_placeholder"),
@@ -24,7 +46,7 @@
                           autocapitalize: "none",
                           spellcheck: "false",
                           inputmode: "text",
-                          disabled: ENV["OPENAI_ACCESS_TOKEN"].present?,
+                          disabled: ENV["OPENAI_ACCESS_TOKEN"].present? || effective_llm_provider == "codex",
                           data: { "auto-submit-form-target": "auto" } %>
 
   <%= form.text_field :openai_uri_base,
@@ -35,12 +57,12 @@
                       autocapitalize: "none",
                       spellcheck: "false",
                       inputmode: "url",
-                      disabled: ENV["OPENAI_URI_BASE"].present?,
+                      disabled: ENV["OPENAI_URI_BASE"].present? || effective_llm_provider == "codex",
                       data: { "auto-submit-form-target": "auto" } %>
 
   <%= form.text_field :openai_model,
                       label: t(".model_label"),
-                      placeholder: t(".model_placeholder"),
+                      placeholder: effective_llm_provider == "codex" ? Provider::OpenaiViaCodex::DEFAULT_MODEL : t(".model_placeholder"),
                       value: Setting.openai_model,
                       autocomplete: "off",
                       autocapitalize: "none",

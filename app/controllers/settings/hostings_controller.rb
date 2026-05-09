@@ -111,6 +111,14 @@ class Settings::HostingsController < ApplicationController
     update_encrypted_setting(:eodhd_api_key)
     update_encrypted_setting(:alpha_vantage_api_key)
 
+    if hosting_params.key?(:llm_provider)
+      provider = hosting_params[:llm_provider].presence || "openai"
+      unless %w[openai codex].include?(provider)
+        raise Setting::ValidationError, t(".invalid_llm_provider")
+      end
+      Setting.llm_provider = provider
+    end
+
     if hosting_params.key?(:syncs_include_pending)
       Setting.syncs_include_pending = hosting_params[:syncs_include_pending] == "1"
     end
@@ -147,7 +155,7 @@ class Settings::HostingsController < ApplicationController
     end
 
     # Validate OpenAI configuration before updating
-    if hosting_params.key?(:openai_uri_base) || hosting_params.key?(:openai_model)
+    if Setting.effective_llm_provider != "codex" && (hosting_params.key?(:openai_uri_base) || hosting_params.key?(:openai_model))
       Setting.validate_openai_config!(
         uri_base: hosting_params[:openai_uri_base],
         model: hosting_params[:openai_model]
@@ -223,7 +231,7 @@ class Settings::HostingsController < ApplicationController
   private
     def hosting_params
       return ActionController::Parameters.new unless params.key?(:setting)
-      params.require(:setting).permit(:onboarding_state, :require_email_confirmation, :invite_only_default_family_id, :brand_fetch_client_id, :brand_fetch_high_res_logos, :twelve_data_api_key, :tiingo_api_key, :eodhd_api_key, :alpha_vantage_api_key, :openai_access_token, :openai_uri_base, :openai_model, :openai_json_mode, :llm_context_window, :llm_max_response_tokens, :llm_max_items_per_call, :exchange_rate_provider, :securities_provider, :syncs_include_pending, :auto_sync_enabled, :auto_sync_time, :external_assistant_url, :external_assistant_token, :external_assistant_agent_id, securities_providers: [])
+      params.require(:setting).permit(:onboarding_state, :require_email_confirmation, :invite_only_default_family_id, :brand_fetch_client_id, :brand_fetch_high_res_logos, :twelve_data_api_key, :tiingo_api_key, :eodhd_api_key, :alpha_vantage_api_key, :llm_provider, :openai_access_token, :openai_uri_base, :openai_model, :openai_json_mode, :llm_context_window, :llm_max_response_tokens, :llm_max_items_per_call, :exchange_rate_provider, :securities_provider, :syncs_include_pending, :auto_sync_enabled, :auto_sync_time, :external_assistant_url, :external_assistant_token, :external_assistant_agent_id, securities_providers: [])
     end
 
     def update_assistant_type

@@ -64,4 +64,26 @@ class Provider::RegistryTest < ActiveSupport::TestCase
       assert_instance_of Provider::Openai, provider
     end
   end
+
+  test "default llm provider returns codex provider when selected" do
+    with_env_overrides("LLM_PROVIDER" => "codex", "OPENAI_MODEL" => nil) do
+      Provider::OpenaiViaCodex.stubs(:configured?).returns(true)
+      Provider::OpenaiViaCodex::Client.stubs(:new).returns(stub)
+
+      provider = Provider::Registry.default_llm_provider
+
+      assert_instance_of Provider::OpenaiViaCodex, provider
+      assert_equal "openai-codex/gpt-5.4", Provider::Registry.default_llm_model
+    end
+  end
+
+  test "providers returns only selected llm provider" do
+    with_env_overrides("LLM_PROVIDER" => "codex") do
+      Provider::Registry.stubs(:codex).returns("codex-provider")
+
+      registry = Provider::Registry.for_concept(:llm)
+
+      assert_equal [ "codex-provider" ], registry.providers
+    end
+  end
 end

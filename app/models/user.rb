@@ -156,7 +156,7 @@ class User < ApplicationRecord
     when "external"
       Assistant::External.available_for?(self)
     else
-      ENV["OPENAI_ACCESS_TOKEN"].present? || Setting.openai_access_token.present?
+      Provider::Registry.default_llm_provider.present?
     end
   end
 

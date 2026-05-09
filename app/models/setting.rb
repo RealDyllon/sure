@@ -10,6 +10,7 @@ class Setting < RailsSettings::Base
   field :openai_uri_base, type: :string, default: ENV["OPENAI_URI_BASE"]
   field :openai_model, type: :string, default: ENV["OPENAI_MODEL"]
   field :openai_json_mode, type: :string, default: ENV["LLM_JSON_MODE"]
+  field :llm_provider, type: :string, default: ENV.fetch("LLM_PROVIDER", "openai")
 
   # LLM token budget (applies to every outbound LLM call: chat, auto-categorize,
   # merchant detection, enhance-merchants, PDF processing). Defaults track
@@ -278,5 +279,10 @@ class Setting < RailsSettings::Base
     if uri_base_value.present? && model_value.blank?
       raise ValidationError, "OpenAI model is required when custom URI base is configured"
     end
+  end
+
+  def self.effective_llm_provider
+    provider = ENV["LLM_PROVIDER"].presence || llm_provider.presence || "openai"
+    %w[openai codex].include?(provider) ? provider : "openai"
   end
 end

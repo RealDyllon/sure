@@ -88,6 +88,12 @@ en:
       openai_settings:
         description: Enter the access token and optionally configure a custom OpenAI-compatible provider
         env_configured_message: Successfully configured through environment variables.
+        provider_env_configured_message: "LLM provider is locked to %{provider} through the LLM_PROVIDER environment variable."
+        provider_label: LLM Provider
+        provider_openai: OpenAI / OpenAI-compatible
+        provider_codex: Codex CLI / ChatGPT plan
+        provider_help: Choose which provider powers builtin chat, auto-categorization, merchant detection, enrichment, and PDF processing.
+        codex_help: Codex mode uses the server owner's Codex CLI ChatGPT login. Run `codex login` on the server account and ensure ~/.codex/auth.json is readable by the app process, or set CODEX_HOME / CODEX_AUTH_PATH.
         access_token_label: Access Token
         access_token_placeholder: Enter your access token here
         uri_base_label: API Base URL (Optional)
@@ -170,6 +176,7 @@ en:
         invalid_onboarding_state: Invalid onboarding state
         invalid_sync_time: Invalid sync time format. Please use HH:MM format (e.g., 02:30).
         invalid_llm_budget: "%{field} must be a whole number ≥ %{minimum}."
+        invalid_llm_provider: Invalid LLM provider
         scheduler_sync_failed: Settings saved, but failed to update the sync schedule. Please try again or check the server logs.
       disconnect_external_assistant:
         external_assistant_disconnected: External assistant disconnected
