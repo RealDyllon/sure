@@ -19,8 +19,10 @@ module StatementExtraction
 
       data = response.data.deep_stringify_keys
       provider_name = detect_provider(data)
-      accounts = extracted_account_payloads(data).map do |account_data|
-        normalize_account(provider_name, account_data, data)
+      account_payloads = extracted_account_payloads(data)
+      use_document_activity_fallback = data["accounts"].present? && account_payloads.one?
+      accounts = account_payloads.map do |account_data|
+        normalize_account(provider_name, account_data, data, use_document_activity_fallback: use_document_activity_fallback)
       end
 
       Result.new(
@@ -37,8 +39,9 @@ module StatementExtraction
         accounts.presence || [ data ]
       end
 
-      def normalize_account(provider_name, account_data, document_data)
+      def normalize_account(provider_name, account_data, document_data, use_document_activity_fallback: false)
         data = document_data.merge(account_data)
+        data = apply_document_activity_fallback(data, account_data, document_data) if use_document_activity_fallback
         account_number = normalized_account_number(data["account_number"]).presence || data["account_id"].presence || "default"
 
         {
@@ -55,6 +58,17 @@ module StatementExtraction
           "trades" => normalize_trades(provider_name, account_number, data),
           "positions" => normalize_positions(data)
         }
+      end
+
+      def apply_document_activity_fallback(data, account_data, document_data)
+        %w[transactions cash_transactions trades positions].each do |key|
+          next if Array(account_data[key]).present?
+          next if Array(document_data[key]).blank?
+
+          data[key] = document_data[key]
+        end
+
+        data
       end
 
       def normalize_transactions(provider_name, account_number, data)
