@@ -24,6 +24,8 @@ module StatementExtraction
       accounts = account_payloads.map do |account_data|
         normalize_account(provider_name, account_data, data, use_document_activity_fallback: use_document_activity_fallback)
       end
+      accounts << normalize_account(provider_name, unassigned_account_payload(provider_name, data), data) if unassigned_document_activity?(data, account_payloads)
+      accounts = ensure_unique_source_ids(accounts)
 
       Result.new(
         provider: provider_name,
@@ -37,6 +39,28 @@ module StatementExtraction
       def extracted_account_payloads(data)
         accounts = Array(data["accounts"]).reject(&:blank?)
         accounts.presence || [ data ]
+      end
+
+      def unassigned_document_activity?(data, account_payloads)
+        data["accounts"].present? && account_payloads.many? && document_activity_present?(data)
+      end
+
+      def document_activity_present?(data)
+        %w[transactions cash_transactions trades positions].any? { |key| Array(data[key]).present? }
+      end
+
+      def unassigned_account_payload(provider_name, data)
+        {
+          "account_name" => "Unassigned #{provider_name.upcase} Activity",
+          "account_number" => "unassigned",
+          "account_type" => account_type_for(provider_name, data),
+          "subtype" => subtype_for(provider_name, data),
+          "currency" => data["currency"].presence || data["base_currency"].presence || statement_import.family.currency,
+          "transactions" => Array(data["transactions"]),
+          "cash_transactions" => Array(data["cash_transactions"]),
+          "trades" => Array(data["trades"]),
+          "positions" => Array(data["positions"])
+        }
       end
 
       def normalize_account(provider_name, account_data, document_data, use_document_activity_fallback: false)
@@ -58,6 +82,40 @@ module StatementExtraction
           "trades" => normalize_trades(provider_name, account_number, data),
           "positions" => normalize_positions(data)
         }
+      end
+
+      def ensure_unique_source_ids(accounts)
+        seen = {}
+
+        accounts.map.with_index do |account, index|
+          source_id = account["source_id"]
+          if seen[source_id]
+            account = account.merge("source_id" => unique_source_id(source_id, account, index, seen))
+          end
+
+          seen[account["source_id"]] = true
+          account
+        end
+      end
+
+      def unique_source_id(source_id, account, index, seen)
+        suffix = source_id_suffix(account).presence || "account-#{index + 1}"
+        candidate = "#{source_id}-#{suffix}"
+        counter = 2
+
+        while seen[candidate]
+          candidate = "#{source_id}-#{suffix}-#{counter}"
+          counter += 1
+        end
+
+        candidate
+      end
+
+      def source_id_suffix(account)
+        [
+          account["name"],
+          account["subtype"]
+        ].compact_blank.join("-").parameterize
       end
 
       def apply_document_activity_fallback(data, account_data, document_data)

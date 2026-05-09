@@ -140,7 +140,7 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
                 "account_name" => "Fixture Account 3",
                 "account_number" => "120-00000006-3",
                 "account_type" => "Depository",
-                "subtype" => "savings",
+                "subtype" => "checking",
                 "currency" => "SGD",
                 "closing_balance" => 1015.00,
                 "transactions" => []
@@ -255,7 +255,7 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
     assert_equal [ "Card Spend" ], credit_card[:transactions].map { |transaction| transaction[:name] }
   end
 
-  test "merges DBS summary-only account chunk into same named activity account" do
+  test "merges DBS summary-only account chunk into same named activity account when key is missing" do
     first_response = {
       "choices" => [ {
         "message" => {
@@ -264,7 +264,6 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
             "accounts" => [
               {
                 "account_name" => "Fixture Account 3",
-                "account_number" => "2723",
                 "account_type" => "Depository",
                 "subtype" => "savings",
                 "currency" => "SGD",
@@ -334,6 +333,119 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
     assert_equal "00000014", savings[:account_number]
     assert_equal 1022.00, savings[:closing_balance]
     assert_empty savings[:transactions]
+  end
+
+  test "does not merge accounts with same last four when name or subtype differs" do
+    mock_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "DBS Bank",
+            "accounts" => [
+              {
+                "account_name" => "DBS Current Account",
+                "account_number" => "00000009",
+                "account_type" => "Depository",
+                "subtype" => "checking",
+                "currency" => "SGD",
+                "closing_balance" => 1027.00,
+                "transactions" => [
+                  { "date" => "2026-04-10", "description" => "Salary", "amount" => 1002.00, "currency" => "SGD" }
+                ]
+              },
+              {
+                "account_name" => "DBS Savings Account",
+                "account_number" => "00000009",
+                "account_type" => "Depository",
+                "subtype" => "savings",
+                "currency" => "SGD",
+                "closing_balance" => 1003.00,
+                "transactions" => [
+                  { "date" => "2026-04-11", "description" => "Interest", "amount" => 1.00, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).returns(mock_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([ "DBS consolidated statement text" ])
+
+    result = extractor.extract
+
+    assert_equal 2, result[:accounts].size
+    assert_equal [ "DBS Current Account", "DBS Savings Account" ], result[:accounts].map { |account| account[:account_name] }
+    assert_equal [ "checking", "savings" ], result[:accounts].map { |account| account[:subtype] }
+  end
+
+  test "does not merge same named summary and activity accounts when keys disagree" do
+    first_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "bank_name" => "DBS Bank",
+            "accounts" => [
+              {
+                "account_name" => "Savings Account",
+                "account_number" => "1111",
+                "account_type" => "Depository",
+                "subtype" => "savings",
+                "currency" => "SGD",
+                "closing_balance" => 1025.00,
+                "transactions" => []
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+    second_response = {
+      "choices" => [ {
+        "message" => {
+          "content" => {
+            "accounts" => [
+              {
+                "account_name" => "Savings Account",
+                "account_number" => "00000016",
+                "account_type" => "Depository",
+                "subtype" => "savings",
+                "currency" => "SGD",
+                "closing_balance" => 1026.00,
+                "transactions" => [
+                  { "date" => "2026-04-15", "description" => "Transfer", "amount" => 25.00, "currency" => "SGD" }
+                ]
+              }
+            ]
+          }.to_json
+        }
+      } ]
+    }
+
+    @client.expects(:chat).twice.returns(first_response, second_response)
+
+    extractor = Provider::Openai::BankStatementExtractor.new(
+      client: @client,
+      pdf_content: "dummy",
+      model: @model
+    )
+    extractor.stubs(:extract_pages_from_pdf).returns([
+      "Page 1 " * 500,
+      "Page 2 " * 500
+    ])
+
+    result = extractor.extract
+
+    assert_equal 2, result[:accounts].size
+    assert_equal [ "1111", "00000016" ], result[:accounts].map { |account| account[:account_number] }
+    assert_equal [ 0, 1 ], result[:accounts].map { |account| account[:transactions].size }
   end
 
   test "handles empty PDF content" do

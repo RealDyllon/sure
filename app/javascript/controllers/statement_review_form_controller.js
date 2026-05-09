@@ -32,6 +32,13 @@ export default class extends Controller {
 
     if (this.hasPublishButtonTarget) {
       this.setPrimary(this.publishButtonTarget, this.cleanValue);
+      this.publishButtonTarget.disabled = !this.cleanValue;
+
+      if (this.cleanValue) {
+        this.publishButtonTarget.removeAttribute("aria-disabled");
+      } else {
+        this.publishButtonTarget.setAttribute("aria-disabled", "true");
+      }
     }
   }
 
