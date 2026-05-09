@@ -19,6 +19,7 @@ module StatementExtraction
       rows = parsed_rows
 
       return extract_cpf(rows) if provider == "cpf"
+      return extract_ibkr(rows) if provider == "ibkr"
 
       extract_bank_or_wallet(rows, provider: provider)
     end
@@ -38,9 +39,20 @@ module StatementExtraction
         return "paylah" if downcased_filename.include?("paylah") || headers.any? { |header| header.include?("paylah") }
         return "uob" if downcased_filename.include?("uob") || headers.any? { |header| header.include?("uob") }
         return "cpf" if downcased_filename.include?("cpf") || headers.include?("account") && headers.any? { |header| header.include?("contribution") }
+        return "ibkr" if ibkr_statement?(downcased_filename)
         return "dbs" if downcased_filename.include?("dbs")
 
         "dbs"
+      end
+
+      def ibkr_statement?(downcased_filename)
+          downcased_filename.include?("ibkr") ||
+          downcased_filename.include?("interactivebrokers") ||
+          downcased_filename.include?("interactive brokers") ||
+          downcased_filename.include?("interactive_brokers") ||
+          downcased_filename.include?("interactive-brokers") ||
+          (headers.include?("section") && headers.any? { |header| header.include?("account id") || header.include?("base currency") }) ||
+          raw_csv.downcase.include?("interactive brokers")
       end
 
       def extract_bank_or_wallet(rows, provider:)
@@ -118,6 +130,134 @@ module StatementExtraction
         )
       end
 
+      def extract_ibkr(rows)
+        grouped = rows.group_by { |row| ibkr_source_id_for(row) }
+        accounts = grouped.map do |source_id, account_rows|
+          suffix = source_id.split(":").last
+          currency = ibkr_currency_for(account_rows)
+          trades = ibkr_trades_for(account_rows, source_id, currency)
+          transactions = ibkr_cash_transactions_for(account_rows, source_id, currency)
+          positions = ibkr_positions_for(account_rows, currency)
+          balance_row = ibkr_balance_row(account_rows) || account_rows.reverse.find { |row| date_for(row).present? } || account_rows.last
+
+          {
+            "source_id" => source_id,
+            "name" => "IBKR #{suffix}",
+            "account_type" => "Investment",
+            "subtype" => "brokerage",
+            "currency" => currency,
+            "closing_balance" => ibkr_closing_balance_for(balance_row),
+            "cash_balance" => decimal_string(value_at(balance_row, "closing balance")),
+            "balance_date" => date_for(balance_row),
+            "transactions" => transactions,
+            "trades" => trades,
+            "positions" => positions
+          }
+        end
+
+        Result.new(
+          provider: "ibkr",
+          file_type: "csv",
+          statement_period: period_from(accounts),
+          accounts: accounts
+        )
+      end
+
+      def ibkr_trades_for(rows, source_id, currency)
+        ibkr_rows_for(rows, "trades").map do |row|
+          date = date_for(row)
+          ticker = value_at(row, "symbol", "ticker").to_s.upcase
+          qty = ibkr_trade_quantity(row)
+          price = decimal_string(value_at(row, "price", "t price", "trade price"))
+          amount = decimal_string(value_at(row, "amount", "proceeds"))
+          name = value_at(row, "description").presence || "#{ibkr_activity_label(qty)} #{ticker}"
+
+          {
+            "date" => date,
+            "name" => name,
+            "ticker" => ticker,
+            "exchange_operating_mic" => value_at(row, "exchange operating mic", "exchange"),
+            "qty" => qty,
+            "price" => price,
+            "amount" => amount,
+            "currency" => value_at(row, "currency").presence || currency,
+            "activity_label" => ibkr_activity_label(qty),
+            "external_id" => [ source_id, "trade", date, ticker, qty, price, amount ].join(":")
+          }
+        end
+      end
+
+      def ibkr_cash_transactions_for(rows, source_id, currency)
+        ibkr_rows_for(rows, "cash transactions").filter_map do |row|
+          amount = decimal_string(value_at(row, "amount"))
+          next if amount.to_d.zero?
+
+          date = date_for(row)
+          name = value_at(row, "description", "subsection").presence || "IBKR cash activity"
+
+          {
+            "date" => date,
+            "name" => name,
+            "amount" => amount,
+            "currency" => value_at(row, "currency").presence || currency,
+            "external_id" => [ source_id, "cash", date, amount, name ].join(":")
+          }
+        end
+      end
+
+      def ibkr_positions_for(rows, currency)
+        ibkr_rows_for(rows, "positions").map do |row|
+          ticker = value_at(row, "symbol", "ticker").to_s.upcase
+
+          {
+            "date" => date_for(row),
+            "name" => value_at(row, "description").presence || ticker,
+            "ticker" => ticker,
+            "qty" => decimal_string(value_at(row, "quantity", "qty")),
+            "price" => decimal_string(value_at(row, "price", "close price")),
+            "market_value" => decimal_string(value_at(row, "amount", "market value")),
+            "currency" => value_at(row, "currency").presence || currency
+          }
+        end
+      end
+
+      def ibkr_rows_for(rows, section)
+        rows.select { |row| normalize_key(value_at(row, "section")) == section }
+      end
+
+      def ibkr_source_id_for(row)
+        account_id = value_at(row, "account id", "account number", "account").to_s
+        suffix = account_id.scan(/\d/).last(4).join.presence || "default"
+        "ibkr:#{suffix}"
+      end
+
+      def ibkr_currency_for(rows)
+        rows.filter_map { |row| value_at(row, "base currency", "currency") }.first.presence || "USD"
+      end
+
+      def ibkr_balance_row(rows)
+        rows.reverse.find do |row|
+          normalize_key(value_at(row, "section")).in?([ "net asset value", "balances" ]) &&
+            (value_at(row, "net liquidation value", "closing balance", "amount").present?)
+        end
+      end
+
+      def ibkr_closing_balance_for(row)
+        decimal_string(value_at(row, "net liquidation value", "closing balance", "amount"))
+      end
+
+      def ibkr_trade_quantity(row)
+        qty = decimal_string(value_at(row, "quantity", "qty"))
+        description = value_at(row, "description").to_s.downcase
+        return "-#{qty}" if description.include?("sell") && qty.to_d.positive?
+
+        qty
+      end
+
+      def ibkr_activity_label(qty)
+        qty.to_d.negative? ? "Sell" : "Buy"
+      end
+
       def cpf_transaction(name, amount, date, bucket_key, row)
         signed_amount = name == "Contribution" ? "-#{amount}" : amount
         {
@@ -193,7 +333,12 @@ module StatementExtraction
       end
 
       def period_from(accounts)
-        dates = accounts.flat_map { |account| account["transactions"].map { |txn| txn["date"] } + [ account["balance_date"] ] }.compact
+        dates = accounts.flat_map do |account|
+          Array(account["transactions"]).map { |txn| txn["date"] } +
+            Array(account["trades"]).map { |trade| trade["date"] } +
+            Array(account["positions"]).map { |position| position["date"] } +
+            [ account["balance_date"] ]
+        end.compact
         parsed = dates.filter_map { |date| parse_date(date) }
         return {} if parsed.empty?
 

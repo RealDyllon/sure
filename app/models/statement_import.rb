@@ -10,7 +10,7 @@ class StatementImport < PdfImport
     update!(
       extracted_data: result.to_h,
       document_type: statement_document_type(result),
-      ai_summary: "Extracted #{result.accounts.sum { |account| Array(account["transactions"]).size }} transactions from #{result.provider.upcase} #{result.file_type.upcase} statement."
+      ai_summary: "Extracted #{extracted_activity_count(result.accounts)} activities from #{result.provider.upcase} #{result.file_type.upcase} statement."
     )
     sync_rows_count!
     result
@@ -90,7 +90,7 @@ class StatementImport < PdfImport
   end
 
   def sync_rows_count!
-    update_column(:rows_count, extracted_accounts.sum { |account| Array(account["transactions"]).size })
+    update_column(:rows_count, extracted_activity_count(extracted_accounts))
   end
 
   def original_filename
@@ -100,6 +100,12 @@ class StatementImport < PdfImport
   private
 
     def statement_document_type(result)
-      result.provider == "cpf" ? "investment_statement" : "bank_statement"
+      %w[cpf ibkr].include?(result.provider) ? "investment_statement" : "bank_statement"
+    end
+
+    def extracted_activity_count(accounts)
+      accounts.sum do |account|
+        Array(account["transactions"]).size + Array(account["trades"]).size
+      end
     end
 end

@@ -17,6 +17,8 @@ class Provider::Openai::BankStatementExtractor
     Rails.logger.info("BankStatementExtractor: Processing #{chunks.size} chunk(s) from #{pages.size} page(s)")
 
     all_transactions = []
+    all_trades = []
+    all_positions = []
     metadata = {}
 
     chunks.each_with_index do |chunk, index|
@@ -26,20 +28,33 @@ class Provider::Openai::BankStatementExtractor
       # Tag transactions with chunk index for deduplication
       tagged_transactions = (result[:transactions] || []).map { |t| t.merge(chunk_index: index) }
       all_transactions.concat(tagged_transactions)
+      all_trades.concat(result[:trades] || [])
+      all_positions.concat(result[:positions] || [])
 
       if index == 0
         metadata = {
           account_holder: result[:account_holder],
           account_number: result[:account_number],
+          account_id: result[:account_id],
           bank_name: result[:bank_name],
+          currency: result[:currency],
+          base_currency: result[:base_currency],
           opening_balance: result[:opening_balance],
           closing_balance: result[:closing_balance],
+          cash_balance: result[:cash_balance],
+          net_liquidation_value: result[:net_liquidation_value],
           period: result[:period]
         }
       end
 
       if result[:closing_balance].present?
         metadata[:closing_balance] = result[:closing_balance]
+      end
+      if result[:cash_balance].present?
+        metadata[:cash_balance] = result[:cash_balance]
+      end
+      if result[:net_liquidation_value].present?
+        metadata[:net_liquidation_value] = result[:net_liquidation_value]
       end
       if result.dig(:period, :end_date).present?
         metadata[:period] ||= {}
@@ -52,9 +67,16 @@ class Provider::Openai::BankStatementExtractor
       period: metadata[:period] || {},
       account_holder: metadata[:account_holder],
       account_number: metadata[:account_number],
+      account_id: metadata[:account_id],
       bank_name: metadata[:bank_name],
+      currency: metadata[:currency],
+      base_currency: metadata[:base_currency],
       opening_balance: metadata[:opening_balance],
-      closing_balance: metadata[:closing_balance]
+      closing_balance: metadata[:closing_balance],
+      cash_balance: metadata[:cash_balance],
+      net_liquidation_value: metadata[:net_liquidation_value],
+      trades: all_trades,
+      positions: all_positions
     }
   end
 
@@ -118,15 +140,22 @@ class Provider::Openai::BankStatementExtractor
 
       {
         transactions: normalize_transactions(parsed["transactions"] || []),
+        trades: normalize_trades(parsed["trades"] || []),
+        positions: normalize_positions(parsed["positions"] || []),
         period: {
           start_date: parsed.dig("statement_period", "start_date"),
           end_date: parsed.dig("statement_period", "end_date")
         },
         account_holder: parsed["account_holder"],
         account_number: parsed["account_number"],
+        account_id: parsed["account_id"],
         bank_name: parsed["bank_name"],
+        currency: parsed["currency"],
+        base_currency: parsed["base_currency"],
         opening_balance: parsed["opening_balance"],
-        closing_balance: parsed["closing_balance"]
+        closing_balance: parsed["closing_balance"],
+        cash_balance: parsed["cash_balance"],
+        net_liquidation_value: parsed["net_liquidation_value"]
       }
     end
 
@@ -166,9 +195,40 @@ class Provider::Openai::BankStatementExtractor
         {
           date: parse_date(txn["date"]),
           amount: parse_amount(txn["amount"]),
+          currency: txn["currency"],
           name: txn["description"] || txn["name"] || txn["merchant"],
           category: infer_category(txn),
           notes: txn["reference"] || txn["notes"]
+        }
+      end.compact
+    end
+
+    def normalize_trades(trades)
+      trades.map do |trade|
+        {
+          date: parse_date(trade["date"]),
+          ticker: trade["ticker"] || trade["symbol"],
+          exchange_operating_mic: trade["exchange_operating_mic"],
+          qty: parse_amount(trade["qty"] || trade["quantity"]),
+          price: parse_amount(trade["price"]),
+          amount: parse_amount(trade["amount"] || trade["proceeds"]),
+          currency: trade["currency"],
+          description: trade["description"] || trade["name"],
+          activity_label: trade["activity_label"]
+        }
+      end.compact
+    end
+
+    def normalize_positions(positions)
+      positions.map do |position|
+        {
+          date: parse_date(position["date"]),
+          ticker: position["ticker"] || position["symbol"],
+          qty: parse_amount(position["qty"] || position["quantity"]),
+          price: parse_amount(position["price"]),
+          market_value: parse_amount(position["market_value"] || position["amount"]),
+          currency: position["currency"],
+          name: position["name"] || position["description"]
         }
       end.compact
     end
@@ -197,19 +257,19 @@ class Provider::Openai::BankStatementExtractor
 
     def instructions_with_metadata
       <<~INSTRUCTIONS.strip
-        Extract bank statement data as JSON. Return:
-        {"bank_name":"...","account_holder":"...","account_number":"last 4 digits","statement_period":{"start_date":"YYYY-MM-DD","end_date":"YYYY-MM-DD"},"opening_balance":0.00,"closing_balance":0.00,"transactions":[{"date":"YYYY-MM-DD","description":"...","amount":-0.00}]}
+        Extract financial statement data as JSON. Return:
+        {"bank_name":"...","account_holder":"...","account_number":"last 4 digits","account_id":"brokerage id if present","currency":"ISO currency","base_currency":"ISO currency","statement_period":{"start_date":"YYYY-MM-DD","end_date":"YYYY-MM-DD"},"opening_balance":0.00,"closing_balance":0.00,"cash_balance":0.00,"net_liquidation_value":0.00,"transactions":[{"date":"YYYY-MM-DD","description":"...","amount":-0.00,"currency":"ISO currency"}],"trades":[{"date":"YYYY-MM-DD","symbol":"AAPL","quantity":10,"price":1020.00,"amount":-1005.00,"currency":"USD","description":"Buy 10 AAPL","activity_label":"Buy"}],"positions":[{"date":"YYYY-MM-DD","symbol":"AAPL","quantity":12,"price":1021.00,"market_value":1007.00,"currency":"USD","description":"Apple Inc"}]}
 
-        Rules: Negative amounts for debits/expenses, positive for credits/deposits. Dates as YYYY-MM-DD. Extract ALL transactions. JSON only, no markdown.
+        Rules: Negative amounts for debits/expenses/buys, positive for credits/deposits/dividends/sells. For IBKR or Interactive Brokers statements, set bank_name to "IBKR" and extract trades, cash transactions, net liquidation value, cash balance, and positions. Dates as YYYY-MM-DD. Extract ALL rows. JSON only, no markdown.
       INSTRUCTIONS
     end
 
     def instructions_transactions_only
       <<~INSTRUCTIONS.strip
-        Extract transactions from bank statement text as JSON. Return:
-        {"transactions":[{"date":"YYYY-MM-DD","description":"...","amount":-0.00}]}
+        Extract financial activity from statement text as JSON. Return:
+        {"transactions":[{"date":"YYYY-MM-DD","description":"...","amount":-0.00,"currency":"ISO currency"}],"trades":[{"date":"YYYY-MM-DD","symbol":"AAPL","quantity":10,"price":1020.00,"amount":-1005.00,"currency":"USD","description":"Buy 10 AAPL","activity_label":"Buy"}],"positions":[{"date":"YYYY-MM-DD","symbol":"AAPL","quantity":12,"price":1021.00,"market_value":1007.00,"currency":"USD","description":"Apple Inc"}]}
 
-        Rules: Negative amounts for debits/expenses, positive for credits/deposits. Dates as YYYY-MM-DD. Extract ALL transactions. JSON only, no markdown.
+        Rules: Negative amounts for debits/expenses/buys, positive for credits/deposits/dividends/sells. Dates as YYYY-MM-DD. Extract ALL rows. JSON only, no markdown.
       INSTRUCTIONS
     end
 end

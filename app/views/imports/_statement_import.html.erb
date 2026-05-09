@@ -70,13 +70,44 @@
             <div>
               <h2 class="font-medium text-primary"><%= account_payload["name"] %></h2>
               <p class="text-sm text-secondary">
-                <%= account_payload["transactions"].size %> transactions ·
+                <%= account_payload["transactions"].size %> transactions
+                <% if account_payload["trades"].present? %>
+                  · <%= account_payload["trades"].size %> trades
+                <% end %>
+                <% if account_payload["positions"].present? %>
+                  · <%= account_payload["positions"].size %> positions
+                <% end %>
+                ·
                 <%= account_payload["currency"] %>
                 <% if account_payload["closing_balance"].present? %>
                   · balance <%= account_payload["closing_balance"] %>
                 <% end %>
+                <% if account_payload["cash_balance"].present? %>
+                  · cash <%= account_payload["cash_balance"] %>
+                <% end %>
               </p>
             </div>
+
+            <% if account_payload["trades"].present? || account_payload["positions"].present? %>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <% if account_payload["trades"].present? %>
+                  <div class="bg-container-inset rounded-lg p-3">
+                    <p class="text-secondary mb-1"><%= t("imports.statement_import.trades", default: "Trades") %></p>
+                    <p class="text-primary font-medium">
+                      <%= account_payload["trades"].first(3).map { |trade| [ trade["activity_label"], trade["qty"], trade["ticker"] ].compact.join(" ") }.join(", ") %>
+                    </p>
+                  </div>
+                <% end %>
+                <% if account_payload["positions"].present? %>
+                  <div class="bg-container-inset rounded-lg p-3">
+                    <p class="text-secondary mb-1"><%= t("imports.statement_import.positions", default: "Positions") %></p>
+                    <p class="text-primary font-medium">
+                      <%= account_payload["positions"].first(3).map { |position| [ position["qty"], position["ticker"] ].compact.join(" ") }.join(", ") %>
+                    </p>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
 
             <%= hidden_field_tag "statement_import[accounts][#{index}][source_id]", account_payload["source_id"] %>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
