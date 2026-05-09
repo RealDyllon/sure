@@ -33,6 +33,22 @@ class ProcessPdfJobTest < ActiveJob::TestCase
     assert_equal "complete", processed_import.reload.status
   end
 
+  test "skips StatementImport PDFs" do
+    statement_import = @family.imports.create!(
+      type: "StatementImport",
+      status: :pending
+    )
+    attach_pdf!(statement_import)
+
+    statement_import.expects(:process_with_ai).never
+    statement_import.expects(:extract_transactions).never
+    @family.expects(:upload_document).never
+
+    ProcessPdfJob.perform_now(statement_import)
+
+    assert_equal "pending", statement_import.reload.status
+  end
+
   test "uploads non-bank PDF to vector store with classified type metadata" do
     pdf_content = attach_pdf!(@import)
     process_result = Struct.new(:document_type).new("financial_document")
