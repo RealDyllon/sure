@@ -1,11 +1,12 @@
 class Provider::Openai::BankStatementExtractor
   MAX_CHARS_PER_CHUNK = 3000
-  attr_reader :client, :pdf_content, :model
+  attr_reader :client, :pdf_content, :model, :pdf_password
 
-  def initialize(client:, pdf_content:, model:)
+  def initialize(client:, pdf_content:, model:, pdf_password: nil)
     @client = client
     @pdf_content = pdf_content
     @model = model
+    @pdf_password = pdf_password
   end
 
   def extract
@@ -62,7 +63,8 @@ class Provider::Openai::BankStatementExtractor
     def extract_pages_from_pdf
       return [] if pdf_content.blank?
 
-      reader = PDF::Reader.new(StringIO.new(pdf_content))
+      options = pdf_password.present? ? { password: pdf_password } : {}
+      reader = PDF::Reader.new(StringIO.new(pdf_content), options)
       reader.pages.map(&:text).reject(&:blank?)
     rescue => e
       Rails.logger.error("Failed to extract text from PDF: #{e.message}")
