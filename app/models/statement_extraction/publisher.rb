@@ -9,6 +9,8 @@ module StatementExtraction
     def publish!
       raise Import::MappingError, "Statement import requires account review before publishing" unless statement_import.review_complete?
 
+      @published_transaction_ids = []
+
       Import.transaction do
         statement_import.extracted_accounts.each do |account_payload|
           account = account_for(account_payload)
@@ -18,6 +20,8 @@ module StatementExtraction
           upsert_profile(account, account_payload)
         end
       end
+
+      enqueue_enrichment_job
     end
 
     private
@@ -25,6 +29,8 @@ module StatementExtraction
       def account_for(account_payload)
         review = account_payload.fetch("review")
         return statement_import.family.accounts.find(review["account_id"]) if review["action"] == "match"
+        profile_account = reuse_profile_account(account_payload)
+        return profile_account if profile_account
 
         account_type = review["account_type"].presence || account_payload["account_type"]
         account_class = Accountable.from_type(account_type) || Depository
@@ -47,6 +53,16 @@ module StatementExtraction
         )
       end
 
+      def reuse_profile_account(account_payload)
+        profile = statement_import.family.statement_profiles.find_by(
+          provider: statement_import.provider,
+          source_id: account_payload["source_id"]
+        )
+        return unless profile&.account
+
+        profile.account if profile.metadata["last_import_id"].to_s == statement_import.id.to_s
+      end
+
       def publish_transactions(account, account_payload)
         Array(account_payload["transactions"]).each do |txn|
           external_id = txn["external_id"].presence || fallback_external_id(account_payload, txn)
@@ -67,7 +83,14 @@ module StatementExtraction
             entryable: transaction
           )
           entry.save!
+          @published_transaction_ids << transaction.id
         end
+      end
+
+      def enqueue_enrichment_job
+        return if @published_transaction_ids.blank?
+
+        StatementImportEnrichmentJob.perform_later(statement_import, transaction_ids: @published_transaction_ids)
       end
 
       def publish_trades(account, account_payload)

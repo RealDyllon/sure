@@ -10,6 +10,7 @@ de:
       toggle_section: "Sichtbarkeit des Bereichs umschalten"
       periods:
         monthly: Monatlich
+        last_month: Letzter Monat
         quarterly: Vierteljährlich
         ytd: Jahr bis heute
         last_6_months: Letzte 6 Monate

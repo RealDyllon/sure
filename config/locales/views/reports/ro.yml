@@ -7,6 +7,7 @@ ro:
       export: Exportă CSV
       periods:
         monthly: Lunar
+        last_month: Luna trecută
         quarterly: Trimestrial
         ytd: Anul până în prezent
         last_6_months: Ultimele 6 luni

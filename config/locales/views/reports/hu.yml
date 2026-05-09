@@ -10,6 +10,7 @@ hu:
       toggle_section: "Szakasz láthatóságának váltása"
       periods:
         monthly: Havi
+        last_month: Előző hónap
         quarterly: Negyedéves
         ytd: Év elejétől
         last_6_months: Elmúlt 6 hónap
