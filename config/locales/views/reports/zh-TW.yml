@@ -9,6 +9,7 @@ zh-TW:
       toggle_section: "切換區塊顯示狀態"
       periods:
         monthly: 按月
+        last_month: 上個月
         quarterly: 按季
         ytd: 年初至今 (YTD)
         last_6_months: 過去 6 個月

@@ -10,6 +10,7 @@ pt-BR:
       toggle_section: "Alternar visibilidade da seção"
       periods:
         monthly: Mensal
+        last_month: Mês Passado
         quarterly: Trimestral
         ytd: Acumulado do Ano (YTD)
         last_6_months: Últimos 6 Meses

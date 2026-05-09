@@ -38,6 +38,12 @@
           size: :sm
         ) %>
         <%= render DS::Link.new(
+          text: t("reports.index.periods.last_month"),
+          variant: @period_type == :last_month ? "secondary" : "ghost",
+          href: reports_path(period_type: :last_month),
+          size: :sm
+        ) %>
+        <%= render DS::Link.new(
           text: t("reports.index.periods.quarterly"),
           variant: @period_type == :quarterly ? "secondary" : "ghost",
           href: reports_path(period_type: :quarterly),

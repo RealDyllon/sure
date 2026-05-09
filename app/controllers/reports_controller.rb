@@ -30,7 +30,7 @@ class ReportsController < ApplicationController
   end
 
   def export_transactions
-    @period_type = params[:period_type]&.to_sym || :monthly
+    @period_type = params[:period_type]&.to_sym || :last_month
     @start_date = parse_date_param(:start_date) || default_start_date
     @end_date = parse_date_param(:end_date) || default_end_date
 
@@ -90,7 +90,7 @@ class ReportsController < ApplicationController
 
   private
     def setup_report_data(show_flash: false)
-      @period_type = params[:period_type]&.to_sym || :monthly
+      @period_type = params[:period_type]&.to_sym || :last_month
       @start_date = parse_date_param(:start_date) || default_start_date
       @end_date = parse_date_param(:end_date) || default_end_date
 
@@ -226,6 +226,8 @@ class ReportsController < ApplicationController
 
     def default_start_date
       case @period_type
+      when :last_month
+        Period.last_month_for(Current.family).start_date
       when :monthly
         Date.current.beginning_of_month.to_date
       when :quarterly
@@ -243,6 +245,8 @@ class ReportsController < ApplicationController
 
     def default_end_date
       case @period_type
+      when :last_month
+        Period.last_month_for(Current.family).end_date
       when :monthly, :last_6_months
         Date.current.end_of_month.to_date
       when :quarterly
