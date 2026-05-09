@@ -1,12 +1,13 @@
 class Provider::Openai::BankStatementExtractor
   MAX_CHARS_PER_CHUNK = 3000
-  attr_reader :client, :pdf_content, :model, :pdf_password
+  attr_reader :client, :pdf_content, :model, :pdf_password, :progress_callback
 
-  def initialize(client:, pdf_content:, model:, pdf_password: nil)
+  def initialize(client:, pdf_content:, model:, pdf_password: nil, progress_callback: nil)
     @client = client
     @pdf_content = pdf_content
     @model = model
     @pdf_password = pdf_password
+    @progress_callback = progress_callback
   end
 
   def extract
@@ -15,6 +16,7 @@ class Provider::Openai::BankStatementExtractor
 
     chunks = build_chunks(pages)
     Rails.logger.info("BankStatementExtractor: Processing #{chunks.size} chunk(s) from #{pages.size} page(s)")
+    emit_progress(current: 0, total: chunks.size, message: "Preparing #{chunks.size} chunks")
 
     all_transactions = []
     all_trades = []
@@ -24,6 +26,7 @@ class Provider::Openai::BankStatementExtractor
 
     chunks.each_with_index do |chunk, index|
       Rails.logger.info("BankStatementExtractor: Processing chunk #{index + 1}/#{chunks.size}")
+      emit_progress(current: index + 1, total: chunks.size, message: "Processing chunk #{index + 1} of #{chunks.size}")
       result = process_chunk(chunk, index == 0)
 
       # Tag transactions with chunk index for deduplication
@@ -88,6 +91,10 @@ class Provider::Openai::BankStatementExtractor
   end
 
   private
+
+    def emit_progress(current:, total:, message:)
+      progress_callback&.call(current: current, total: total, message: message)
+    end
 
     def extract_pages_from_pdf
       return [] if pdf_content.blank?

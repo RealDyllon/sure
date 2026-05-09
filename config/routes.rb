@@ -261,6 +261,7 @@ Rails.application.routes.draw do
   resources :imports, only: %i[index new show create update destroy] do
     member do
       post :publish
+      post :retry_processing
       put :revert
       put :apply_template
     end

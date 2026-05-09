@@ -6,14 +6,15 @@ module StatementExtraction
       @statement_import = statement_import
     end
 
-    def extract
+    def extract(progress_callback: nil)
       provider = Provider::Registry.default_llm_provider
       raise "AI provider not configured" unless provider
 
       response = provider.extract_bank_statement(
         pdf_content: statement_import.pdf_file_content,
         family: statement_import.family,
-        pdf_password: statement_import.statement_pdf_password
+        pdf_password: statement_import.statement_pdf_password,
+        progress_callback: progress_callback
       )
       raise(response.error&.message || "Unknown statement extraction error") unless response.success?
 

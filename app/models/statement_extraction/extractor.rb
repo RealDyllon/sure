@@ -6,14 +6,14 @@ module StatementExtraction
       @statement_import = statement_import
     end
 
-    def extract
+    def extract(progress_callback: nil)
       result = if statement_import.csv_uploaded?
         CsvExtractor.new(
           raw_csv: statement_import.raw_file_str,
           filename: statement_import.original_filename
         ).extract
       elsif statement_import.pdf_uploaded?
-        PdfExtractor.new(statement_import).extract
+        PdfExtractor.new(statement_import).extract(progress_callback: progress_callback)
       else
         raise ArgumentError, "No statement file uploaded"
       end
