@@ -18,6 +18,7 @@ class StatementImportsControllerTest < ActionDispatch::IntegrationTest
     created_import = StatementImport.order(:created_at).last
     assert_redirected_to import_url(created_import)
     assert_equal "csv", created_import.file_type
+    assert_equal "dbs_statement.csv", created_import.statement_original_filename
   end
 
   test "uploads IBKR csv statement as StatementImport" do

@@ -63,6 +63,69 @@ class StatementImportTest < ActiveSupport::TestCase
     assert_match "review", statement_import.error
   end
 
+  test "original filename preserves stored csv upload filename" do
+    statement_import = @family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "Date,Description,Amount\n2026-04-01,Test,1.00",
+      statement_original_filename: "uob_statement.csv"
+    )
+
+    assert_equal "uob_statement.csv", statement_import.original_filename
+  end
+
+  test "publish normalizes PDF transaction signs to Sure entry convention" do
+    statement_import = @family.imports.create!(
+      type: "StatementImport",
+      date_format: "%Y-%m-%d",
+      extracted_data: {
+        "provider" => "dbs",
+        "file_type" => "pdf",
+        "statement_period" => { "end_date" => "2026-04-30" },
+        "review_confirmed" => true,
+        "accounts" => [
+          {
+            "source_id" => "dbs:1234",
+            "name" => "DBS 1234",
+            "account_type" => "Depository",
+            "subtype" => "checking",
+            "currency" => "SGD",
+            "closing_balance" => "900.00",
+            "balance_date" => "2026-04-30",
+            "transactions" => [
+              {
+                "date" => "2026-04-01",
+                "name" => "Coffee",
+                "amount" => "-5.50",
+                "currency" => "SGD",
+                "external_id" => "dbs:1234:pdf:coffee"
+              },
+              {
+                "date" => "2026-04-02",
+                "name" => "Salary",
+                "amount" => "1000.00",
+                "currency" => "SGD",
+                "external_id" => "dbs:1234:pdf:salary"
+              }
+            ],
+            "review" => {
+              "action" => "create",
+              "account_type" => "Depository",
+              "account_subtype" => "checking",
+              "account_name" => "DBS PDF",
+              "currency" => "SGD"
+            }
+          }
+        ]
+      }
+    )
+
+    statement_import.publish
+
+    assert_equal "complete", statement_import.reload.status
+    assert_equal BigDecimal("5.50"), statement_import.entries.find_by!(external_id: "dbs:1234:pdf:coffee").amount
+    assert_equal BigDecimal("-1000.00"), statement_import.entries.find_by!(external_id: "dbs:1234:pdf:salary").amount
+  end
+
   test "publish creates IBKR brokerage trades cash transactions balance profile and skips duplicates" do
     Security::Resolver.any_instance.stubs(:resolve).returns(securities(:aapl))
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_09_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_09_124000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -764,6 +764,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_09_120000) do
     t.string "document_type"
     t.jsonb "extracted_data"
     t.text "statement_pdf_password"
+    t.string "statement_original_filename"
     t.index ["family_id"], name: "index_imports_on_family_id"
   end
 

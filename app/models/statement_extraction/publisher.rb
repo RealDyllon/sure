@@ -56,7 +56,7 @@ module StatementExtraction
           entry = Entry.new(
             account: account,
             date: Date.parse(txn["date"].to_s),
-            amount: BigDecimal(txn["amount"].to_s),
+            amount: transaction_amount_for(txn),
             currency: txn["currency"].presence || account.currency,
             name: txn["name"].presence || "Imported transaction",
             notes: txn["notes"],
@@ -143,6 +143,11 @@ module StatementExtraction
 
       def fallback_external_id(account_payload, txn)
         [ account_payload["source_id"], txn["date"], txn["amount"], txn["name"] ].join(":")
+      end
+
+      def transaction_amount_for(txn)
+        amount = BigDecimal(txn["amount"].to_s)
+        statement_import.file_type == "pdf" ? -amount : amount
       end
 
       def fallback_trade_external_id(account_payload, trade_payload)
