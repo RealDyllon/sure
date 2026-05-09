@@ -19,7 +19,20 @@ class Provider::OpenaiViaCodex::Client
   end
 
   def chat(parameters:)
-    response = responses.create(parameters: chat_to_responses_parameters(parameters))
+    response = nil
+    output_text = +""
+    stream = proc do |event|
+      case event["type"]
+      when "response.output_text.delta", "response.refusal.delta"
+        output_text << event["delta"].to_s
+      when "response.completed"
+        response = event["response"]
+      end
+    end
+
+    responses.create(parameters: chat_to_responses_parameters(parameters).merge(stream: stream))
+    raise Error, "Codex API stream completed without a response" if response.blank?
+    content = extract_output_text(response).presence || output_text
 
     {
       "id" => response["id"],
@@ -28,8 +41,9 @@ class Provider::OpenaiViaCodex::Client
         {
           "message" => {
             "role" => "assistant",
-            "content" => extract_output_text(response)
-          }
+            "content" => content,
+            "tool_calls" => extract_tool_calls(response)
+          }.compact
         }
       ],
       "usage" => response["usage"]
@@ -119,7 +133,7 @@ class Provider::OpenaiViaCodex::Client
                              .presence
 
       input = messages.reject { |message| %w[system developer].include?(message[:role] || message["role"]) }
-                      .map { |message| chat_message_to_response_input(message) }
+                      .flat_map { |message| chat_message_to_response_input(message) }
 
       {
         model: parameters[:model] || parameters["model"],
@@ -127,18 +141,43 @@ class Provider::OpenaiViaCodex::Client
         instructions: instructions,
         max_output_tokens: parameters[:max_tokens] || parameters["max_tokens"],
         text: response_text_format(parameters[:response_format] || parameters["response_format"]),
+        tools: response_tools(parameters[:tools] || parameters["tools"]),
         store: false
       }.compact
     end
 
     def chat_message_to_response_input(message)
       role = (message[:role] || message["role"]).to_s
+      return tool_message_to_response_input(message) if role == "tool"
+      return assistant_tool_calls_to_response_input(message) if role == "assistant" && (message[:tool_calls] || message["tool_calls"]).present?
+
       role = "user" unless role == "assistant"
 
       {
         role: role,
         content: chat_content_to_response_content(message[:content] || message["content"])
       }
+    end
+
+    def tool_message_to_response_input(message)
+      {
+        type: "function_call_output",
+        call_id: message[:tool_call_id] || message["tool_call_id"],
+        output: message[:content] || message["content"] || ""
+      }
+    end
+
+    def assistant_tool_calls_to_response_input(message)
+      Array(message[:tool_calls] || message["tool_calls"]).map do |tool_call|
+        function = tool_call[:function] || tool_call["function"] || {}
+
+        {
+          type: "function_call",
+          call_id: tool_call[:id] || tool_call["id"],
+          name: function[:name] || function["name"],
+          arguments: function[:arguments] || function["arguments"] || "{}"
+        }
+      end
     end
 
     def chat_content_to_response_content(content)
@@ -178,12 +217,42 @@ class Provider::OpenaiViaCodex::Client
       end
     end
 
+    def response_tools(tools)
+      Array(tools).map do |tool|
+        function = tool[:function] || tool["function"]
+        next tool if function.blank?
+
+        {
+          type: "function",
+          name: function[:name] || function["name"],
+          description: function[:description] || function["description"],
+          parameters: function[:parameters] || function["parameters"],
+          strict: function.key?(:strict) ? function[:strict] : function["strict"]
+        }.compact
+      end.compact.presence
+    end
+
     def extract_output_text(response)
       Array(response["output"]).filter_map do |item|
         next unless item["type"] == "message"
 
         Array(item["content"]).map { |content| content["text"] || content["refusal"] }.compact.join("\n")
       end.join("\n")
+    end
+
+    def extract_tool_calls(response)
+      Array(response["output"]).filter_map do |item|
+        next unless item["type"] == "function_call"
+
+        {
+          "id" => item["call_id"] || item["id"],
+          "type" => "function",
+          "function" => {
+            "name" => item["name"],
+            "arguments" => item["arguments"] || "{}"
+          }
+        }
+      end
     end
 
     def parse_json(value)
@@ -211,7 +280,7 @@ class Provider::OpenaiViaCodex::Client
     private
 
       def normalize_parameters(parameters)
-        parameters.to_h.deep_symbolize_keys.compact
+        parameters.to_h.deep_symbolize_keys.except(:previous_response_id).compact
       end
 
       def strip_model_prefix(model)
