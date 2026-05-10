@@ -54,6 +54,6 @@ class AutoCategorizationRunTransaction < ApplicationRecord
     def account_accessible?
       return true unless run.user
 
-      Account.accessible_by(run.user).where(id: account_id).exists?
+      Account.annotatable_by(run.user).where(id: account_id).exists?
     end
 end

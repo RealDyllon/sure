@@ -1,5 +1,5 @@
 class Provider::Openai::BankStatementExtractor
-  MAX_CHARS_PER_CHUNK = 4_000_000
+  MAX_CHARS_PER_CHUNK = 4_000
   attr_reader :client, :pdf_content, :model, :pdf_password, :progress_callback
 
   def initialize(client:, pdf_content:, model:, pdf_password: nil, progress_callback: nil)
@@ -181,7 +181,7 @@ class Provider::Openai::BankStatementExtractor
 
         {
           account_name: account["account_name"] || account["name"],
-          account_number: normalized_account_number(account["account_number"]),
+          account_number: cleaned_identifier(account["account_number"]),
           account_id: account["account_id"],
           account_type: account["account_type"],
           subtype: account["subtype"],
@@ -231,6 +231,7 @@ class Provider::Openai::BankStatementExtractor
 
       if first_key.present? || second_key.present?
         return true if first_key.present? && first_key == second_key && compatible_account_metadata?(first, second)
+        return true if same_account_name_with_contextual_key?(first, second)
         return false if first_key.present? && second_key.present?
       end
 
@@ -281,6 +282,21 @@ class Provider::Openai::BankStatementExtractor
 
     def normalized_account_name(account_name)
       account_name.to_s.downcase.squish
+    end
+
+    def same_account_name_with_contextual_key?(first, second)
+      return false unless contextual_identifier?(first) || contextual_identifier?(second)
+
+      normalized_account_name(first[:account_name]) == normalized_account_name(second[:account_name]) &&
+        compatible_account_metadata?(first, second)
+    end
+
+    def contextual_identifier?(account)
+      [ account[:account_id], account[:account_number] ].compact.any? { |value| value.to_s.match?(/\D/) }
+    end
+
+    def cleaned_identifier(identifier)
+      identifier.to_s.squish.presence
     end
 
     def normalized_account_number(account_number)

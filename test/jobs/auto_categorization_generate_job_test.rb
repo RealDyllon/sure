@@ -66,6 +66,32 @@ class AutoCategorizationGenerateJobTest < ActiveJob::TestCase
     assert_equal 1, run.processing_progress["retry_count"]
   end
 
+  test "retry for stalled category creation queues category creation job" do
+    run = create_auto_categorization_run(family: @family, user: @user, status: :creating_categories)
+    run.category_suggestions.create!(
+      name: "Example Bills",
+      color: "#3b82f6",
+      lucide_icon: "receipt",
+      selected: true
+    )
+    run.update!(
+      processing_progress: {
+        "job_id" => "stalled-job",
+        "retry_count" => 0,
+        "last_updated_at" => 10.minutes.ago.iso8601,
+        "phase" => "creating_categories"
+      }
+    )
+
+    assert_enqueued_with(job: AutoCategorizationCreateCategoriesJob) do
+      assert run.queue_retry!
+    end
+
+    assert_not_equal "stalled-job", run.reload.processing_progress["job_id"]
+    assert_equal "creating_categories", run.processing_progress["phase"]
+    assert_equal 1, run.processing_progress["retry_count"]
+  end
+
   test "apply queue replaces completed generation job ownership" do
     category = @family.categories.create!(name: "Example Coffee", color: "#22c55e", lucide_icon: "coffee")
     entry = create_transaction(account: accounts(:depository), name: "Example Cafe")

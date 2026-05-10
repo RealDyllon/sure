@@ -14,6 +14,7 @@ class AutoCategorizationRunTest < ActiveSupport::TestCase
 
   test "run creator snapshots only transactions accessible to the initiating user" do
     accessible_entry = create_transaction(account: accounts(:depository), name: "Example Coffee")
+    create_transaction(account: accounts(:credit_card), name: "Example Read Only")
     create_transaction(account: accounts(:investment), name: "Example Hidden")
 
     run = AutoCategorization::RunCreator.call(family: @family, user: users(:family_member))
@@ -103,5 +104,25 @@ class AutoCategorizationRunTest < ActiveSupport::TestCase
     assert_nil entry.transaction.reload.category
     assert suggestion.reload.skipped?
     assert_equal "account hidden", suggestion.error
+  end
+
+  test "apply skips selected suggestion when account is no longer annotatable by run user" do
+    entry = create_transaction(account: accounts(:depository), name: "Example Grocery")
+    category = @family.categories.create!(name: "Example Groceries", color: "#22c55e", lucide_icon: "shopping-bag")
+    run = create_auto_categorization_run(family: @family, user: users(:family_member), status: :applying)
+    run_transaction = create_run_transaction(run, entry)
+    suggestion = run.suggestions.create!(
+      run_transaction: run_transaction,
+      selected_category: category,
+      selected: true,
+      status: :suggested
+    )
+    account_shares(:depository_shared_with_member).update!(permission: :read_only)
+
+    AutoCategorization::ApplySuggestions.call(run: run)
+
+    assert_nil entry.transaction.reload.category
+    assert suggestion.reload.skipped?
+    assert_equal "account inaccessible", suggestion.error
   end
 end

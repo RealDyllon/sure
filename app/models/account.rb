@@ -57,6 +57,17 @@ class Account < ApplicationRecord
       .distinct
   }
 
+  # Accounts a user can annotate (owned or shared with category/tag/notes access)
+  scope :annotatable_by, ->(user) {
+    left_joins(:account_shares)
+      .where(
+        "accounts.owner_id = :uid OR " \
+        "(account_shares.user_id = :uid AND account_shares.permission IN ('full_control', 'read_write'))",
+        uid: user.id
+      )
+      .distinct
+  }
+
   # Accounts that count in a user's financial calculations
   scope :included_in_finances_for, ->(user) {
     left_joins(:account_shares)

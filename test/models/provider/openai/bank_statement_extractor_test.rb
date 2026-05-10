@@ -157,7 +157,7 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
             "accounts" => [
               {
                 "account_name" => "Example Checking Account",
-                "account_number" => "00000007",
+                "account_number" => "00000016",
                 "account_type" => "Depository",
                 "subtype" => "checking",
                 "currency" => "SGD",
@@ -763,8 +763,10 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
 
     assert_equal [
       { current: 0, total: 2, message: "Preparing 2 chunks" },
-      { current: 1, total: 2, message: "Processing chunk 1 of 2" },
-      { current: 2, total: 2, message: "Processing chunk 2 of 2" }
+      { current: 0, total: 2, message: "Processing chunk 1 of 2..." },
+      { current: 1, total: 2, message: "Processed chunk 1 of 2" },
+      { current: 1, total: 2, message: "Processing chunk 2 of 2..." },
+      { current: 2, total: 2, message: "Processed chunk 2 of 2" }
     ], events
   end
 
@@ -775,7 +777,7 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
           "content" => {
             "transactions" => [
               { "date" => "2024-01-15", "description" => "Test 1", "amount" => "-$5.50" },
-              { "date" => "2024-01-16", "description" => "Test 2", "amount" => "1,1023.00" },
+              { "date" => "2024-01-16", "description" => "Test 2", "amount" => "1,004.00" },
               { "date" => "2024-01-17", "description" => "Test 3", "amount" => -100 }
             ]
           }.to_json

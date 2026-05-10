@@ -89,7 +89,7 @@ class AutoCategorizationRunsController < ApplicationController
 
   private
     def set_run
-      @run = Current.family.auto_categorization_runs.find(params[:id])
+      @run = Current.user.auto_categorization_runs.find(params[:id])
     end
 
     def set_categories

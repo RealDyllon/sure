@@ -74,13 +74,13 @@ class AutoCategorizationRun < ApplicationRecord
     queued
   end
 
-  def queue_category_creation!
+  def queue_category_creation!(allow_retry: false)
     job = AutoCategorizationCreateCategoriesJob.new(self)
     queued = false
 
     with_lock do
       reload
-      return false unless reviewing_categories?
+      return false unless reviewing_categories? || (allow_retry && retrying_category_creation?)
       return false unless category_suggestions.selected.valid_for_creation.exists?
 
       update!(status: :creating_categories, error: nil)
@@ -236,6 +236,8 @@ class AutoCategorizationRun < ApplicationRecord
 
     if progress["phase"] == "applying" || metadata.to_h["failed_phase"] == "applying"
       queue_apply!
+    elsif progress["phase"] == "creating_categories" || metadata.to_h["failed_phase"] == "creating_categories"
+      queue_category_creation!(allow_retry: true)
     else
       queue_generation!
     end
@@ -269,5 +271,9 @@ class AutoCategorizationRun < ApplicationRecord
 
     def retry_limit_for_current_phase
       applying? || metadata.to_h["failed_phase"] == "applying" ? MAX_APPLY_RETRIES : MAX_GENERATION_RETRIES
+    end
+
+    def retrying_category_creation?
+      creating_categories? || (failed? && metadata.to_h["failed_phase"] == "creating_categories")
     end
 end

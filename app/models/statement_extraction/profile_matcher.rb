@@ -73,6 +73,7 @@ module StatementExtraction
       def compatible_account?(account, account_payload)
         return false if account_payload["currency"].present? && account.currency != account_payload["currency"]
         return false if account_payload["account_type"].present? && account.accountable_type != account_payload["account_type"]
+        return false if account_payload["subtype"].present? && account.subtype.present? && account.subtype != account_payload["subtype"]
 
         true
       end

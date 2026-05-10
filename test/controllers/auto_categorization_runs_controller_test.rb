@@ -58,6 +58,16 @@ class AutoCategorizationRunsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "AI configuration is required before retrying.", flash[:alert]
   end
 
+  test "family member cannot open another user's run" do
+    run = create_auto_categorization_run(family: @family, user: @user, status: :reviewing_transactions)
+    sign_out
+    sign_in users(:family_member)
+
+    get auto_categorization_run_url(run)
+
+    assert_response :not_found
+  end
+
   test "updates starter category suggestion" do
     run = create_auto_categorization_run(family: @family, user: @user, status: :reviewing_categories)
     suggestion = run.category_suggestions.create!(
@@ -214,4 +224,9 @@ class AutoCategorizationRunsControllerTest < ActionDispatch::IntegrationTest
     assert_select "tbody tr", count: 20
     assert_includes response.body, "125 selected across all pages"
   end
+
+  private
+    def sign_out
+      @user.sessions.reload.each { |session| delete session_path(session) }
+    end
 end

@@ -88,6 +88,31 @@ class StatementExtraction::ProfileMatcherTest < ActiveSupport::TestCase
     assert_equal "Example Checking Account", review["account_name"]
   end
 
+  test "does not suggest exact account name match when extracted subtype conflicts" do
+    account = accounts(:depository)
+    account.update!(name: "Example Checking Account", currency: "SGD")
+    account.accountable.update!(subtype: "checking")
+
+    result = StatementExtraction::Result.new(
+      provider: "dbs",
+      file_type: "pdf",
+      accounts: [
+        {
+          "source_id" => "dbs:00000016",
+          "name" => "Example Checking Account",
+          "account_type" => "Depository",
+          "subtype" => "savings",
+          "currency" => "SGD"
+        }
+      ]
+    )
+
+    matched = StatementExtraction::ProfileMatcher.new(family: account.family, result: result).call
+
+    assert_nil matched.accounts.first["review"]
+    assert_nil matched.accounts.first["matched_account_id"]
+  end
+
   test "does not suggest an account when heuristic matches are ambiguous" do
     family = accounts(:depository).family
     Account.create_and_sync(

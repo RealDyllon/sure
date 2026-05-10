@@ -21,7 +21,7 @@ module AutoCategorization
         scope = family.entries.joins(:account)
         return scope unless user
 
-        scope.merge(Account.accessible_by(user))
+        scope.merge(Account.annotatable_by(user))
       end
   end
 end

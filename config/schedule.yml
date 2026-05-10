@@ -19,6 +19,12 @@ recover_stalled_statement_imports:
   queue: "scheduled"
   description: "Queues one retry for stalled statement imports"
 
+recover_stalled_auto_categorization_runs:
+  cron: "*/5 * * * *" # every 5 minutes
+  class: "RecoverStalledAutoCategorizationRunsJob"
+  queue: "scheduled"
+  description: "Queues one retry for stalled AI categorization runs"
+
 run_security_health_checks:
   cron: "0 2 * * 1-5" # 2:00 AM EST / 3:00 AM EDT (NY time) Monday through Friday
   class: "SecurityHealthCheckJob"

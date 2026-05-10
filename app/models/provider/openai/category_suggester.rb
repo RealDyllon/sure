@@ -136,7 +136,11 @@ class Provider::Openai::CategorySuggester
     def extract_categories_generic(response)
       raw = response.dig("choices", 0, "message", "content")
       parsed = parse_json_flexibly(raw)
-      categories = parsed.dig("categories") || parsed.dig("suggestions") || (parsed.is_a?(Array) ? parsed : nil)
+      categories = if parsed.is_a?(Array)
+        parsed
+      elsif parsed.is_a?(Hash)
+        parsed["categories"] || parsed["suggestions"]
+      end
 
       raise Provider::Openai::Error, "Could not find category suggestions in response" if categories.nil?
 
