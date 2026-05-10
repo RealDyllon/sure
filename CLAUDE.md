@@ -66,6 +66,7 @@ Only proceed with pull request creation if ALL checks pass.
 
 ### Development Guidelines
 - Carefully read project conventions and guidelines before generating any code.
+- Never commit real personal financial data. Do not store real account names, account numbers, account IDs, balances, transaction details, institution-specific account labels, screenshots, exports, or statement contents in code, tests, docs, fixtures, cassettes, logs, prompts, or examples. Use synthetic placeholders such as "Example Checking Account", account suffixes like "1111", and obviously fake balances.
 - Do not run `rails server` in your responses
 - Do not run `touch tmp/restart.txt`
 - Do not run `rails credentials`

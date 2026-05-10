@@ -84,8 +84,13 @@ module StatementExtraction
         extracted_name = account_payload["name"].to_s.downcase
         provider_name = result.provider.to_s.downcase
 
-        account_name.include?(source_suffix) &&
+        normalized_account_name(account.name) == normalized_account_name(account_payload["name"]) ||
+          account_name.include?(source_suffix) &&
           (account_name.include?(provider_name) || extracted_name.include?(provider_name))
+      end
+
+      def normalized_account_name(name)
+        name.to_s.downcase.gsub(/[^a-z0-9]+/, " ").squish
       end
   end
 end

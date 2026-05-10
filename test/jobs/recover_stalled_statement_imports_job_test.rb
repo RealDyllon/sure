@@ -34,6 +34,27 @@ class RecoverStalledStatementImportsJobTest < ActiveJob::TestCase
     assert_not_nil progress["job_id"]
   end
 
+  test "queues retry immediately for orphaned imports with no progress metadata" do
+    statement_import = @family.imports.create!(
+      type: "StatementImport",
+      raw_file_str: "Date,Description,Amount\n2026-04-01,Test,1.00",
+      status: :importing,
+      processing_progress: {}
+    )
+
+    assert_enqueued_jobs 1, only: ProcessStatementImportJob do
+      RecoverStalledStatementImportsJob.perform_now
+    end
+
+    progress = statement_import.reload.processing_progress
+    assert_equal "pending", statement_import.status
+    assert_equal "queued", progress["phase"]
+    assert_equal "Processing appeared stalled, so we queued one retry.", progress["message"]
+    assert_equal 0, progress["current"]
+    assert_equal 1, progress["retry_count"]
+    assert_not_nil progress["job_id"]
+  end
+
   test "does not queue retry for active or retry-limited statement imports" do
     @family.imports.create!(
       type: "StatementImport",
