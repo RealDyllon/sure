@@ -132,6 +132,7 @@ pl:
       ca: Kanada
       au: Australia
       eu: Europa
+      sg: Singapur
       generic: Ogólne
     confirm_unlink:
       title: Odłączyć konto od dostawcy?

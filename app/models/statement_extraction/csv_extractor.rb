@@ -317,7 +317,7 @@ module StatementExtraction
 
       def cpf_date_for(row)
         raw = value_at(row, "month", "date")
-        parsed = parse_date(raw)
+        parsed = parse_cpf_date(raw)
         return parsed.end_of_month.iso8601 if parsed
 
         raw.to_s
@@ -327,6 +327,17 @@ module StatementExtraction
         return nil if value.blank?
 
         Date.parse(value.to_s)
+      rescue ArgumentError
+        nil
+      end
+
+      def parse_cpf_date(value)
+        return nil if value.blank?
+
+        value = value.to_s
+        return Date.strptime(value, "%Y-%m") if value.match?(/\A\d{4}-\d{1,2}\z/)
+
+        parse_date(value)
       rescue ArgumentError
         nil
       end

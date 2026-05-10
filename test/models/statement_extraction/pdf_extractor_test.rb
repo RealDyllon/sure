@@ -40,7 +40,7 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
 
     assert_equal "ibkr", result.provider
     account = result.accounts.first
-    assert_equal "ibkr:00000017", account["source_id"]
+    assert_equal "ibkr:9567", account["source_id"]
     assert_equal "Investment", account["account_type"]
     assert_equal "brokerage", account["subtype"]
     assert_equal "1014.00", account["closing_balance"]
@@ -48,6 +48,47 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
     assert_equal 1, account["transactions"].size
     assert_equal 1, account["trades"].size
     assert_equal 1, account["positions"].size
+  end
+
+  test "normalizes CPF PDF extraction as Singapore investment account" do
+    provider = mock("default_llm_provider")
+    provider.expects(:extract_bank_statement).returns(
+      Provider::Response.new(
+        success?: true,
+        data: {
+          bank_name: "CPF",
+          period: { start_date: "2026-04-01", end_date: "2026-04-30" },
+          accounts: [
+            {
+              account_name: "CPF Ordinary Account",
+              currency: "SGD",
+              closing_balance: "21002.00",
+              transactions: [
+                { date: "2026-04-30", name: "CPF Contribution", amount: "-1002.00", currency: "SGD" }
+              ]
+            }
+          ]
+        },
+        error: nil
+      )
+    )
+    Provider::Registry.expects(:get_provider).never
+    Provider::Registry.stubs(:default_llm_provider).returns(provider)
+
+    statement_import = StatementImport.new(family: @family, statement_original_filename: "cpf-apr.pdf")
+    statement_import.stubs(:pdf_file_content).returns("pdf")
+
+    result = StatementExtraction::PdfExtractor.new(statement_import).extract
+
+    assert_equal "cpf", result.provider
+    account = result.accounts.first
+    assert_equal "cpf:ordinary", account["source_id"]
+    assert_equal "CPF Ordinary Account", account["name"]
+    assert_equal "Investment", account["account_type"]
+    assert_equal "cpf_ordinary", account["subtype"]
+    assert_equal "SGD", account["currency"]
+    assert_equal "21002.00", account["closing_balance"]
+    assert_equal "cpf:ordinary:2026-04-30:-1002.00:CPF Contribution", account["transactions"].first["external_id"]
   end
 
   test "normalizes DBS consolidated PDF extraction as separate statement accounts" do
@@ -101,17 +142,17 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
     current = result.accounts.first
     savings = result.accounts.second
 
-    assert_equal "dbs:00000016", current["source_id"]
+    assert_equal "dbs:0052", current["source_id"]
     assert_equal "Example Checking Account", current["name"]
     assert_equal "checking", current["subtype"]
     assert_equal "1027.00", current["closing_balance"]
-    assert_equal "dbs:00000016:2026-04-10:-5.50:Coffee", current["transactions"].first["external_id"]
+    assert_equal "dbs:0052:2026-04-10:-5.50:Coffee", current["transactions"].first["external_id"]
 
-    assert_equal "dbs:00000018", savings["source_id"]
+    assert_equal "dbs:0018", savings["source_id"]
     assert_equal "DBS Savings Plus", savings["name"]
     assert_equal "savings", savings["subtype"]
     assert_equal "1010.00", savings["closing_balance"]
-    assert_equal "dbs:00000018:2026-04-15:1.25:Interest", savings["transactions"].first["external_id"]
+    assert_equal "dbs:0018:2026-04-15:1.25:Interest", savings["transactions"].first["external_id"]
   end
 
   test "preserves top-level PDF transactions when single account metadata has no rows" do
@@ -150,11 +191,11 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
     result = StatementExtraction::PdfExtractor.new(statement_import).extract
 
     account = result.accounts.first
-    assert_equal "uob:0952", account["source_id"]
+    assert_equal "uob:0012", account["source_id"]
     assert_equal "Example Reserve Account", account["name"]
     assert_equal 2, account["transactions"].size
-    assert_equal "uob:0952:2026-04-15:-5.50:Coffee", account["transactions"].first["external_id"]
-    assert_equal "uob:0952:2026-04-30:0.71:Interest Credit", account["transactions"].second["external_id"]
+    assert_equal "uob:0012:2026-04-15:-5.50:Coffee", account["transactions"].first["external_id"]
+    assert_equal "uob:0012:2026-04-30:0.71:Interest Credit", account["transactions"].second["external_id"]
   end
 
   test "preserves top-level PDF transactions as unassigned account when multiple accounts are detected" do
@@ -206,7 +247,7 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
 
     unassigned = result.accounts.third
     assert_equal "dbs:unassigned", unassigned["source_id"]
-    assert_equal "Fixture Account 2", unassigned["name"]
+    assert_equal "Unassigned DBS Activity", unassigned["name"]
     assert_equal 1, unassigned["transactions"].size
     assert_equal "dbs:unassigned:2026-04-15:-5.50:Unassigned Row", unassigned["transactions"].first["external_id"]
   end
@@ -272,15 +313,15 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
     result = StatementExtraction::PdfExtractor.new(statement_import).extract
 
     assert_equal 2, result.accounts.size
-    assert_equal [ "dbs:1111", "dbs:00000016" ], result.accounts.map { |account| account["source_id"] }
+    assert_equal [ "dbs:1111", "dbs:0016" ], result.accounts.map { |account| account["source_id"] }
 
-    dbs = result.accounts.find { |account| account["source_id"] == "dbs:00000016" }
+    dbs = result.accounts.find { |account| account["source_id"] == "dbs:0016" }
     assert_equal "Example Checking Account", dbs["name"]
     assert_equal "checking", dbs["subtype"]
     assert_equal "1008.00", dbs["closing_balance"]
     assert_equal "1008.00", dbs["cash_balance"]
     assert_equal 1, dbs["transactions"].size
-    assert_equal "dbs:00000016:2026-04-10:-5.50:Coffee", dbs["transactions"].first["external_id"]
+    assert_equal "dbs:0016:2026-04-10:-5.50:Coffee", dbs["transactions"].first["external_id"]
   end
 
   test "keeps source ids unique for accounts with duplicate suffixes" do
@@ -325,8 +366,8 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
 
     source_ids = result.accounts.map { |account| account["source_id"] }
     assert_equal 2, source_ids.uniq.size
-    assert_equal "dbs:00000009", source_ids.first
-    assert_equal "dbs:00000009-dbs-savings-account-savings", source_ids.second
+    assert_equal "dbs:0009", source_ids.first
+    assert_equal "dbs:0009-dbs-savings-account-savings", source_ids.second
   end
 
   test "normalizes PDF transaction dates to statement period year when rows omit the year" do
@@ -358,8 +399,8 @@ class StatementExtraction::PdfExtractorTest < ActiveSupport::TestCase
     result = StatementExtraction::PdfExtractor.new(statement_import).extract
 
     account = result.accounts.first
-    assert_equal "uob:0952", account["source_id"]
+    assert_equal "uob:0012", account["source_id"]
     assert_equal [ "2026-04-01", "2026-04-30" ], account["transactions"].map { |txn| txn["date"] }
-    assert_equal "uob:0952:2026-04-30:0.71:Interest Credit", account["transactions"].last["external_id"]
+    assert_equal "uob:0012:2026-04-30:0.71:Interest Credit", account["transactions"].last["external_id"]
   end
 end
