@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_09_124100) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_10_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -148,6 +148,94 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_09_124100) do
     t.datetime "updated_at", null: false
     t.index ["download_token_digest"], name: "index_archived_exports_on_download_token_digest", unique: true
     t.index ["expires_at"], name: "index_archived_exports_on_expires_at"
+  end
+
+  create_table "auto_categorization_category_suggestions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "auto_categorization_run_id", null: false
+    t.string "name", null: false
+    t.string "normalized_name", null: false
+    t.string "parent_name"
+    t.string "color", null: false
+    t.string "lucide_icon", null: false
+    t.text "rationale"
+    t.boolean "selected", default: true, null: false
+    t.uuid "created_category_id"
+    t.string "status", default: "suggested", null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["auto_categorization_run_id", "normalized_name"], name: "idx_auto_cat_cat_suggestions_on_run_name"
+    t.index ["auto_categorization_run_id", "selected"], name: "idx_auto_cat_cat_suggestions_on_run_selected"
+    t.index ["auto_categorization_run_id", "status"], name: "idx_auto_cat_cat_suggestions_on_run_status"
+    t.index ["auto_categorization_run_id"], name: "idx_auto_cat_cat_suggestions_on_run_id"
+    t.index ["created_category_id"], name: "idx_auto_cat_cat_suggestions_on_created_category"
+  end
+
+  create_table "auto_categorization_run_transactions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "auto_categorization_run_id", null: false
+    t.uuid "entry_id"
+    t.uuid "transaction_id"
+    t.uuid "account_id"
+    t.string "status", default: "pending_generation", null: false
+    t.jsonb "snapshot", default: {}, null: false
+    t.datetime "captured_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_auto_categorization_run_transactions_on_account_id"
+    t.index ["auto_categorization_run_id", "status"], name: "idx_auto_cat_run_txns_on_run_status"
+    t.index ["auto_categorization_run_id", "transaction_id"], name: "idx_auto_cat_run_txns_on_run_txn"
+    t.index ["auto_categorization_run_id"], name: "idx_auto_cat_run_txns_on_run_id"
+    t.index ["entry_id"], name: "index_auto_categorization_run_transactions_on_entry_id"
+    t.index ["transaction_id"], name: "index_auto_categorization_run_transactions_on_transaction_id"
+  end
+
+  create_table "auto_categorization_runs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "family_id", null: false
+    t.uuid "user_id", null: false
+    t.string "status", default: "draft", null: false
+    t.string "provider_name"
+    t.string "model"
+    t.integer "category_suggestions_count", default: 0, null: false
+    t.integer "transaction_suggestions_count", default: 0, null: false
+    t.integer "selected_count", default: 0, null: false
+    t.integer "applied_count", default: 0, null: false
+    t.integer "skipped_count", default: 0, null: false
+    t.integer "unchanged_count", default: 0, null: false
+    t.text "error"
+    t.jsonb "processing_progress", default: {}, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_auto_categorization_runs_on_created_at"
+    t.index ["family_id", "status"], name: "index_auto_categorization_runs_on_family_id_and_status"
+    t.index ["family_id"], name: "index_auto_categorization_runs_on_family_id"
+    t.index ["user_id", "status"], name: "index_auto_categorization_runs_on_user_id_and_status"
+    t.index ["user_id"], name: "index_auto_categorization_runs_on_user_id"
+  end
+
+  create_table "auto_categorization_suggestions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "auto_categorization_run_id", null: false
+    t.uuid "auto_categorization_run_transaction_id", null: false
+    t.uuid "suggested_category_id"
+    t.uuid "selected_category_id"
+    t.string "suggested_category_name"
+    t.string "selected_category_name"
+    t.boolean "selected", default: false, null: false
+    t.string "status", default: "pending_generation", null: false
+    t.text "reason"
+    t.text "error"
+    t.datetime "applied_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["auto_categorization_run_id", "auto_categorization_run_transaction_id"], name: "idx_auto_cat_suggestions_unique_run_transaction", unique: true
+    t.index ["auto_categorization_run_id", "selected"], name: "idx_auto_cat_suggestions_on_run_selected"
+    t.index ["auto_categorization_run_id", "status"], name: "idx_auto_cat_suggestions_on_run_status"
+    t.index ["auto_categorization_run_id"], name: "idx_auto_cat_suggestions_on_run_id"
+    t.index ["auto_categorization_run_transaction_id"], name: "idx_auto_cat_suggestions_on_run_transaction"
+    t.index ["selected_category_id"], name: "idx_auto_cat_suggestions_on_selected_category"
+    t.index ["suggested_category_id"], name: "idx_auto_cat_suggestions_on_suggested_category"
   end
 
   create_table "balances", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1696,6 +1784,18 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_09_124100) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "api_keys", "users"
+  add_foreign_key "auto_categorization_category_suggestions", "auto_categorization_runs", on_delete: :cascade
+  add_foreign_key "auto_categorization_category_suggestions", "categories", column: "created_category_id", on_delete: :nullify
+  add_foreign_key "auto_categorization_run_transactions", "accounts", on_delete: :nullify
+  add_foreign_key "auto_categorization_run_transactions", "auto_categorization_runs", on_delete: :cascade
+  add_foreign_key "auto_categorization_run_transactions", "entries", on_delete: :nullify
+  add_foreign_key "auto_categorization_run_transactions", "transactions", on_delete: :nullify
+  add_foreign_key "auto_categorization_runs", "families"
+  add_foreign_key "auto_categorization_runs", "users"
+  add_foreign_key "auto_categorization_suggestions", "auto_categorization_run_transactions", on_delete: :cascade
+  add_foreign_key "auto_categorization_suggestions", "auto_categorization_runs", on_delete: :cascade
+  add_foreign_key "auto_categorization_suggestions", "categories", column: "selected_category_id", on_delete: :nullify
+  add_foreign_key "auto_categorization_suggestions", "categories", column: "suggested_category_id", on_delete: :nullify
   add_foreign_key "balances", "accounts", on_delete: :cascade
   add_foreign_key "binance_accounts", "binance_items"
   add_foreign_key "binance_items", "families"

@@ -232,6 +232,18 @@ Rails.application.routes.draw do
     delete :destroy_all, on: :collection
   end
 
+  resources :auto_categorization_runs, path: "ai-category-wizard", only: %i[show create] do
+    member do
+      post :retry
+      post :create_categories
+      post :bootstrap_categories
+      post :apply
+      patch "category_suggestions/:category_suggestion_id", action: :update_category_suggestion, as: :category_suggestion
+      post :category_suggestions, action: :create_category_suggestion
+      patch "suggestions/:suggestion_id", action: :update_suggestion, as: :suggestion
+    end
+  end
+
   resources :reports, only: %i[index] do
     patch :update_preferences, on: :collection
     get :export_transactions, on: :collection

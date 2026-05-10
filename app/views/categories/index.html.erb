@@ -1,5 +1,25 @@
 <%= content_for :page_title, t(".categories") %>
 <%= content_for :page_actions do %>
+  <% if @ai_category_provider_configured %>
+    <% if @latest_auto_categorization_run %>
+      <%= render DS::Link.new(
+        text: "Review AI categories",
+        variant: "outline",
+        icon: "sparkles",
+        href: auto_categorization_run_path(@latest_auto_categorization_run)
+      ) %>
+    <% end %>
+
+    <%= button_to auto_categorization_runs_path,
+          method: :post,
+          class: "button button--primary flex items-center gap-2" do %>
+      <%= icon "sparkles", size: "sm" %>
+      <span>Auto-categorize</span>
+    <% end %>
+  <% else %>
+    <span class="text-sm text-secondary">AI configuration required</span>
+  <% end %>
+
   <%= render DS::Menu.new do |menu| %>
     <% menu.with_item(
         variant: "button",
