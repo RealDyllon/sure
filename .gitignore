@@ -78,6 +78,7 @@ plaid_test_accounts/
 
 # Added by Claude
 .claude/settings.local.json
+.claude/worktrees/
 docs/superpowers/
 
 # Added by Claude Task Master

@@ -47,19 +47,23 @@
 #
 # https://github.com/we-promise/sure/discussions/categories/general
 #
-# IPv6 Note (Yahoo Finance Sync, others?):
-# ----------------------------------------
-# If you encounter "Failed to open TCP connection" errors to hosts like
-# fc.yahoo.com in your environment, the issue may be that DNS resolves
-# to an IPv6 address first. Since IPv6 may not be configured in the container,
-# the connection hangs. To work around this, you can hardcode the IPv4
-# addresses in your container's /etc/hosts or set custom DNS:
+# Outbound DNS / IPv6 note (Yahoo Finance, ChatGPT/Codex, others?):
+# -----------------------------------------------------------------
+# If you encounter "Failed to open TCP connection" errors to external hosts
+# from inside the container, the issue may be that DNS resolves to an IPv6
+# address first. Since IPv6 may not be configured in the container, the
+# connection hangs. To work around this, you can pin provider hostnames to
+# IPv4 addresses in the container's /etc/hosts with Docker Compose:
 #
 #   extra_hosts:
-#     - "fc.yahoo.com:173.223.12.81"
-#     - "query1.finance.yahoo.com:98.136.48.169"
-#     - "query2.finance.yahoo.com:98.136.48.169"
+#     - "chatgpt.com:${CHATGPT_HOST_IPV4}"
+#     - "auth.openai.com:${OPENAI_AUTH_HOST_IPV4}"
+#     - "fc.yahoo.com:${YAHOO_FINANCE_COOKIE_HOST_IPV4}"
+#     - "query1.finance.yahoo.com:${YAHOO_FINANCE_QUERY_HOST_IPV4}"
+#     - "query2.finance.yahoo.com:${YAHOO_FINANCE_QUERY_HOST_IPV4}"
 #
+# Set those variables in your local .env file to current IPv4 addresses for
+# your deployment region, then add the extra_hosts block to both web and worker.
 # Or use explicit DNS servers that prefer IPv4 (already configured below).
 #
 
@@ -275,6 +279,14 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
+    # Optional: pin provider hostnames to IPv4 addresses if container DNS
+    # resolves to unreachable IPv6 routes. Set the variables in .env first.
+    # extra_hosts:
+    #   - "chatgpt.com:${CHATGPT_HOST_IPV4}"
+    #   - "auth.openai.com:${OPENAI_AUTH_HOST_IPV4}"
+    #   - "fc.yahoo.com:${YAHOO_FINANCE_COOKIE_HOST_IPV4}"
+    #   - "query1.finance.yahoo.com:${YAHOO_FINANCE_QUERY_HOST_IPV4}"
+    #   - "query2.finance.yahoo.com:${YAHOO_FINANCE_QUERY_HOST_IPV4}"
     networks:
       - sure_net
 
@@ -294,6 +306,14 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
+    # Optional: pin provider hostnames to IPv4 addresses if container DNS
+    # resolves to unreachable IPv6 routes. Set the variables in .env first.
+    # extra_hosts:
+    #   - "chatgpt.com:${CHATGPT_HOST_IPV4}"
+    #   - "auth.openai.com:${OPENAI_AUTH_HOST_IPV4}"
+    #   - "fc.yahoo.com:${YAHOO_FINANCE_COOKIE_HOST_IPV4}"
+    #   - "query1.finance.yahoo.com:${YAHOO_FINANCE_QUERY_HOST_IPV4}"
+    #   - "query2.finance.yahoo.com:${YAHOO_FINANCE_QUERY_HOST_IPV4}"
     environment:
       <<: *rails_env
     networks:
