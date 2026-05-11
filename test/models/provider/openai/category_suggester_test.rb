@@ -137,4 +137,23 @@ class Provider::Openai::CategorySuggesterTest < ActiveSupport::TestCase
     assert_equal "Utilities", result.first.name
     assert_equal "lightbulb", result.first.lucide_icon
   end
+
+  test "parses generic responses from a fenced bare JSON array" do
+    result = Provider::Openai::CategorySuggester.new(
+      FakeGenericClient.new(<<~JSON),
+        ```json
+        [{"name":"Utilities","parent_name":null,"color":"#3b82f6","lucide_icon":"lightbulb","rationale":"Bills"}]
+        ```
+      JSON
+      model: "gpt-4.1",
+      transactions: [ { id: "txn_1", description: "Example Power" } ],
+      custom_provider: true,
+      family: families(:dylan_family),
+      json_mode: Provider::Openai::AutoCategorizer::JSON_MODE_NONE
+    ).suggest_categories
+
+    assert_equal 1, result.size
+    assert_equal "Utilities", result.first.name
+    assert_equal "lightbulb", result.first.lucide_icon
+  end
 end

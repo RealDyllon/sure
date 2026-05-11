@@ -44,7 +44,7 @@ class AutoCategorizationRun < ApplicationRecord
     run_transactions.exists?
   end
 
-  def queue_generation!
+  def queue_generation!(allow_retry: false)
     job = AutoCategorizationGenerateJob.new(self)
     queued = false
 
@@ -65,7 +65,7 @@ class AutoCategorizationRun < ApplicationRecord
         current: 0,
         total: family.categories.exists? ? run_transactions.count : nil,
         job_id: job.job_id,
-        retry_count: processing_progress.to_h["retry_count"].to_i
+        retry_count: allow_retry ? processing_progress.to_h["retry_count"].to_i : 0
       )
       queued = true
     end
@@ -90,7 +90,7 @@ class AutoCategorizationRun < ApplicationRecord
         current: 0,
         total: category_suggestions.selected.valid_for_creation.count,
         job_id: job.job_id,
-        retry_count: processing_progress.to_h["retry_count"].to_i
+        retry_count: allow_retry ? processing_progress.to_h["retry_count"].to_i : 0
       )
       queued = true
     end
@@ -99,7 +99,7 @@ class AutoCategorizationRun < ApplicationRecord
     queued
   end
 
-  def queue_apply!
+  def queue_apply!(allow_retry: false)
     job = AutoCategorizationApplyJob.new(self)
     queued = false
 
@@ -115,7 +115,7 @@ class AutoCategorizationRun < ApplicationRecord
         current: 0,
         total: suggestions.selected.count,
         job_id: job.job_id,
-        retry_count: processing_progress.to_h["retry_count"].to_i
+        retry_count: allow_retry ? processing_progress.to_h["retry_count"].to_i : 0
       )
       queued = true
     end
@@ -235,11 +235,11 @@ class AutoCategorizationRun < ApplicationRecord
     )
 
     if progress["phase"] == "applying" || metadata.to_h["failed_phase"] == "applying"
-      queue_apply!
+      queue_apply!(allow_retry: true)
     elsif progress["phase"] == "creating_categories" || metadata.to_h["failed_phase"] == "creating_categories"
       queue_category_creation!(allow_retry: true)
     else
-      queue_generation!
+      queue_generation!(allow_retry: true)
     end
   end
 

@@ -119,6 +119,32 @@ class AutoCategorizationGenerateJobTest < ActiveJob::TestCase
     assert_equal "applying", run.processing_progress["phase"]
   end
 
+  test "apply queue resets retry count when entering apply phase" do
+    category = @family.categories.create!(name: "Example Coffee", color: "#22c55e", lucide_icon: "coffee")
+    entry = create_transaction(account: accounts(:depository), name: "Example Cafe")
+    run = create_auto_categorization_run(family: @family, user: @user, status: :reviewing_transactions)
+    run_transaction = create_run_transaction(run, entry)
+    run.suggestions.create!(
+      run_transaction: run_transaction,
+      selected_category: category,
+      selected: true,
+      status: :suggested
+    )
+    run.update!(
+      processing_progress: {
+        "job_id" => "generation-job",
+        "phase" => "complete",
+        "retry_count" => 1
+      }
+    )
+
+    assert_enqueued_with(job: AutoCategorizationApplyJob) do
+      assert run.queue_apply!
+    end
+
+    assert_equal 0, run.reload.processing_progress["retry_count"]
+  end
+
   test "queued apply job claims fresh ownership and completes run" do
     category = @family.categories.create!(name: "Example Coffee", color: "#22c55e", lucide_icon: "coffee")
     entry = create_transaction(account: accounts(:depository), name: "Example Cafe")

@@ -38,7 +38,8 @@ module AutoCategorization
 
       raise "Create at least one category before continuing" if run.family.categories.none?
 
-      run.finish_processing_progress!(message: "Categories created", guard_job_id: job_id)
+      return unless run.finish_processing_progress!(message: "Categories created", guard_job_id: job_id)
+
       run.refresh_counts!
       run.queue_generation!
     rescue => error

@@ -138,7 +138,7 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
             "accounts" => [
               {
                 "account_name" => "Example Checking Account",
-                "account_number" => "120-00000005-2",
+                "account_number" => "120-00000016",
                 "account_type" => "Depository",
                 "subtype" => "checking",
                 "currency" => "SGD",
@@ -606,7 +606,7 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
             "accounts" => [
               {
                 "account_name" => "IBKR Brokerage",
-                "account_number" => "00000017",
+                "account_number" => "9567",
                 "account_type" => "Investment",
                 "subtype" => "brokerage",
                 "base_currency" => "USD",
@@ -637,7 +637,7 @@ class Provider::Openai::BankStatementExtractorTest < ActiveSupport::TestCase
     account = result[:accounts].first
     assert_equal 1, result[:accounts].size
     assert_equal "U00000009567", account[:account_id]
-    assert_equal "00000017", account[:account_number]
+    assert_equal "9567", account[:account_number]
     assert_equal [ "Dividend", "Deposit" ], account[:transactions].map { |transaction| transaction[:name] }
   end
 

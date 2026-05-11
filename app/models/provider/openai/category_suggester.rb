@@ -161,15 +161,22 @@ class Provider::Openai::CategorySuggester
       cleaned = raw.to_s.gsub(/<think>[\s\S]*?<\/think>/m, "").strip
       JSON.parse(cleaned)
     rescue JSON::ParserError
-      if cleaned =~ /```(?:json)?\s*(\{[\s\S]*?\})\s*```/m
+      if cleaned =~ /```(?:json)?\s*([\s\S]*?)\s*```/m
         return JSON.parse($1)
       end
 
-      if cleaned =~ /(\{[\s\S]*\})/m
-        return JSON.parse($1)
+      json_fragment = first_json_fragment(cleaned)
+      if json_fragment.present?
+        return JSON.parse(json_fragment)
       end
 
       raise Provider::Openai::Error, "Could not parse JSON from response"
+    end
+
+    def first_json_fragment(text)
+      [ text.match(/(\{[\s\S]*\})/m), text.match(/(\[[\s\S]*\])/m) ]
+        .compact
+        .min_by { |match| match.begin(1) }&.[](1)
     end
 
     def json_schema

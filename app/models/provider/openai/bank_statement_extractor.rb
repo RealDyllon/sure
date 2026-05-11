@@ -231,7 +231,7 @@ class Provider::Openai::BankStatementExtractor
 
       if first_key.present? || second_key.present?
         return true if first_key.present? && first_key == second_key && compatible_account_metadata?(first, second)
-        return true if same_account_name_with_contextual_key?(first, second)
+        return true if account_identifiers_cross_reference?(first, second) && compatible_account_metadata?(first, second)
         return false if first_key.present? && second_key.present?
       end
 
@@ -284,15 +284,21 @@ class Provider::Openai::BankStatementExtractor
       account_name.to_s.downcase.squish
     end
 
-    def same_account_name_with_contextual_key?(first, second)
-      return false unless contextual_identifier?(first) || contextual_identifier?(second)
+    def account_identifiers_cross_reference?(first, second)
+      account_ids = [ first[:account_id], second[:account_id] ].compact
+      account_numbers = [ first[:account_number], second[:account_number] ].compact
 
-      normalized_account_name(first[:account_name]) == normalized_account_name(second[:account_name]) &&
-        compatible_account_metadata?(first, second)
+      account_ids.any? do |account_id|
+        account_numbers.any? { |account_number| identifier_contains_suffix?(account_id, account_number) }
+      end
     end
 
-    def contextual_identifier?(account)
-      [ account[:account_id], account[:account_number] ].compact.any? { |value| value.to_s.match?(/\D/) }
+    def identifier_contains_suffix?(identifier, suffix)
+      identifier_digits = identifier.to_s.scan(/\d/).join
+      suffix_digits = suffix.to_s.scan(/\d/).join
+      return false if identifier_digits.blank? || suffix_digits.blank?
+
+      identifier_digits.end_with?(suffix_digits[-4..])
     end
 
     def cleaned_identifier(identifier)

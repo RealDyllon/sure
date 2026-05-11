@@ -58,6 +58,32 @@ class AutoCategorizationRunsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "AI configuration is required before retrying.", flash[:alert]
   end
 
+  test "retry does not fall back to generation when failed category creation is not retryable" do
+    run = create_auto_categorization_run(family: @family, user: @user, status: :failed)
+    run.category_suggestions.create!(
+      name: "Example Bills",
+      color: "#3b82f6",
+      lucide_icon: "receipt",
+      selected: true
+    )
+    run.update!(
+      metadata: { "failed_phase" => "creating_categories" },
+      processing_progress: {
+        "phase" => "failed",
+        "retry_count" => 1
+      }
+    )
+    stub_default_llm_provider
+
+    assert_no_enqueued_jobs do
+      post retry_auto_categorization_run_url(run)
+    end
+
+    assert_redirected_to auto_categorization_run_url(run)
+    assert run.reload.failed?
+    assert_equal "This run cannot be retried right now.", flash[:notice]
+  end
+
   test "family member cannot open another user's run" do
     run = create_auto_categorization_run(family: @family, user: @user, status: :reviewing_transactions)
     sign_out
@@ -66,6 +92,29 @@ class AutoCategorizationRunsControllerTest < ActionDispatch::IntegrationTest
     get auto_categorization_run_url(run)
 
     assert_response :not_found
+  end
+
+  test "does not update category suggestions after category review phase" do
+    run = create_auto_categorization_run(family: @family, user: @user, status: :creating_categories)
+    suggestion = run.category_suggestions.create!(
+      name: "Example Food",
+      color: "#22c55e",
+      lucide_icon: "utensils",
+      selected: true
+    )
+
+    patch category_suggestion_auto_categorization_run_url(run, suggestion),
+      params: {
+        auto_categorization_category_suggestion: {
+          name: "Example Dining",
+          selected: "0"
+        }
+      }
+
+    assert_redirected_to auto_categorization_run_url(run)
+    assert_equal "This run is no longer editable.", flash[:alert]
+    assert_equal "Example Food", suggestion.reload.name
+    assert suggestion.selected?
   end
 
   test "updates starter category suggestion" do

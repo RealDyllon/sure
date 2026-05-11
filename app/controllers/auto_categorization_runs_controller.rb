@@ -28,13 +28,18 @@ class AutoCategorizationRunsController < ApplicationController
     queued = if @run.reviewing_categories?
       @run.queue_generation!
     else
-      @run.queue_retry! || @run.queue_generation!
+      @run.queue_retry!
     end
 
     redirect_to auto_categorization_run_path(@run), notice: queued ? "Retry queued." : "This run cannot be retried right now."
   end
 
   def update_category_suggestion
+    unless category_review_editable?
+      redirect_to auto_categorization_run_path(@run, review_query_params), alert: "This run is no longer editable."
+      return
+    end
+
     suggestion = @run.category_suggestions.find(params[:category_suggestion_id])
     suggestion.update!(category_suggestion_params)
 
@@ -42,6 +47,11 @@ class AutoCategorizationRunsController < ApplicationController
   end
 
   def create_category_suggestion
+    unless category_review_editable?
+      redirect_to auto_categorization_run_path(@run), alert: "This run is no longer editable."
+      return
+    end
+
     @run.category_suggestions.create!(category_suggestion_params.merge(selected: true))
     @run.update!(status: :reviewing_categories) if @run.suggesting_categories?
 
@@ -49,6 +59,11 @@ class AutoCategorizationRunsController < ApplicationController
   end
 
   def bootstrap_categories
+    unless category_review_editable?
+      redirect_to auto_categorization_run_path(@run), alert: "This run is no longer editable."
+      return
+    end
+
     Current.family.categories.bootstrap!
     @run.queue_generation!
 
@@ -98,6 +113,10 @@ class AutoCategorizationRunsController < ApplicationController
 
     def provider_configured?
       Provider::Registry.default_llm_provider.present?
+    end
+
+    def category_review_editable?
+      @run.reviewing_categories?
     end
 
     def filtered_suggestions_scope
