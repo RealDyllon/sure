@@ -3,7 +3,7 @@ class GoalsController < ApplicationController
     @dashboard = Goals::DashboardBuilder.new(user: Current.user).call
     @profile = @dashboard.profile
     @fire = @dashboard.fire
-    @accounts = Current.user.finance_accounts.visible.alphabetically
+    @accounts = Current.user.finance_accounts.visible.assets.alphabetically
     @financial_goal = Current.user.financial_goals.build(
       family: Current.family,
       goal_type: "custom",

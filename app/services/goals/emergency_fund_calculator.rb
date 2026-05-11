@@ -26,7 +26,14 @@ module Goals
       attr_reader :user, :profile, :family
 
       def monthly_spending
-        profile.annual_spending(inferred: 0).to_d / 12
+        profile.annual_spending(inferred: inferred_annual_spending).to_d / 12
+      end
+
+      def inferred_annual_spending
+        monthly = IncomeStatement.new(family, user: user).avg_expense(interval: "month")
+        monthly.to_d * 12
+      rescue
+        0.to_d
       end
 
       def converted_balance(account)

@@ -61,6 +61,46 @@ class GoalsAccountClassifierTest < ActiveSupport::TestCase
     assert_includes result.emergency_accounts, account
   end
 
+  test "rejects liability overrides from FIRE and emergency asset buckets" do
+    credit_card = create_account(name: "Example Credit Card", balance: 4_000, accountable: CreditCard.new)
+    @profile.set_fire_role!(credit_card, "bridge", user: @user)
+    @profile.set_emergency_included_account_ids!([ credit_card.id ], user: @user)
+
+    result = Goals::AccountClassifier.new(user: @user, profile: @profile.reload).call
+
+    assert_not_includes result.fire_bridge_accounts, credit_card
+    assert_not_includes result.fire_later_accounts, credit_card
+    assert_includes result.fire_excluded_accounts, credit_card
+    assert_not_includes result.emergency_accounts, credit_card
+    assert_equal 0, result.fire_bridge_balance.amount
+  end
+
+  test "keeps illiquid asset types out of default bridge assets" do
+    property = create_account(name: "Example Home", balance: 900_000, accountable: Property.new)
+    vehicle = create_account(name: "Example Vehicle", balance: 30_000, accountable: Vehicle.new)
+    other_asset = create_account(name: "Example Collectible", balance: 10_000, accountable: OtherAsset.new)
+
+    result = Goals::AccountClassifier.new(user: @user, profile: @profile).call
+
+    assert_not_includes result.fire_bridge_accounts, property
+    assert_not_includes result.fire_bridge_accounts, vehicle
+    assert_not_includes result.fire_bridge_accounts, other_asset
+    assert_includes result.fire_excluded_accounts, property
+    assert_includes result.fire_excluded_accounts, vehicle
+    assert_includes result.fire_excluded_accounts, other_asset
+  end
+
+  test "surfaces unavailable FX for FIRE balances" do
+    usd_account = create_account(name: "Example USD Brokerage", balance: 20_000, accountable: Investment.new(subtype: "brokerage"), currency: "USD")
+
+    result = Goals::AccountClassifier.new(user: @user, profile: @profile).call
+
+    assert_includes result.fire_bridge_accounts, usd_account
+    assert result.fx_unavailable?
+    assert_includes result.review_prompts, :fx_unavailable
+    assert_equal 0, result.fire_bridge_balance.amount
+  end
+
   test "excludes disabled and no-longer-included accounts from persisted mappings" do
     member = users(:family_member)
     shared_account = accounts(:depository)

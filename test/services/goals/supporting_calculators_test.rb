@@ -26,6 +26,18 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     assert_includes classifier_result.fire_bridge_accounts, cash
   end
 
+  test "emergency fund infers spending when no manual spending override is set" do
+    @profile.update!(annual_spending_override: nil)
+    account = create_account(name: "Example Spending Account", balance: 0, accountable: Depository.new)
+    create_transaction(account: account, name: "Example Rent", amount: 2_000, currency: "SGD", date: 1.month.ago)
+
+    result = Goals::EmergencyFundCalculator.new(user: @user, profile: @profile.reload).call
+
+    assert_operator result.target_money.amount, :>, 0
+    assert_equal 0, result.available_money.amount
+    assert_equal 0, result.progress
+  end
+
   test "debt payoff excludes balances that look like available credit and flags them for review" do
     reliable_loan = create_account(name: "Example Reliable Loan", balance: 12_000, accountable: Loan.new(subtype: "other"))
     available_credit_card = create_account(
@@ -54,6 +66,20 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     assert_equal BigDecimal("4000"), result.monthly_expenses_money.amount
     assert_equal BigDecimal("0.5"), result.savings_rate
     assert result.target_available?
+  end
+
+  test "savings rate excludes budget-excluded transfer style transactions" do
+    account = create_account(name: "Example Spending Account", balance: 5_000, accountable: Depository.new)
+    create_transaction(account: account, name: "Example Salary", amount: -8_000, currency: "SGD", date: 1.month.ago)
+    create_transaction(account: account, name: "Example Groceries", amount: 2_000, currency: "SGD", date: 1.month.ago)
+    create_transaction(account: account, name: "Example Internal Transfer", amount: -5_000, currency: "SGD", date: 1.month.ago, kind: "funds_movement")
+    create_transaction(account: account, name: "Example Card Payment", amount: 5_000, currency: "SGD", date: 1.month.ago, kind: "cc_payment")
+
+    result = Goals::SavingsRateCalculator.new(user: @user, profile: @profile).call
+
+    assert_equal BigDecimal("8000"), result.monthly_income_money.amount
+    assert_equal BigDecimal("2000"), result.monthly_expenses_money.amount
+    assert_equal BigDecimal("0.75"), result.savings_rate
   end
 
   test "savings rate returns metric-only state when no target can be inferred" do
@@ -97,6 +123,41 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     assert_equal BigDecimal("10000"), result.available_money.amount
     assert_equal BigDecimal("20000"), result.target_money.amount
     assert_equal BigDecimal("0.5"), result.progress
+  end
+
+  test "custom goal calculator ignores liability funding accounts" do
+    cash = create_account(name: "Example Goal Cash", balance: 4_000, accountable: Depository.new)
+    credit_card = create_account(name: "Example Goal Credit Card", balance: 6_000, accountable: CreditCard.new)
+    goal = FinancialGoal.create!(
+      family: @family,
+      user: @user,
+      goal_type: "custom",
+      name: "Example Liability Funding Goal",
+      target_amount: 20_000,
+      target_currency: "SGD"
+    )
+    goal.set_funding_account_ids!(user: @user, account_ids: [ cash.id, credit_card.id ])
+
+    result = Goals::CustomGoalCalculator.new(goal: goal, user: @user).call
+
+    assert_equal [ cash.id ], goal.reload.funding_account_ids_for(@user)
+    assert_equal BigDecimal("4000"), result.available_money.amount
+  end
+
+  test "dashboard builder ignores non-custom legacy goal rows" do
+    goal = FinancialGoal.create!(
+      family: @family,
+      user: @user,
+      goal_type: "custom",
+      name: "Example Legacy Goal",
+      target_amount: 20_000,
+      target_currency: "SGD"
+    )
+    goal.update_column(:goal_type, "fire")
+
+    dashboard = Goals::DashboardBuilder.new(user: @user).call
+
+    assert_empty dashboard.custom_goals
   end
 
   test "custom goal calculator flags unavailable FX without blocking the goal" do

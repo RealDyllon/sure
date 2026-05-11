@@ -36,6 +36,22 @@ class GoalProfileTest < ActiveSupport::TestCase
     assert_equal "singapore", GoalProfile.find_or_create_for!(@user).planning_region
   end
 
+  test "CPF account detection only uses accounts included in the user's finances" do
+    @family.update!(country: "US", currency: "USD")
+    member = users(:family_member)
+    cpf = create_account(
+      name: "Example Private CPF Ordinary Account",
+      balance: 50_000,
+      accountable: Investment.new(subtype: "cpf_ordinary")
+    )
+
+    assert_equal "generic", GoalProfile.find_or_create_for!(member).planning_region
+
+    AccountShare.create!(account: cpf, user: member, permission: "read_only", include_in_finances: true)
+
+    assert_equal "singapore", GoalProfile.find_or_create_for!(member).reload.planning_region
+  end
+
   test "defaults to generic planning without Singapore or CPF signals" do
     @family.update!(country: "US", currency: "USD")
 

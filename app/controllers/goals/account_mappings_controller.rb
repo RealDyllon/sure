@@ -10,5 +10,15 @@ module Goals
 
       redirect_to goals_path
     end
+
+    def skip_prompt
+      profile = GoalProfile.find_or_create_for!(Current.user)
+      prompt = params[:prompt].to_s
+      return head :bad_request unless prompt == "srs"
+
+      profile.skip_prompt!(prompt)
+
+      redirect_back fallback_location: goals_path
+    end
   end
 end

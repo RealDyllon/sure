@@ -40,7 +40,9 @@ module Goals
         return [ 0.to_d, 0.to_d, 0 ] if account_ids.empty?
 
         entries = Entry.where(account_id: account_ids, entryable_type: "Transaction")
+          .joins("INNER JOIN transactions ON transactions.id = entries.entryable_id")
           .where(excluded: false)
+          .where.not(transactions: { kind: Transaction::BUDGET_EXCLUDED_KINDS })
           .where("date >= ?", 3.months.ago.to_date)
 
         income = 0.to_d

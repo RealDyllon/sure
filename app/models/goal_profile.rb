@@ -135,7 +135,7 @@ class GoalProfile < ApplicationRecord
     end
 
     def cpf_account_detected?
-      family.accounts.visible.includes(:accountable).any? do |account|
+      user.finance_accounts.visible.where(family_id: family_id).includes(:accountable).any? do |account|
         account.accountable_type == "Investment" && account.subtype.to_s.start_with?("cpf_")
       end
     end

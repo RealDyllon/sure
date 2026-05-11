@@ -35,7 +35,7 @@ module Goals
 
       def funding_accounts
         ids = goal.funding_account_ids_for(user)
-        user.finance_accounts.visible.where(id: ids).to_a
+        user.finance_accounts.visible.assets.where(id: ids).to_a
       end
 
       def convert_account(account)

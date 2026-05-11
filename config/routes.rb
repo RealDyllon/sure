@@ -257,7 +257,9 @@ Rails.application.routes.draw do
       post :preview
     end
     resource :assumptions, only: %i[show update]
-    resource :account_mappings, only: :update
+    resource :account_mappings, only: :update do
+      patch :skip_prompt
+    end
   end
 
   resources :financial_goals, only: %i[create update] do

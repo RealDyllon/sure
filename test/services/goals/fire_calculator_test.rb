@@ -70,6 +70,27 @@ class GoalsFireCalculatorTest < ActiveSupport::TestCase
     assert_equal 63, result.milestones.fetch(:srs_access_age)
   end
 
+  test "uses SRS access age for later SRS assets when sizing bridge need" do
+    create_account(name: "Example Bridge Cash", balance: 1_000_000, accountable: Depository.new)
+    srs = create_account(name: "Example SRS Account", balance: 80_000, accountable: Investment.new(subtype: "brokerage"))
+    @profile.set_fire_role!(srs, "later", user: @user)
+
+    result = Goals::FireCalculator.new(user: @user, profile: @profile.reload).call
+
+    assert_equal 40, result.estimated_fi_age
+    assert_equal BigDecimal("920000"), result.bridge_target_money.amount
+  end
+
+  test "applies return and inflation assumptions to FI timing projections" do
+    @profile.update!(expected_return: 0.05, inflation_rate: 0.02)
+    create_account(name: "Example Bridge Cash", balance: 900_000, accountable: Depository.new)
+
+    result = Goals::FireCalculator.new(user: @user, profile: @profile.reload).call
+
+    assert_equal 4, result.estimated_years_to_fi
+    assert_equal 44, result.estimated_fi_age
+  end
+
   test "scenario preview does not overwrite saved assumptions" do
     create_account(name: "Example Bridge Cash", balance: 250_000, accountable: Depository.new)
 

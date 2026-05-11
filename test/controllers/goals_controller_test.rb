@@ -31,6 +31,28 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-testid='fire-hero']"
   end
 
+  test "dashboard renders review prompts and supports skipping the SRS prompt" do
+    @family.update!(country: "SG", currency: "SGD")
+    @family.accounts.create!(
+      owner: @user,
+      name: "Example SRS Account",
+      balance: 20_000,
+      cash_balance: 20_000,
+      currency: "SGD",
+      accountable: Investment.new(subtype: "brokerage")
+    )
+
+    get goals_path
+
+    assert_response :ok
+    assert_select "[data-testid='goals-review-prompts']", text: /SRS account detected/
+
+    patch skip_prompt_goals_account_mappings_path, params: { prompt: "srs" }
+
+    assert_redirected_to goals_path
+    assert GoalProfile.find_by!(user: @user).prompt_skipped?("srs")
+  end
+
   test "FIRE detail renders assumptions and timeline" do
     get goals_fire_path
 

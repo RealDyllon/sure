@@ -6,6 +6,8 @@
     <p class="text-sm text-secondary">Estimated scenario based on current data.</p>
   </div>
 
+  <%= render "goals/review_prompts", prompts: @fire.review_prompts %>
+
   <section data-testid="fire-timeline" class="bg-container shadow-border-xs rounded-xl p-5">
     <h2 class="text-lg text-primary font-medium">Timeline</h2>
     <% if @fire.estimated_fi_age %>

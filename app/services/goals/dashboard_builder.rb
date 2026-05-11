@@ -14,7 +14,7 @@ module Goals
         emergency_fund: Goals::EmergencyFundCalculator.new(user: user, profile: profile).call,
         debt_payoff: Goals::DebtPayoffCalculator.new(user: user, profile: profile).call,
         savings_rate: Goals::SavingsRateCalculator.new(user: user, profile: profile).call,
-        custom_goals: user.financial_goals.active.ordered.map { |goal| Goals::CustomGoalCalculator.new(goal: goal, user: user).call }
+        custom_goals: user.financial_goals.active.custom.ordered.map { |goal| Goals::CustomGoalCalculator.new(goal: goal, user: user).call }
       )
     end
 

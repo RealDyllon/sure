@@ -30,6 +30,37 @@ class FinancialGoalTest < ActiveSupport::TestCase
     assert_equal "SGD", goal.target_amount_money.currency.iso_code
   end
 
+  test "custom goal validates and normalizes target currency" do
+    goal = FinancialGoal.new(
+      family: @family,
+      user: @user,
+      goal_type: "custom",
+      name: "Example Invalid Currency Goal",
+      target_amount: 10_000,
+      target_currency: "xyz"
+    )
+
+    assert_not goal.valid?
+    assert_includes goal.errors[:target_currency], "is not supported"
+    assert_equal "XYZ", goal.target_currency
+
+    goal.target_currency = "sgd"
+
+    assert goal.valid?
+    assert_equal "SGD", goal.target_currency
+  end
+
+  test "goal type is constrained to supported persisted goal rows" do
+    goal = FinancialGoal.new(
+      family: @family,
+      user: @user,
+      goal_type: "fire"
+    )
+
+    assert_not goal.valid?
+    assert_includes goal.errors[:goal_type], "is not included in the list"
+  end
+
   test "active goals are ordered by position then created date" do
     second = FinancialGoal.create!(
       family: @family,

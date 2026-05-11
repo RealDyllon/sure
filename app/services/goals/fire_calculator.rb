@@ -28,7 +28,7 @@ module Goals
       classifier = Goals::AccountClassifier.new(user: user, profile: profile).call
       estimated_years = estimate_years_to_fi(classifier)
       estimated_age = current_age && estimated_years ? current_age + estimated_years : nil
-      bridge_target = bridge_target_for_age(estimated_age || current_age)
+      bridge_target = bridge_target_for_age(estimated_age || current_age, classifier, estimated_years || 0)
       later_progress = progress(total_assets(classifier), fi_target)
       bridge_progress = bridge_target.positive? ? progress(classifier.fire_bridge_balance.amount, bridge_target) : 1.to_d
       headline = bridge_target.positive? ? [ later_progress, bridge_progress ].min : later_progress
@@ -83,31 +83,36 @@ module Goals
       end
 
       def estimate_years_to_fi(classifier)
-        if current_age
-          (0..100).detect do |years|
+        (0..100).detect do |years|
+          projected_total = projected_balance(total_assets(classifier), years, annual_contribution)
+          projected_fi_target = fi_target_for_years(years)
+
+          if current_age
             age = current_age + years
-            projected_bridge = classifier.fire_bridge_balance.amount + annual_contribution * years
-            projected_total = total_assets(classifier) + annual_contribution * years
-            projected_bridge_target = bridge_target_for_age(age)
+            projected_bridge = projected_balance(classifier.fire_bridge_balance.amount, years, annual_contribution)
+            projected_bridge_target = bridge_target_for_age(age, classifier, years)
 
-            projected_total >= fi_target && (projected_bridge_target.zero? || projected_bridge >= projected_bridge_target)
+            projected_total >= projected_fi_target && (projected_bridge_target.zero? || projected_bridge >= projected_bridge_target)
+          else
+            projected_total >= projected_fi_target
           end
-        else
-          return 0 if total_assets(classifier) >= fi_target
-          return nil unless annual_contribution.positive?
-
-          ((fi_target - total_assets(classifier)) / annual_contribution).ceil
         end
       end
 
-      def bridge_target_for_age(age)
+      def bridge_target_for_age(age, classifier, years = 0)
         return 0.to_d if annual_spending.zero? || age.blank?
 
-        annual_spending * [ later_access_age - age, 0 ].max
+        annual_spending_for_years(years) * [ later_access_age(classifier) - age, 0 ].max
       end
 
-      def later_access_age
+      def later_access_age(classifier)
+        return [ profile.cpf_access_age, profile.srs_access_age ].max if classifier.fire_later_accounts.any? { |account| srs_account?(account) }
+
         profile.cpf_access_age
+      end
+
+      def srs_account?(account)
+        account.name.to_s.match?(/\bsrs\b/i)
       end
 
       def progress(amount, target)
@@ -118,6 +123,36 @@ module Goals
 
       def total_assets(classifier)
         classifier.fire_bridge_balance.amount + classifier.fire_later_balance.amount
+      end
+
+      def expected_return
+        @expected_return ||= profile.expected_return.to_d
+      end
+
+      def inflation_rate
+        @inflation_rate ||= profile.inflation_rate.to_d
+      end
+
+      def projected_balance(balance, years, annual_addition)
+        return balance.to_d + annual_addition.to_d * years if expected_return.zero?
+
+        factor = compound_factor(expected_return, years)
+        contribution_growth = annual_addition.to_d * ((factor - 1) / expected_return)
+        balance.to_d * factor + contribution_growth
+      end
+
+      def fi_target_for_years(years)
+        return 0.to_d if withdrawal_rate.zero?
+
+        annual_spending_for_years(years) / withdrawal_rate
+      end
+
+      def annual_spending_for_years(years)
+        annual_spending * compound_factor(inflation_rate, years)
+      end
+
+      def compound_factor(rate, years)
+        (1.to_d + rate.to_d) ** years
       end
 
       def inferred_annual_spending
