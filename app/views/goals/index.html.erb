@@ -48,6 +48,9 @@
       <p class="text-sm text-secondary">Estimated cash runway using selected cash-like accounts.</p>
       <p class="text-2xl font-medium text-primary privacy-sensitive"><%= @dashboard.emergency_fund.available_money.format %></p>
       <p class="text-sm text-secondary">Target: <span class="privacy-sensitive"><%= @dashboard.emergency_fund.target_money.format %></span></p>
+      <% if @dashboard.emergency_fund.review_prompts.include?(:fx_unavailable) %>
+        <p class="text-sm text-warning">Some emergency cash needs exchange rates before it can be included.</p>
+      <% end %>
     </article>
 
     <article class="bg-container shadow-border-xs rounded-xl p-5 space-y-3">
@@ -56,6 +59,9 @@
       <p class="text-2xl font-medium text-primary privacy-sensitive"><%= @dashboard.debt_payoff.total_debt_money.format %></p>
       <% if @dashboard.debt_payoff.unsupported_accounts.any? %>
         <p class="text-sm text-warning">Review <%= pluralize(@dashboard.debt_payoff.unsupported_accounts.count, "account") %></p>
+      <% end %>
+      <% if @dashboard.debt_payoff.review_prompts.include?(:fx_unavailable) %>
+        <p class="text-sm text-warning">Some debt balances need exchange rates before they can be included.</p>
       <% end %>
     </article>
 
@@ -99,6 +105,12 @@
     <% end %>
 
     <%= form_with model: @financial_goal, url: financial_goals_path, class: "grid md:grid-cols-2 gap-4 border-t border-divider pt-4" do |form| %>
+      <% if @financial_goal.errors.any? %>
+        <div class="md:col-span-2">
+          <%= render "shared/form_errors", model: @financial_goal %>
+        </div>
+      <% end %>
+
       <%= form.hidden_field :goal_type, value: "custom" %>
 
       <div>

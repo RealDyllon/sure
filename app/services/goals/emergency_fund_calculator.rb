@@ -11,14 +11,14 @@ module Goals
     def call
       classifier = Goals::AccountClassifier.new(user: user, profile: profile).call
       target = monthly_spending * profile.emergency_fund_months
-      available = classifier.emergency_accounts.sum { |account| converted_balance(account) }
+      available, fx_unavailable = sum_balances(classifier.emergency_accounts)
 
       Result.new(
         target_money: money(target),
         available_money: money(available),
         progress: target.positive? ? available / target : 1.to_d,
         accounts: classifier.emergency_accounts,
-        review_prompts: []
+        review_prompts: fx_unavailable ? [ :fx_unavailable ] : []
       )
     end
 
@@ -36,12 +36,22 @@ module Goals
         0.to_d
       end
 
+      def sum_balances(accounts)
+        fx_unavailable = false
+        total = accounts.sum do |account|
+          converted_balance(account)
+        rescue Money::ConversionError
+          fx_unavailable = true
+          0.to_d
+        end
+
+        [ total, fx_unavailable ]
+      end
+
       def converted_balance(account)
         return account.balance.to_d if account.currency == family.currency
 
         account.balance_money.exchange_to(family.currency).amount
-      rescue Money::ConversionError
-        0.to_d
       end
 
       def money(amount)

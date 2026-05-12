@@ -29,6 +29,24 @@ class FinancialGoalsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ account.id ], goal.funding_account_ids_for(@user)
   end
 
+  test "create renders validation errors for invalid custom goal input" do
+    assert_no_difference "FinancialGoal.count" do
+      post financial_goals_path, params: {
+        financial_goal: {
+          goal_type: "custom",
+          name: "Example Invalid Goal",
+          target_amount: "",
+          target_currency: "XYZ"
+        }
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select "h1", text: "Goals"
+    assert_select ".text-destructive", text: /Target amount/
+    assert_select ".text-destructive", text: /Target currency/
+  end
+
   test "updates a custom goal and ignores stale funding account IDs" do
     goal = FinancialGoal.create!(
       family: @family,

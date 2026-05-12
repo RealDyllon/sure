@@ -38,6 +38,16 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     assert_equal 0, result.progress
   end
 
+  test "emergency fund flags unavailable FX for selected cash" do
+    usd_cash = create_account(name: "Example USD Cash", balance: 5_000, accountable: Depository.new, currency: "USD")
+    @profile.set_emergency_included_account_ids!([ usd_cash.id ], user: @user)
+
+    result = Goals::EmergencyFundCalculator.new(user: @user, profile: @profile.reload).call
+
+    assert_equal 0, result.available_money.amount
+    assert_includes result.review_prompts, :fx_unavailable
+  end
+
   test "debt payoff excludes balances that look like available credit and flags them for review" do
     reliable_loan = create_account(name: "Example Reliable Loan", balance: 12_000, accountable: Loan.new(subtype: "other"))
     available_credit_card = create_account(
@@ -52,6 +62,15 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     assert_not_includes result.debt_accounts, available_credit_card
     assert_includes result.unsupported_accounts, available_credit_card
     assert_equal BigDecimal("12000"), result.total_debt_money.amount
+  end
+
+  test "debt payoff flags unavailable FX for foreign liabilities" do
+    create_account(name: "Example Foreign Loan", balance: 12_000, accountable: Loan.new(subtype: "other"), currency: "USD")
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert_equal 0, result.total_debt_money.amount
+    assert_includes result.review_prompts, :fx_unavailable
   end
 
   test "savings rate calculates from recent income and expenses when history exists" do
@@ -74,6 +93,37 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     create_transaction(account: account, name: "Example Groceries", amount: 2_000, currency: "SGD", date: 1.month.ago)
     create_transaction(account: account, name: "Example Internal Transfer", amount: -5_000, currency: "SGD", date: 1.month.ago, kind: "funds_movement")
     create_transaction(account: account, name: "Example Card Payment", amount: 5_000, currency: "SGD", date: 1.month.ago, kind: "cc_payment")
+
+    result = Goals::SavingsRateCalculator.new(user: @user, profile: @profile).call
+
+    assert_equal BigDecimal("8000"), result.monthly_income_money.amount
+    assert_equal BigDecimal("2000"), result.monthly_expenses_money.amount
+    assert_equal BigDecimal("0.75"), result.savings_rate
+  end
+
+  test "savings rate excludes pending provider transactions" do
+    account = create_account(name: "Example Spending Account", balance: 5_000, accountable: Depository.new)
+    create_transaction(account: account, name: "Example Salary", amount: -8_000, currency: "SGD", date: 1.month.ago)
+    account.entries.create!(
+      name: "Example Pending Groceries",
+      amount: 2_000,
+      currency: "SGD",
+      date: 1.month.ago,
+      entryable: Transaction.new(kind: "standard", extra: { "simplefin" => { "pending" => true } })
+    )
+
+    result = Goals::SavingsRateCalculator.new(user: @user, profile: @profile).call
+
+    assert_equal BigDecimal("8000"), result.monthly_income_money.amount
+    assert_equal 0, result.monthly_expenses_money.amount
+    assert_equal BigDecimal("1.0"), result.savings_rate
+  end
+
+  test "savings rate treats budget-tracked transfer payments as expenses regardless of sign" do
+    account = create_account(name: "Example Spending Account", balance: 5_000, accountable: Depository.new)
+    create_transaction(account: account, name: "Example Salary", amount: -8_000, currency: "SGD", date: 1.month.ago)
+    create_transaction(account: account, name: "Example Brokerage Contribution", amount: -1_500, currency: "SGD", date: 1.month.ago, kind: "investment_contribution")
+    create_transaction(account: account, name: "Example Loan Payment", amount: -500, currency: "SGD", date: 1.month.ago, kind: "loan_payment")
 
     result = Goals::SavingsRateCalculator.new(user: @user, profile: @profile).call
 

@@ -50,6 +50,22 @@ class GoalsAccountClassifierTest < ActiveSupport::TestCase
     assert_not_includes result.review_prompts, :cpf_detected
   end
 
+  test "explicit generic planning keeps CPF accounts out of later bucket" do
+    @family.update!(country: "US", currency: "USD")
+    @profile.update!(planning_region: "generic")
+    cpf = create_account(
+      name: "Example CPF Ordinary Account",
+      balance: 150_000,
+      accountable: Investment.new(subtype: "cpf_ordinary"),
+      currency: "USD"
+    )
+
+    result = Goals::AccountClassifier.new(user: @user, profile: @profile.reload).call
+
+    assert_includes result.fire_bridge_accounts, cpf
+    assert_not_includes result.fire_later_accounts, cpf
+  end
+
   test "keeps emergency inclusion separate from FIRE role classification" do
     account = create_account(name: "Example Emergency Cash", balance: 30_000, accountable: Depository.new)
     @profile.set_fire_role!(account, "bridge", user: @user)

@@ -2,17 +2,25 @@ module Goals
   class AssumptionsController < ApplicationController
     def show
       @profile = GoalProfile.find_or_create_for!(Current.user)
-      @accounts = Current.user.finance_accounts.visible.alphabetically.includes(:accountable)
+      load_accounts
     end
 
     def update
       @profile = GoalProfile.find_or_create_for!(Current.user)
-      @profile.update!(goal_profile_params)
+      if @profile.update(goal_profile_params)
+        redirect_to goals_path
+      else
+        load_accounts
 
-      redirect_to goals_path
+        render :show, status: :unprocessable_entity
+      end
     end
 
     private
+      def load_accounts
+        @accounts = Current.user.finance_accounts.visible.alphabetically.includes(:accountable)
+      end
+
       def goal_profile_params
         params.require(:goal_profile).permit(
           :planning_region,

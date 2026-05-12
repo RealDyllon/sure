@@ -89,7 +89,7 @@ module Goals
       end
 
       def singapore_context?
-        profile.singapore? || accounts.any? { |account| cpf_account?(account) }
+        profile.singapore?
       end
 
       def cpf_account?(account)

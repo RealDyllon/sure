@@ -101,6 +101,7 @@ module Goals
 
       def bridge_target_for_age(age, classifier, years = 0)
         return 0.to_d if annual_spending.zero? || age.blank?
+        return 0.to_d if classifier.fire_later_accounts.empty?
 
         annual_spending_for_years(years) * [ later_access_age(classifier) - age, 0 ].max
       end

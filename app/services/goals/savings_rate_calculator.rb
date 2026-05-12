@@ -41,6 +41,7 @@ module Goals
 
         entries = Entry.where(account_id: account_ids, entryable_type: "Transaction")
           .joins("INNER JOIN transactions ON transactions.id = entries.entryable_id")
+          .excluding_pending
           .where(excluded: false)
           .where.not(transactions: { kind: Transaction::BUDGET_EXCLUDED_KINDS })
           .where("date >= ?", 3.months.ago.to_date)
@@ -52,7 +53,9 @@ module Goals
         entries.find_each do |entry|
           active_months << entry.date.beginning_of_month if entry.date
           amount = converted_entry_amount(entry)
-          if amount.negative?
+          if budget_expense_transfer?(entry)
+            expenses += amount.abs
+          elsif amount.negative?
             income += amount.abs
           else
             expenses += amount
@@ -60,6 +63,10 @@ module Goals
         end
 
         [ income, expenses, active_months.count ]
+      end
+
+      def budget_expense_transfer?(entry)
+        %w[investment_contribution loan_payment].include?(entry.entryable.kind)
       end
 
       def converted_entry_amount(entry)

@@ -33,6 +33,16 @@ class GoalsFireCalculatorTest < ActiveSupport::TestCase
     assert_equal :bridge, result.limiting_constraint
   end
 
+  test "does not create bridge target when no assets are delayed" do
+    create_account(name: "Example Bridge Cash", balance: 500_000, accountable: Depository.new)
+
+    result = Goals::FireCalculator.new(user: @user, profile: @profile).call
+
+    assert_empty result.later_accounts
+    assert_equal 0, result.bridge_target_money.amount
+    assert_equal BigDecimal("1.0"), result.bridge_progress
+  end
+
   test "delayed CPF and SRS assets never reduce the bridge target" do
     bridge = create_account(name: "Example Bridge Brokerage", balance: 50_000, accountable: Investment.new(subtype: "brokerage"))
     cpf = create_account(name: "Example CPF Special Account", balance: 600_000, accountable: Investment.new(subtype: "cpf_special"))

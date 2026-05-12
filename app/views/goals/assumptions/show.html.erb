@@ -4,9 +4,18 @@
   <h1 class="text-3xl text-primary font-medium mb-6"><%= t("goals.assumptions.title") %></h1>
 
   <%= form_with model: @profile, url: goals_assumptions_path, method: :patch, class: "bg-container shadow-border-xs rounded-xl p-5 space-y-4 mb-6" do |form| %>
+    <% if @profile.errors.any? %>
+      <%= render "shared/form_errors", model: @profile %>
+    <% end %>
+
     <div>
       <%= form.label :current_age, t("goals.assumptions.current_age"), class: "block text-sm text-secondary mb-1" %>
       <%= form.number_field :current_age, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+    </div>
+
+    <div>
+      <%= form.label :birth_year, "Birth year", class: "block text-sm text-secondary mb-1" %>
+      <%= form.number_field :birth_year, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
     </div>
 
     <div>
@@ -36,8 +45,16 @@
         <%= form.number_field :cpf_access_age, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
+        <%= form.label :cpf_life_age, "CPF LIFE age", class: "block text-sm text-secondary mb-1" %>
+        <%= form.number_field :cpf_life_age, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+      <div>
         <%= form.label :srs_access_age, "SRS access age", class: "block text-sm text-secondary mb-1" %>
         <%= form.number_field :srs_access_age, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+      <div>
+        <%= form.label :savings_rate_target, "Savings rate target", class: "block text-sm text-secondary mb-1" %>
+        <%= form.number_field :savings_rate_target, step: "0.01", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
         <%= form.label :emergency_fund_months, "Emergency fund months", class: "block text-sm text-secondary mb-1" %>

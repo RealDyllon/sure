@@ -62,6 +62,15 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-testid='fire-assumptions']"
   end
 
+  test "assumptions page exposes all editable saved assumptions" do
+    get goals_assumptions_path
+
+    assert_response :ok
+    assert_select "input[name='goal_profile[birth_year]']"
+    assert_select "input[name='goal_profile[cpf_life_age]']"
+    assert_select "input[name='goal_profile[savings_rate_target]']"
+  end
+
   test "assumption updates persist profile changes" do
     patch goals_assumptions_path, params: {
       goal_profile: {
@@ -82,6 +91,18 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     assert_equal BigDecimal("72000"), profile.annual_spending_override
     assert_equal BigDecimal("0.035"), profile.withdrawal_rate
     assert_equal 9, profile.emergency_fund_months
+  end
+
+  test "assumption update renders validation errors" do
+    patch goals_assumptions_path, params: {
+      goal_profile: {
+        withdrawal_rate: ""
+      }
+    }
+
+    assert_response :unprocessable_entity
+    assert_select "h1", text: "Goal assumptions"
+    assert_select ".text-destructive", text: /Withdrawal rate/
   end
 
   test "account mapping update rejects inaccessible accounts" do
