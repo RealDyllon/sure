@@ -80,4 +80,4 @@
 - [x] 8.5 Surface unavailable FX in savings-rate calculations instead of silently treating unconverted cashflow as zero.
 - [x] 8.6 Validate manual annual spending overrides as numeric and non-negative before saving assumptions.
 - [x] 8.7 Provide a dashboard edit path for saved custom goals that submits through the existing update route without forcing users to archive and recreate goals.
-- [ ] 8.8 Reply to and resolve the seven PR #11 review threads after implementation and verification.
+- [x] 8.8 Reply to and resolve the seven PR #11 review threads after implementation and verification.
