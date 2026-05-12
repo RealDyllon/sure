@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_10_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_10_120300) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -721,6 +721,59 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_120000) do
     t.index ["merchant_id"], name: "index_family_merchant_associations_on_merchant_id"
   end
 
+  create_table "financial_goal_funding_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "financial_goal_id", null: false
+    t.uuid "account_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_financial_goal_funding_accounts_on_account_id"
+    t.index ["financial_goal_id", "account_id"], name: "index_goal_funding_accounts_unique_account", unique: true, where: "(account_id IS NOT NULL)"
+    t.index ["financial_goal_id"], name: "index_financial_goal_funding_accounts_on_financial_goal_id"
+  end
+
+  create_table "financial_goals", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "family_id", null: false
+    t.uuid "user_id", null: false
+    t.string "goal_type", default: "custom", null: false
+    t.string "name"
+    t.decimal "target_amount", precision: 19, scale: 4
+    t.string "target_currency", null: false
+    t.date "target_date"
+    t.string "status", default: "active", null: false
+    t.integer "position", default: 0, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["family_id", "user_id", "position"], name: "index_financial_goals_on_family_id_and_user_id_and_position"
+    t.index ["family_id", "user_id", "status"], name: "index_financial_goals_on_family_id_and_user_id_and_status"
+    t.index ["family_id"], name: "index_financial_goals_on_family_id"
+    t.index ["user_id"], name: "index_financial_goals_on_user_id"
+  end
+
+  create_table "goal_profiles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "family_id", null: false
+    t.uuid "user_id", null: false
+    t.string "planning_region"
+    t.integer "current_age"
+    t.integer "birth_year"
+    t.decimal "annual_spending_override", precision: 19, scale: 4
+    t.decimal "withdrawal_rate", precision: 10, scale: 6, default: "0.04", null: false
+    t.decimal "expected_return", precision: 10, scale: 6, default: "0.05", null: false
+    t.decimal "inflation_rate", precision: 10, scale: 6, default: "0.02", null: false
+    t.decimal "savings_rate_target", precision: 10, scale: 6
+    t.integer "emergency_fund_months", default: 6, null: false
+    t.integer "cpf_access_age", default: 55, null: false
+    t.integer "cpf_life_age", default: 65, null: false
+    t.integer "srs_access_age", default: 63, null: false
+    t.jsonb "skipped_prompts", default: [], null: false
+    t.jsonb "account_role_overrides", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["family_id", "user_id"], name: "index_goal_profiles_on_family_id_and_user_id", unique: true
+    t.index ["family_id"], name: "index_goal_profiles_on_family_id"
+    t.index ["user_id"], name: "index_goal_profiles_on_user_id"
+  end
+
   create_table "holdings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "account_id", null: false
     t.uuid "security_id", null: false
@@ -1339,7 +1392,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_120000) do
     t.index ["kind"], name: "index_securities_on_kind"
     t.index ["price_provider", "offline_reason"], name: "index_securities_on_price_provider_and_offline_reason"
     t.index ["price_provider"], name: "index_securities_on_price_provider"
-    t.check_constraint "kind::text = ANY (ARRAY['standard'::character varying, 'cash'::character varying]::text[])", name: "chk_securities_kind"
+    t.check_constraint "kind::text = ANY (ARRAY['standard'::character varying::text, 'cash'::character varying::text])", name: "chk_securities_kind"
   end
 
   create_table "security_prices", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1497,8 +1550,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_sophtron_accounts_on_account_id"
-    t.index ["sophtron_item_id"], name: "index_sophtron_accounts_on_sophtron_item_id"
     t.index ["sophtron_item_id", "account_id"], name: "idx_unique_sophtron_accounts_per_item", unique: true
+    t.index ["sophtron_item_id"], name: "index_sophtron_accounts_on_sophtron_item_id"
   end
 
   create_table "sophtron_items", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1768,9 +1821,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_120000) do
     t.datetime "last_used_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.check_constraint "sign_count >= 0", name: "chk_webauthn_credentials_sign_count_non_negative"
     t.index ["credential_id"], name: "index_webauthn_credentials_on_credential_id", unique: true
     t.index ["user_id"], name: "index_webauthn_credentials_on_user_id"
+    t.check_constraint "sign_count >= 0", name: "chk_webauthn_credentials_sign_count_non_negative"
   end
 
   add_foreign_key "account_providers", "accounts", on_delete: :cascade
@@ -1821,6 +1874,12 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_120000) do
   add_foreign_key "family_exports", "families"
   add_foreign_key "family_merchant_associations", "families"
   add_foreign_key "family_merchant_associations", "merchants"
+  add_foreign_key "financial_goal_funding_accounts", "accounts", on_delete: :nullify
+  add_foreign_key "financial_goal_funding_accounts", "financial_goals", on_delete: :cascade
+  add_foreign_key "financial_goals", "families"
+  add_foreign_key "financial_goals", "users"
+  add_foreign_key "goal_profiles", "families"
+  add_foreign_key "goal_profiles", "users"
   add_foreign_key "holdings", "account_providers"
   add_foreign_key "holdings", "accounts", on_delete: :cascade
   add_foreign_key "holdings", "securities"

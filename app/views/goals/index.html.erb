@@ -1,0 +1,193 @@
+<% header_title t("goals.index.title") %>
+
+<div class="max-w-6xl mx-auto py-6 space-y-6">
+  <div class="flex items-start justify-between gap-4">
+    <div>
+      <h1 class="text-3xl text-primary font-medium"><%= t("goals.index.title") %></h1>
+      <p class="text-sm text-secondary">Estimated progress toward financial independence and other goals.</p>
+    </div>
+  </div>
+
+  <%= render "goals/review_prompts", prompts: @fire.review_prompts %>
+
+  <section data-testid="fire-hero" class="bg-container shadow-border-xs rounded-xl p-5 space-y-4">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h2 class="text-xl text-primary font-medium"><%= t("goals.fire.card.title") %></h2>
+        <p class="text-sm text-secondary">Estimated progress based on current accounts and assumptions.</p>
+      </div>
+
+      <%= link_to t("goals.fire.card.review_assumptions"), goals_assumptions_path, class: "text-sm font-medium text-primary underline" %>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-3">
+      <div class="bg-surface rounded-lg p-4">
+        <p class="text-sm text-secondary">Headline progress</p>
+        <p class="text-2xl font-medium text-primary"><%= number_to_percentage(@fire.headline_progress * 100, precision: 0) %></p>
+      </div>
+      <div class="bg-surface rounded-lg p-4">
+        <p class="text-sm text-secondary">Estimated FIRE target</p>
+        <p class="text-2xl font-medium text-primary privacy-sensitive"><%= @fire.fi_target_money.format %></p>
+      </div>
+      <div class="bg-surface rounded-lg p-4">
+        <p class="text-sm text-secondary">Bridge assets</p>
+        <p class="text-2xl font-medium text-primary privacy-sensitive"><%= @fire.bridge_assets_money.format %></p>
+      </div>
+      <div class="bg-surface rounded-lg p-4">
+        <p class="text-sm text-secondary">Later assets</p>
+        <p class="text-2xl font-medium text-primary privacy-sensitive"><%= @fire.later_assets_money.format %></p>
+      </div>
+    </div>
+
+    <%= link_to "View details", goals_fire_path, class: "text-sm font-medium text-primary underline" %>
+  </section>
+
+  <section class="grid lg:grid-cols-3 gap-4">
+    <article class="bg-container shadow-border-xs rounded-xl p-5 space-y-3">
+      <h2 class="text-lg text-primary font-medium">Emergency fund</h2>
+      <p class="text-sm text-secondary">Estimated cash runway using selected cash-like accounts.</p>
+      <p class="text-2xl font-medium text-primary privacy-sensitive"><%= @dashboard.emergency_fund.available_money.format %></p>
+      <p class="text-sm text-secondary">Target: <span class="privacy-sensitive"><%= @dashboard.emergency_fund.target_money.format %></span></p>
+      <% if @dashboard.emergency_fund.review_prompts.include?(:fx_unavailable) %>
+        <p class="text-sm text-warning">Some emergency cash needs exchange rates before it can be included.</p>
+      <% end %>
+    </article>
+
+    <article class="bg-container shadow-border-xs rounded-xl p-5 space-y-3">
+      <h2 class="text-lg text-primary font-medium">Debt payoff</h2>
+      <p class="text-sm text-secondary">Reliable debt balances only; available-credit style values are flagged for review.</p>
+      <p class="text-2xl font-medium text-primary privacy-sensitive"><%= @dashboard.debt_payoff.total_debt_money.format %></p>
+      <% if @dashboard.debt_payoff.unsupported_accounts.any? %>
+        <p class="text-sm text-warning">Review <%= pluralize(@dashboard.debt_payoff.unsupported_accounts.count, "account") %></p>
+      <% end %>
+      <% if @dashboard.debt_payoff.review_prompts.include?(:fx_unavailable) %>
+        <p class="text-sm text-warning">Some debt balances need exchange rates before they can be included.</p>
+      <% end %>
+    </article>
+
+    <article class="bg-container shadow-border-xs rounded-xl p-5 space-y-3">
+      <h2 class="text-lg text-primary font-medium">Savings rate</h2>
+      <p class="text-sm text-secondary">Estimated from recent income and expenses.</p>
+      <% if @dashboard.savings_rate.savings_rate %>
+        <p class="text-2xl font-medium text-primary"><%= number_to_percentage(@dashboard.savings_rate.savings_rate * 100, precision: 0) %></p>
+      <% else %>
+        <p class="text-sm text-secondary">Insufficient recent history</p>
+      <% end %>
+    </article>
+  </section>
+
+  <section class="bg-container shadow-border-xs rounded-xl p-5 space-y-4">
+    <div class="flex items-center justify-between gap-4">
+      <h2 class="text-lg text-primary font-medium">Custom goals</h2>
+    </div>
+
+    <% if @dashboard.custom_goals.any? %>
+      <div class="grid md:grid-cols-2 gap-3">
+        <% @dashboard.custom_goals.each do |goal_result| %>
+          <article class="bg-surface rounded-lg p-4 space-y-2">
+            <div class="flex items-start justify-between gap-3">
+              <h3 class="text-primary font-medium"><%= goal_result.goal.name %></h3>
+              <%= button_to "Archive", archive_financial_goal_path(goal_result.goal), method: :patch, class: "text-sm text-secondary underline" %>
+            </div>
+            <p class="text-sm text-secondary">
+              <span class="privacy-sensitive"><%= goal_result.available_money.format %></span>
+              of
+              <span class="privacy-sensitive"><%= goal_result.target_money.format %></span>
+            </p>
+            <%= form_with model: goal_result.goal, url: financial_goal_path(goal_result.goal), method: :patch, class: "grid gap-3 border-t border-divider pt-3" do |form| %>
+              <%= form.hidden_field :goal_type, value: "custom" %>
+
+              <div>
+                <%= form.label :name, "Goal name", class: "block text-sm text-secondary mb-1" %>
+                <%= form.text_field :name, class: "w-full bg-container border border-secondary rounded-lg px-3 py-2" %>
+              </div>
+
+              <div class="grid sm:grid-cols-3 gap-3">
+                <div>
+                  <%= form.label :target_amount, "Target amount", class: "block text-sm text-secondary mb-1" %>
+                  <%= form.number_field :target_amount, step: "0.01", class: "w-full bg-container border border-secondary rounded-lg px-3 py-2" %>
+                </div>
+                <div>
+                  <%= form.label :target_currency, "Currency", class: "block text-sm text-secondary mb-1" %>
+                  <%= form.text_field :target_currency, class: "w-full bg-container border border-secondary rounded-lg px-3 py-2" %>
+                </div>
+                <div>
+                  <%= form.label :target_date, "Target date", class: "block text-sm text-secondary mb-1" %>
+                  <%= form.date_field :target_date, class: "w-full bg-container border border-secondary rounded-lg px-3 py-2" %>
+                </div>
+              </div>
+
+              <fieldset class="space-y-2">
+                <legend class="text-sm text-secondary">Funding accounts</legend>
+                <% selected_account_ids = goal_result.goal.funding_account_ids_for(Current.user).to_set %>
+                <div class="grid sm:grid-cols-2 gap-2">
+                  <% @accounts.each do |account| %>
+                    <label class="flex items-center gap-2 text-sm text-primary">
+                      <%= check_box_tag "financial_goal[funding_account_ids][]", account.id, selected_account_ids.include?(account.id) %>
+                      <span><%= account.name %></span>
+                    </label>
+                  <% end %>
+                </div>
+              </fieldset>
+
+              <div>
+                <%= form.submit "Update goal", class: "px-3 py-2 bg-primary text-white rounded-lg" %>
+              </div>
+            <% end %>
+            <% if goal_result.fx_unavailable? %>
+              <p class="text-sm text-warning">Some balances need exchange rates before they can be included.</p>
+            <% end %>
+          </article>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-sm text-secondary">Add a target amount and choose the accounts that fund it.</p>
+    <% end %>
+
+    <%= form_with model: @financial_goal, url: financial_goals_path, class: "grid md:grid-cols-2 gap-4 border-t border-divider pt-4" do |form| %>
+      <% if @financial_goal.errors.any? %>
+        <div class="md:col-span-2">
+          <%= render "shared/form_errors", model: @financial_goal %>
+        </div>
+      <% end %>
+
+      <%= form.hidden_field :goal_type, value: "custom" %>
+
+      <div>
+        <%= form.label :name, "Goal name", class: "block text-sm text-secondary mb-1" %>
+        <%= form.text_field :name, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2", placeholder: "Example custom goal" %>
+      </div>
+
+      <div>
+        <%= form.label :target_amount, "Target amount", class: "block text-sm text-secondary mb-1" %>
+        <%= form.number_field :target_amount, step: "0.01", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+
+      <div>
+        <%= form.label :target_currency, "Target currency", class: "block text-sm text-secondary mb-1" %>
+        <%= form.text_field :target_currency, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+
+      <div>
+        <%= form.label :target_date, "Target date", class: "block text-sm text-secondary mb-1" %>
+        <%= form.date_field :target_date, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+
+      <fieldset class="md:col-span-2 space-y-2">
+        <legend class="text-sm text-secondary">Funding accounts</legend>
+        <div class="grid md:grid-cols-2 gap-2">
+          <% @accounts.each do |account| %>
+            <label class="flex items-center gap-2 text-sm text-primary">
+              <%= check_box_tag "financial_goal[funding_account_ids][]", account.id, false %>
+              <span><%= account.name %></span>
+            </label>
+          <% end %>
+        </div>
+      </fieldset>
+
+      <div class="md:col-span-2">
+        <%= form.submit "Add goal", class: "px-4 py-2 bg-primary text-white rounded-lg" %>
+      </div>
+    <% end %>
+  </section>
+</div>

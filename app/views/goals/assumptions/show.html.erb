@@ -1,0 +1,93 @@
+<% header_title t("goals.assumptions.title") %>
+
+<div class="max-w-3xl mx-auto py-6">
+  <h1 class="text-3xl text-primary font-medium mb-6"><%= t("goals.assumptions.title") %></h1>
+
+  <%= form_with model: @profile, url: goals_assumptions_path, method: :patch, class: "bg-container shadow-border-xs rounded-xl p-5 space-y-4 mb-6" do |form| %>
+    <% if @profile.errors.any? %>
+      <%= render "shared/form_errors", model: @profile %>
+    <% end %>
+
+    <div>
+      <%= form.label :current_age, t("goals.assumptions.current_age"), class: "block text-sm text-secondary mb-1" %>
+      <%= form.number_field :current_age, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+    </div>
+
+    <div>
+      <%= form.label :birth_year, "Birth year", class: "block text-sm text-secondary mb-1" %>
+      <%= form.number_field :birth_year, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+    </div>
+
+    <div>
+      <%= form.label :planning_region, "Planning region", class: "block text-sm text-secondary mb-1" %>
+      <%= form.select :planning_region, [["Generic", "generic"], ["Singapore", "singapore"]], {}, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <%= form.label :annual_spending_override, "Annual spending", class: "block text-sm text-secondary mb-1" %>
+        <%= form.number_field :annual_spending_override, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+      <div>
+        <%= form.label :withdrawal_rate, "Withdrawal rate", class: "block text-sm text-secondary mb-1" %>
+        <%= form.number_field :withdrawal_rate, step: "0.01", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+      <div>
+        <%= form.label :expected_return, "Expected return", class: "block text-sm text-secondary mb-1" %>
+        <%= form.number_field :expected_return, step: "0.01", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+      <div>
+        <%= form.label :inflation_rate, "Inflation", class: "block text-sm text-secondary mb-1" %>
+        <%= form.number_field :inflation_rate, step: "0.01", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+      <div>
+        <%= form.label :cpf_access_age, "CPF access age", class: "block text-sm text-secondary mb-1" %>
+        <%= form.number_field :cpf_access_age, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+      <div>
+        <%= form.label :cpf_life_age, "CPF LIFE age", class: "block text-sm text-secondary mb-1" %>
+        <%= form.number_field :cpf_life_age, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+      <div>
+        <%= form.label :srs_access_age, "SRS access age", class: "block text-sm text-secondary mb-1" %>
+        <%= form.number_field :srs_access_age, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+      <div>
+        <%= form.label :savings_rate_target, "Savings rate target", class: "block text-sm text-secondary mb-1" %>
+        <%= form.number_field :savings_rate_target, step: "0.01", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+      <div>
+        <%= form.label :emergency_fund_months, "Emergency fund months", class: "block text-sm text-secondary mb-1" %>
+        <%= form.number_field :emergency_fund_months, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      </div>
+    </div>
+
+    <%= form.submit "Save", class: "px-4 py-2 bg-primary text-white rounded-lg" %>
+  <% end %>
+
+  <%= form_with url: goals_account_mappings_path, method: :patch, class: "bg-container shadow-border-xs rounded-xl p-5 space-y-4" do %>
+    <h2 class="text-lg text-primary font-medium">Account treatment</h2>
+    <p class="text-sm text-secondary">Emergency accounts can also count as FIRE bridge assets; they are not double-counted within a single calculation.</p>
+
+    <div class="space-y-3">
+      <% @accounts.each do |account| %>
+        <div class="grid md:grid-cols-[1fr_160px_140px] gap-3 items-center border-t border-divider pt-3">
+          <div>
+            <p class="text-sm font-medium text-primary"><%= account.name %></p>
+            <p class="text-xs text-secondary"><%= account.accountable_type %></p>
+          </div>
+          <%= select_tag "fire_roles[#{account.id}]",
+            options_for_select([["Bridge", "bridge"], ["Later", "later"], ["Excluded", "excluded"]], @profile.fire_role_overrides[account.id]),
+            include_blank: "Default",
+            class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+          <label class="flex items-center gap-2 text-sm text-primary">
+            <%= check_box_tag "emergency_account_ids[]", account.id, @profile.emergency_account_ids.include?(account.id) %>
+            Emergency
+          </label>
+        </div>
+      <% end %>
+    </div>
+
+    <%= submit_tag "Save account treatment", class: "px-4 py-2 bg-primary text-white rounded-lg" %>
+  <% end %>
+</div>

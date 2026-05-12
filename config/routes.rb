@@ -251,6 +251,21 @@ Rails.application.routes.draw do
     get :print, on: :collection
   end
 
+  get "goals", to: "goals#index", as: :goals
+  namespace :goals do
+    resource :fire, only: :show, controller: :fire do
+      post :preview
+    end
+    resource :assumptions, only: %i[show update]
+    resource :account_mappings, only: :update do
+      patch :skip_prompt
+    end
+  end
+
+  resources :financial_goals, only: %i[create update] do
+    patch :archive, on: :member
+  end
+
   resources :budgets, only: %i[index show edit update], param: :month_year do
     post :copy_previous, on: :member
     get :picker, on: :collection
