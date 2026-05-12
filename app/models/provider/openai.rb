@@ -135,6 +135,35 @@ class Provider::Openai < Provider
     end
   end
 
+  def suggest_categories(transactions: [], model: "", family: nil, json_mode: nil)
+    with_provider_response do
+      effective_model = model.presence || @default_model
+
+      trace = create_langfuse_trace(
+        name: "openai.suggest_categories",
+        input: { transactions: transactions }
+      )
+
+      batches = slice_for_context(transactions)
+
+      result = batches.flat_map do |batch|
+        CategorySuggester.new(
+          client,
+          model: effective_model,
+          transactions: batch,
+          custom_provider: custom_provider?,
+          langfuse_trace: trace,
+          family: family,
+          json_mode: json_mode
+        ).suggest_categories
+      end
+
+      upsert_langfuse_trace(trace: trace, output: result.map(&:to_h))
+
+      result
+    end
+  end
+
   def auto_detect_merchants(transactions: [], user_merchants: [], model: "", family: nil, json_mode: nil)
     with_provider_response do
       effective_model = model.presence || @default_model

@@ -5,6 +5,8 @@ class CategoriesController < ApplicationController
 
   def index
     @categories = Current.family.categories.alphabetically
+    @ai_category_provider_configured = Provider::Registry.default_llm_provider.present?
+    @latest_auto_categorization_run = Current.user.auto_categorization_runs.active.ordered.first
 
     render layout: "settings"
   end

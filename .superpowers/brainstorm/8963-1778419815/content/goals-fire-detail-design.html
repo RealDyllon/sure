@@ -1,0 +1,93 @@
+<h2>FIRE Detail View Proposal</h2>
+<p class="subtitle">Clicking the FIRE hero opens a detail page/drawer focused on buckets, assumptions, and scenario levers.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Preview: Financial Independence detail</div>
+  <div class="mockup-body">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px">
+      <div>
+        <div style="font-size:22px;font-weight:650;color:#191919">Financial Independence</div>
+        <div style="font-size:13px;color:#666;margin-top:4px">Singapore-aware plan with editable assumptions.</div>
+      </div>
+      <button class="mock-button">Edit assumptions</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px">
+      <div style="display:grid;gap:12px">
+        <div style="background:white;border:1px solid #e5e5e5;border-radius:10px;padding:16px">
+          <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:12px">
+            <strong>Retirement timeline</strong>
+            <span style="font-size:12px;color:#666">Estimated FI age 47</span>
+          </div>
+          <div style="height:84px;position:relative;border-bottom:1px solid #ddd;margin:0 4px 18px">
+            <div style="position:absolute;left:4%;bottom:0;width:18%;height:26px;background:#cbd5e1;border-radius:5px 5px 0 0"></div>
+            <div style="position:absolute;left:25%;bottom:0;width:18%;height:42px;background:#94a3b8;border-radius:5px 5px 0 0"></div>
+            <div style="position:absolute;left:46%;bottom:0;width:18%;height:62px;background:#16a34a;border-radius:5px 5px 0 0"></div>
+            <div style="position:absolute;left:67%;bottom:0;width:18%;height:74px;background:#0f766e;border-radius:5px 5px 0 0"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px;color:#666">
+            <div>Now<br><strong>Build</strong></div>
+            <div>FI date<br><strong>Work optional</strong></div>
+            <div>Age 55<br><strong>CPF access</strong></div>
+            <div>Age 65<br><strong>CPF LIFE</strong></div>
+          </div>
+        </div>
+
+        <div style="background:white;border:1px solid #e5e5e5;border-radius:10px;padding:16px">
+          <strong>Bucket readiness</strong>
+          <div style="display:grid;gap:12px;margin-top:14px">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px"><span>Liquid bridge bucket</span><strong>70%</strong></div>
+              <div style="height:8px;background:#eee;border-radius:999px;margin-top:6px"><div style="height:8px;width:70%;background:#2563eb;border-radius:999px"></div></div>
+              <div style="font-size:12px;color:#666;margin-top:5px">Covers years from FI date until CPF can meaningfully contribute.</div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px"><span>CPF/SRS later bucket</span><strong>48%</strong></div>
+              <div style="height:8px;background:#eee;border-radius:999px;margin-top:6px"><div style="height:8px;width:48%;background:#0f766e;border-radius:999px"></div></div>
+              <div style="font-size:12px;color:#666;margin-top:5px">CPF OA/SA/RA are detected; SRS can be marked manually.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;gap:12px">
+        <div style="background:white;border:1px solid #e5e5e5;border-radius:10px;padding:16px">
+          <strong>Assumptions</strong>
+          <div style="display:grid;gap:8px;margin-top:12px;font-size:12px">
+            <div style="display:flex;justify-content:space-between"><span>Annual spend</span><strong>$48,000</strong></div>
+            <div style="display:flex;justify-content:space-between"><span>Withdrawal rate</span><strong>3.5%</strong></div>
+            <div style="display:flex;justify-content:space-between"><span>CPF access age</span><strong>55 / 65</strong></div>
+            <div style="display:flex;justify-content:space-between"><span>Inflation</span><strong>2.5%</strong></div>
+            <div style="display:flex;justify-content:space-between"><span>Return assumption</span><strong>5.0%</strong></div>
+          </div>
+        </div>
+
+        <div style="background:white;border:1px solid #e5e5e5;border-radius:10px;padding:16px">
+          <strong>Scenario levers</strong>
+          <div style="display:grid;gap:10px;margin-top:12px;font-size:12px">
+            <div>
+              <div style="display:flex;justify-content:space-between"><span>Monthly investing</span><strong>+$850</strong></div>
+              <div style="height:6px;background:#eee;border-radius:999px;margin-top:5px"><div style="height:6px;width:58%;background:#111;border-radius:999px"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between"><span>Annual spend</span><strong>-$6,000</strong></div>
+              <div style="height:6px;background:#eee;border-radius:999px;margin-top:5px"><div style="height:6px;width:35%;background:#111;border-radius:999px"></div></div>
+            </div>
+          </div>
+          <div style="margin-top:12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:12px;color:#475569">
+            Current scenario moves FI from age 47 to 45.
+          </div>
+        </div>
+
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;font-size:12px;color:#9a3412">
+          <strong>Needs review:</strong> SRS was not detected. Mark an account as SRS or skip it.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Design intent</h3>
+  <p>The detail view separates the early-retirement bridge problem from later CPF/SRS support, while keeping every assumption editable so non-Singapore or edge-case users can deviate.</p>
+</div>

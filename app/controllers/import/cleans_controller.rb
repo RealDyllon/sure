@@ -15,7 +15,7 @@ class Import::CleansController < ApplicationController
       rows = rows.reject { |row| row.valid? }
     end
 
-    @pagy, @rows = pagy_array(rows, limit: params[:per_page] || "10")
+    @pagy, @rows = pagy_array(rows, limit: safe_per_page)
   end
 
   private

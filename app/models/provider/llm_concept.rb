@@ -7,6 +7,12 @@ module Provider::LlmConcept
     raise NotImplementedError, "Subclasses must implement #auto_categorize"
   end
 
+  SuggestedCategory = Data.define(:name, :parent_name, :color, :lucide_icon, :rationale)
+
+  def suggest_categories(transactions:, model: "", family: nil, json_mode: nil)
+    raise NotImplementedError, "Subclasses must implement #suggest_categories"
+  end
+
   AutoDetectedMerchant = Data.define(:transaction_id, :business_name, :business_url)
 
   def auto_detect_merchants(transactions)

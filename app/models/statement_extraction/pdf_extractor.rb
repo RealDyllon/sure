@@ -1,5 +1,13 @@
 module StatementExtraction
   class PdfExtractor
+    CPF_BUCKETS = {
+      "ordinary" => { source_key: "ordinary", subtype: "cpf_ordinary" },
+      "special" => { source_key: "special", subtype: "cpf_special" },
+      "medisave" => { source_key: "medisave", subtype: "cpf_medisave" },
+      "retirement" => { source_key: "retirement", subtype: "cpf_retirement" },
+      "other" => { source_key: "other", subtype: "cpf_other" }
+    }.freeze
+
     attr_reader :statement_import
 
     def initialize(statement_import)
@@ -72,7 +80,7 @@ module StatementExtraction
       def normalize_account(provider_name, account_data, document_data, use_document_activity_fallback: false)
         data = document_data.merge(account_data)
         data = apply_document_activity_fallback(data, account_data, document_data) if use_document_activity_fallback
-        account_number = normalized_account_number(data["account_number"]).presence || data["account_id"].presence || "default"
+        account_number = account_identifier_for(provider_name, data)
 
         {
           "source_id" => source_id_for(provider_name, account_number),
@@ -302,18 +310,22 @@ module StatementExtraction
       end
 
       def source_id_for(provider_name, account_number)
+        return "cpf:#{account_number}" if provider_name == "cpf" && CPF_BUCKETS.key?(account_number.to_s)
+
         suffix = normalized_account_number(account_number)
         "#{provider_name}:#{suffix.presence || "default"}"
       end
 
       def account_name_for(provider_name, account_number)
         return "IBKR #{account_number.to_s.scan(/\d/).last(4).join.presence || "Statement"}" if provider_name == "ibkr"
+        return "CPF #{cpf_bucket_for("subtype" => account_number)&.fetch(:source_key)&.titleize} Account" if provider_name == "cpf" && CPF_BUCKETS.key?(account_number.to_s)
 
         [ provider_name.upcase, account_number ].compact.join(" ").presence || "#{provider_name.upcase} Statement"
       end
 
       def account_type_for(provider_name, data)
         return "Investment" if provider_name == "ibkr"
+        return "Investment" if provider_name == "cpf"
         return data["account_type"] if data["account_type"].present?
 
         data["document_type"] == "credit_card_statement" ? "CreditCard" : "Depository"
@@ -321,6 +333,7 @@ module StatementExtraction
 
       def subtype_for(provider_name, data)
         return "brokerage" if provider_name == "ibkr"
+        return cpf_bucket_for(data)&.fetch(:subtype) || "cpf_other" if provider_name == "cpf"
         return data["subtype"] if data["subtype"].present?
 
         data["document_type"] == "credit_card_statement" ? "credit_card" : "checking"
@@ -378,6 +391,36 @@ module StatementExtraction
 
         digits = account_number.to_s.scan(/\d/)
         digits.size >= 4 ? digits.last(4).join : account_number.to_s
+      end
+
+      def account_identifier_for(provider_name, data)
+        if provider_name == "cpf"
+          bucket = cpf_bucket_for(data)
+          return bucket[:source_key] if bucket
+
+          account_number = normalized_account_number(data["account_number"]).presence || data["account_id"].presence
+          return account_number if account_number.present?
+
+          return CPF_BUCKETS["other"][:source_key]
+        end
+
+        normalized_account_number(data["account_number"]).presence || data["account_id"].presence || "default"
+      end
+
+      def cpf_bucket_for(data)
+        text = [
+          data["subtype"],
+          data["account_name"],
+          data["name"]
+        ].compact.join(" ").downcase
+
+        return CPF_BUCKETS["ordinary"] if text.match?(/\b(cpf_ordinary|ordinary|oa)\b/)
+        return CPF_BUCKETS["special"] if text.match?(/\b(cpf_special|special|sa)\b/)
+        return CPF_BUCKETS["medisave"] if text.match?(/\b(cpf_medisave|medisave|medi\s*save|ma)\b/)
+        return CPF_BUCKETS["retirement"] if text.match?(/\b(cpf_retirement|retirement|ra)\b/)
+        return CPF_BUCKETS["other"] if text.match?(/\b(cpf_other|other)\b/)
+
+        nil
       end
   end
 end

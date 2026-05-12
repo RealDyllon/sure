@@ -115,6 +115,7 @@ nl:
       ca: Canada
       au: Australië
       eu: Europa
+      sg: Singapore
       generic: Algemeen
     confirm_unlink:
       title: Account ontkoppelen van provider?

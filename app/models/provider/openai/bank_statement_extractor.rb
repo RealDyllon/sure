@@ -1,5 +1,5 @@
 class Provider::Openai::BankStatementExtractor
-  MAX_CHARS_PER_CHUNK = 3000
+  MAX_CHARS_PER_CHUNK = 4_000
   attr_reader :client, :pdf_content, :model, :pdf_password, :progress_callback
 
   def initialize(client:, pdf_content:, model:, pdf_password: nil, progress_callback: nil)
@@ -26,8 +26,9 @@ class Provider::Openai::BankStatementExtractor
 
     chunks.each_with_index do |chunk, index|
       Rails.logger.info("BankStatementExtractor: Processing chunk #{index + 1}/#{chunks.size}")
-      emit_progress(current: index + 1, total: chunks.size, message: "Processing chunk #{index + 1} of #{chunks.size}")
+      emit_progress(current: index, total: chunks.size, message: "Processing chunk #{index + 1} of #{chunks.size}...")
       result = process_chunk(chunk, index == 0)
+      emit_progress(current: index + 1, total: chunks.size, message: "Processed chunk #{index + 1} of #{chunks.size}")
 
       # Tag transactions with chunk index for deduplication
       tagged_transactions = (result[:transactions] || []).map { |t| t.merge(chunk_index: index) }
@@ -180,7 +181,7 @@ class Provider::Openai::BankStatementExtractor
 
         {
           account_name: account["account_name"] || account["name"],
-          account_number: normalized_account_number(account["account_number"]),
+          account_number: cleaned_identifier(account["account_number"]),
           account_id: account["account_id"],
           account_type: account["account_type"],
           subtype: account["subtype"],
@@ -230,6 +231,7 @@ class Provider::Openai::BankStatementExtractor
 
       if first_key.present? || second_key.present?
         return true if first_key.present? && first_key == second_key && compatible_account_metadata?(first, second)
+        return true if account_identifiers_cross_reference?(first, second) && compatible_account_metadata?(first, second)
         return false if first_key.present? && second_key.present?
       end
 
@@ -280,6 +282,27 @@ class Provider::Openai::BankStatementExtractor
 
     def normalized_account_name(account_name)
       account_name.to_s.downcase.squish
+    end
+
+    def account_identifiers_cross_reference?(first, second)
+      account_ids = [ first[:account_id], second[:account_id] ].compact
+      account_numbers = [ first[:account_number], second[:account_number] ].compact
+
+      account_ids.any? do |account_id|
+        account_numbers.any? { |account_number| identifier_contains_suffix?(account_id, account_number) }
+      end
+    end
+
+    def identifier_contains_suffix?(identifier, suffix)
+      identifier_digits = identifier.to_s.scan(/\d/).join
+      suffix_digits = suffix.to_s.scan(/\d/).join
+      return false if identifier_digits.blank? || suffix_digits.blank?
+
+      identifier_digits.end_with?(suffix_digits[-4..])
+    end
+
+    def cleaned_identifier(identifier)
+      identifier.to_s.squish.presence
     end
 
     def normalized_account_number(account_number)
@@ -390,7 +413,7 @@ class Provider::Openai::BankStatementExtractor
         Extract financial statement data as JSON. Return:
         {"bank_name":"...","account_holder":"...","account_number":"last 4 digits","account_id":"brokerage id if present","currency":"ISO currency","base_currency":"ISO currency","statement_period":{"start_date":"YYYY-MM-DD","end_date":"YYYY-MM-DD"},"opening_balance":0.00,"closing_balance":0.00,"cash_balance":0.00,"net_liquidation_value":0.00,"transactions":[{"date":"YYYY-MM-DD","description":"...","amount":-0.00,"currency":"ISO currency"}],"accounts":[{"account_name":"...","account_number":"last 4 digits","account_type":"Depository|CreditCard|Investment","subtype":"checking|savings|credit_card|brokerage","currency":"ISO currency","opening_balance":0.00,"closing_balance":0.00,"cash_balance":0.00,"transactions":[{"date":"YYYY-MM-DD","description":"...","amount":-0.00,"currency":"ISO currency"}],"trades":[],"positions":[]}],"trades":[{"date":"YYYY-MM-DD","symbol":"AAPL","quantity":10,"price":1020.00,"amount":-1005.00,"currency":"USD","description":"Buy 10 AAPL","activity_label":"Buy"}],"positions":[{"date":"YYYY-MM-DD","symbol":"AAPL","quantity":12,"price":1021.00,"market_value":1007.00,"currency":"USD","description":"Apple Inc"}]}
 
-        Rules: Negative amounts for debits/expenses/buys, positive for credits/deposits/dividends/sells. For consolidated statements with multiple accounts, especially DBS monthly statements, split rows into the accounts array by account section and include each account's name, last four account digits, account type, subtype, balances, and transactions. For IBKR or Interactive Brokers statements, set bank_name to "IBKR" and extract trades, cash transactions, net liquidation value, cash balance, and positions. Dates as YYYY-MM-DD; when transaction rows omit the year, use the statement period year. Extract ALL rows. JSON only, no markdown.
+        Rules: Negative amounts for debits/expenses/buys, positive for credits/deposits/dividends/sells. For consolidated statements with multiple accounts, especially DBS monthly statements, split rows into the accounts array by account section and include each account's name, last four account digits, account type, subtype, balances, and transactions. When transactions are placed in account sub-arrays, leave the top-level transactions array empty — do not duplicate transactions at both levels. For IBKR or Interactive Brokers statements, set bank_name to "IBKR" and extract trades, cash transactions, net liquidation value, cash balance, and positions. For CPF statements, set bank_name to "CPF", account_type to "Investment", and use subtypes cpf_ordinary, cpf_special, cpf_medisave, cpf_retirement, or cpf_other. Dates as YYYY-MM-DD; when transaction rows omit the year, use the statement period year. Extract ALL rows. JSON only, no markdown.
       INSTRUCTIONS
     end
 
@@ -399,7 +422,7 @@ class Provider::Openai::BankStatementExtractor
         Extract financial activity from statement text as JSON. Return:
         {"transactions":[{"date":"YYYY-MM-DD","description":"...","amount":-0.00,"currency":"ISO currency"}],"accounts":[{"account_name":"...","account_number":"last 4 digits","account_type":"Depository|CreditCard|Investment","subtype":"checking|savings|credit_card|brokerage","currency":"ISO currency","transactions":[{"date":"YYYY-MM-DD","description":"...","amount":-0.00,"currency":"ISO currency"}]}],"trades":[{"date":"YYYY-MM-DD","symbol":"AAPL","quantity":10,"price":1020.00,"amount":-1005.00,"currency":"USD","description":"Buy 10 AAPL","activity_label":"Buy"}],"positions":[{"date":"YYYY-MM-DD","symbol":"AAPL","quantity":12,"price":1021.00,"market_value":1007.00,"currency":"USD","description":"Apple Inc"}]}
 
-        Rules: Negative amounts for debits/expenses/buys, positive for credits/deposits/dividends/sells. If a chunk includes account-section labels from a consolidated DBS statement, return rows in the matching accounts array item. Dates as YYYY-MM-DD; when transaction rows omit the year, infer it from any statement period or statement date visible in the chunk. Extract ALL rows. JSON only, no markdown.
+        Rules: Negative amounts for debits/expenses/buys, positive for credits/deposits/dividends/sells. If a chunk includes account-section labels from a consolidated DBS statement, return rows in the matching accounts array item. For CPF account sections, set account_type to "Investment" and use subtypes cpf_ordinary, cpf_special, cpf_medisave, cpf_retirement, or cpf_other. Dates as YYYY-MM-DD; when transaction rows omit the year, infer it from any statement period or statement date visible in the chunk. Extract ALL rows. JSON only, no markdown.
       INSTRUCTIONS
     end
 end

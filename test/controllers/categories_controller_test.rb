@@ -1,8 +1,10 @@
 require "test_helper"
 
 class CategoriesControllerTest < ActionDispatch::IntegrationTest
+  include AutoCategorizationTestHelper
+
   setup do
-    sign_in users(:family_admin)
+    sign_in @user = users(:family_admin)
     @transaction = transactions :one
     ensure_tailwind_build
   end
@@ -13,6 +15,20 @@ class CategoriesControllerTest < ActionDispatch::IntegrationTest
     assert_select "#category_#{categories(:food_and_drink).id} > [data-testid='category-content']", count: 1
     assert_select "#category_#{categories(:food_and_drink).id} > [data-testid='category-actions']", count: 1
     assert_select "#category_#{categories(:food_and_drink).id} [data-testid='category-name']", text: categories(:food_and_drink).name
+  end
+
+  test "index only links to current user's active auto categorization run" do
+    stub_default_llm_provider
+    admin_run = create_auto_categorization_run(family: users(:family_admin).family, user: users(:family_admin), status: :reviewing_transactions)
+    member_run = create_auto_categorization_run(family: users(:family_member).family, user: users(:family_member), status: :reviewing_transactions)
+    sign_out
+    sign_in users(:family_member)
+
+    get categories_url
+
+    assert_response :success
+    assert_includes response.body, auto_categorization_run_path(member_run)
+    assert_not_includes response.body, auto_categorization_run_path(admin_run)
   end
 
   test "new" do
@@ -95,4 +111,9 @@ class CategoriesControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to categories_url
   end
+
+  private
+    def sign_out
+      @user.sessions.reload.each { |session| delete session_path(session) }
+    end
 end

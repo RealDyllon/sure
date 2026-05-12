@@ -32,7 +32,7 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
   test "activity pagination keeps activity tab when loaded from holdings tab" do
     investment = accounts(:investment)
 
-    11.times do |i|
+    51.times do |i|
       Entry.create!(
         account: investment,
         name: "Test investment activity #{i}",

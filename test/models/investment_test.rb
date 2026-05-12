@@ -133,7 +133,7 @@ class InvestmentTest < ActiveSupport::TestCase
   end
 
   test "all subtypes have valid region values" do
-    valid_regions = [ "us", "uk", "ca", "au", "eu", "in", nil ]
+    valid_regions = [ "us", "uk", "ca", "au", "eu", "in", "sg", nil ]
 
     Investment::SUBTYPES.each do |key, metadata|
       assert_includes valid_regions, metadata[:region],
@@ -175,5 +175,29 @@ class InvestmentTest < ActiveSupport::TestCase
     assert grouped.any?, "grouped should not be empty"
     first_group_label = grouped.first[0]
     assert_equal I18n.t("accounts.subtype_regions.in"), first_group_label
+  end
+
+  # Singapore account types
+
+  test "CPF subtypes have tax advantaged treatment" do
+    %w[cpf_ordinary cpf_special cpf_medisave cpf_retirement cpf_other].each do |subtype|
+      investment = Investment.new(subtype: subtype)
+      assert_equal :tax_advantaged, investment.tax_treatment, "Expected #{subtype} to be tax_advantaged"
+    end
+  end
+
+  test "CPF subtypes all belong to the Singapore region" do
+    cpf_keys = %w[cpf_ordinary cpf_special cpf_medisave cpf_retirement cpf_other]
+
+    cpf_keys.each do |key|
+      assert_equal "sg", Investment::SUBTYPES.dig(key, :region), "Expected #{key} to have region 'sg'"
+    end
+  end
+
+  test "subtypes_grouped_for_select places Singapore region first for SGD users" do
+    grouped = Investment.subtypes_grouped_for_select(currency: "SGD")
+    assert grouped.any?, "grouped should not be empty"
+    first_group_label = grouped.first[0]
+    assert_equal I18n.t("accounts.subtype_regions.sg"), first_group_label
   end
 end

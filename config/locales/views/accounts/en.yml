@@ -139,6 +139,7 @@ en:
       au: Australia
       eu: Europe
       in: India
+      sg: Singapore
       generic: General
     confirm_unlink:
       title: Unlink account from provider?

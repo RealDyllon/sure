@@ -61,7 +61,6 @@ module StatementExtraction
 
       def heuristic_account_match(account_payload)
         source_suffix = account_payload["source_id"].to_s.split(":").last
-        return nil if source_suffix.blank? || source_suffix == "default"
 
         candidates = family.accounts.visible_manual.select do |account|
           compatible_account?(account, account_payload) &&
@@ -84,8 +83,11 @@ module StatementExtraction
         extracted_name = account_payload["name"].to_s.downcase
         provider_name = result.provider.to_s.downcase
 
-        normalized_account_name(account.name) == normalized_account_name(account_payload["name"]) ||
-          account_name.include?(source_suffix) &&
+        return true if normalized_account_name(account.name) == normalized_account_name(account_payload["name"])
+
+        return false if source_suffix.blank? || source_suffix == "default"
+
+        account_name.include?(source_suffix) &&
           (account_name.include?(provider_name) || extracted_name.include?(provider_name))
       end
 

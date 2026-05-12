@@ -135,6 +135,7 @@ fr:
       ca: Canada
       au: Australie
       eu: Europe
+      sg: Singapour
       generic: Général
     confirm_unlink:
       title: Délier le compte du fournisseur ?

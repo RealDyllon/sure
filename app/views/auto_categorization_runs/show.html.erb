@@ -1,0 +1,210 @@
+<%= content_for :previous_path, categories_path %>
+<%= content_for :cancel_path, categories_path %>
+
+<%= content_for :header_nav do %>
+  <div class="flex items-center gap-2 text-sm text-secondary">
+    <% steps = @run.category_setup_required? ? [ "Start", "Categories", "Transactions", "Done" ] : [ "Start", "Transactions", "Done" ] %>
+    <% steps.each_with_index do |step, index| %>
+      <span class="<%= index.zero? || (step == "Categories" && (@run.reviewing_categories? || @run.creating_categories?)) || (step == "Transactions" && (@run.suggesting_transactions? || @run.reviewing_transactions? || @run.applying?)) || (step == "Done" && @run.complete?) ? "text-primary font-medium" : "" %>"><%= step %></span>
+      <% unless index == steps.size - 1 %>
+        <%= icon "chevron-right", size: "sm" %>
+      <% end %>
+    <% end %>
+  </div>
+<% end %>
+
+<div class="max-w-6xl mx-auto space-y-6">
+  <div class="space-y-2">
+    <h1 class="text-3xl font-semibold text-primary">AI auto-categorization</h1>
+    <p class="text-sm text-secondary">
+      <%= @run.run_transactions.count %> eligible transactions snapshotted
+      <% if @run.provider_name.present? %>
+        · <%= @run.provider_name %>
+      <% end %>
+    </p>
+  </div>
+
+  <% if @run.suggesting_categories? || @run.creating_categories? || @run.suggesting_transactions? || @run.applying? %>
+    <% polling_data = { controller: "page-polling", page_polling_url_value: auto_categorization_run_path(@run), page_polling_interval_value: 3000 } %>
+    <div class="bg-container rounded-xl shadow-border-xs p-4 space-y-4" data-controller="<%= polling_data[:controller] %>" data-page-polling-url-value="<%= polling_data[:page_polling_url_value] %>" data-page-polling-interval-value="<%= polling_data[:page_polling_interval_value] %>">
+      <%= render "imports/processing_progress", import: @run %>
+      <div class="flex items-center gap-2">
+        <%= render DS::Link.new(text: "Refresh", icon: "refresh-cw", href: auto_categorization_run_path(@run), variant: "outline") %>
+        <% if @run.processing_progress_stale? && @run.retryable_processing? %>
+          <%= button_to "Retry", retry_auto_categorization_run_path(@run), method: :post, class: "button button--primary" %>
+        <% end %>
+      </div>
+    </div>
+  <% elsif @run.empty? %>
+    <div class="bg-container rounded-xl shadow-border-xs p-6 space-y-4">
+      <h2 class="text-lg font-medium text-primary">No eligible transactions</h2>
+      <p class="text-sm text-secondary">There are no uncategorized transactions available for this wizard.</p>
+      <%= render DS::Link.new(text: "Back to Categories", href: categories_path, variant: "primary") %>
+    </div>
+  <% elsif @run.failed? %>
+    <div class="bg-container rounded-xl shadow-border-xs p-6 space-y-4">
+      <h2 class="text-lg font-medium text-primary">Generation failed</h2>
+      <p class="text-sm text-secondary"><%= @run.error.presence || "AI categorization failed." %></p>
+      <div class="flex items-center gap-2">
+        <%= button_to "Retry", retry_auto_categorization_run_path(@run), method: :post, class: "button button--primary" %>
+        <%= render DS::Link.new(text: "Back to Categories", href: categories_path, variant: "outline") %>
+      </div>
+    </div>
+  <% elsif @run.reviewing_categories? %>
+    <div class="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 items-start">
+      <div class="bg-container rounded-xl shadow-border-xs overflow-hidden">
+        <div class="p-4 border-b border-secondary flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-medium text-primary">Review starter categories</h2>
+            <p class="text-sm text-secondary"><%= @run.category_suggestions.selected.count %> selected</p>
+          </div>
+          <%= button_to "Retry AI", retry_auto_categorization_run_path(@run), method: :post, class: "button button--secondary" %>
+        </div>
+
+        <% if @category_suggestions.any? %>
+          <div class="divide-y divide-secondary">
+            <% @category_suggestions.each do |suggestion| %>
+              <%= form_with url: category_suggestion_auto_categorization_run_path(@run, suggestion), method: :patch, class: "grid grid-cols-1 md:grid-cols-[auto_1fr_1fr_auto_auto] gap-3 p-4 items-center" do |form| %>
+                <%= form.fields_for :auto_categorization_category_suggestion, suggestion do |fields| %>
+                  <%= fields.check_box :selected, class: "checkbox checkbox--light" %>
+                  <%= fields.text_field :name, class: "form-field__input", placeholder: "Name" %>
+                  <%= fields.text_field :parent_name, class: "form-field__input", placeholder: "Parent" %>
+                  <%= fields.color_field :color, class: "h-10 w-12 rounded border border-secondary bg-container" %>
+                  <div class="flex items-center gap-2">
+                    <%= fields.text_field :lucide_icon, class: "form-field__input w-32", placeholder: "Icon" %>
+                    <button class="button button--secondary" type="submit">Save</button>
+                  </div>
+                <% end %>
+                <% if suggestion.rationale.present? %>
+                  <p class="md:col-start-2 md:col-span-4 text-xs text-secondary"><%= suggestion.rationale %></p>
+                <% end %>
+              <% end %>
+            <% end %>
+          </div>
+        <% else %>
+          <div class="p-8 text-center space-y-4">
+            <p class="text-sm text-secondary">No usable starter categories were suggested.</p>
+          </div>
+        <% end %>
+      </div>
+
+      <div class="bg-container rounded-xl shadow-border-xs p-4 space-y-4">
+        <h3 class="text-sm font-medium text-primary">Add category</h3>
+        <%= form_with url: category_suggestions_auto_categorization_run_path(@run), method: :post, class: "space-y-3" do |form| %>
+          <%= form.fields_for :auto_categorization_category_suggestion, AutoCategorizationCategorySuggestion.new(color: Category::COLORS.first, lucide_icon: "shapes") do |fields| %>
+            <%= fields.text_field :name, class: "form-field__input", placeholder: "Name" %>
+            <%= fields.text_field :parent_name, class: "form-field__input", placeholder: "Parent" %>
+            <%= fields.color_field :color, class: "h-10 w-full rounded border border-secondary bg-container" %>
+            <%= fields.text_field :lucide_icon, class: "form-field__input", placeholder: "Icon" %>
+          <% end %>
+          <button class="button button--secondary w-full" type="submit">Add</button>
+        <% end %>
+
+        <%= button_to "Use default categories", bootstrap_categories_auto_categorization_run_path(@run), method: :post, class: "button button--secondary w-full" %>
+        <%= button_to "Create selected categories", create_categories_auto_categorization_run_path(@run), method: :post, class: "button button--primary w-full", disabled: @run.category_suggestions.selected.valid_for_creation.none? %>
+      </div>
+    </div>
+  <% elsif @run.reviewing_transactions? || @run.complete? %>
+    <div class="bg-container rounded-xl shadow-border-xs overflow-hidden">
+      <div class="p-4 border-b border-secondary space-y-4">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-medium text-primary">Review transaction suggestions</h2>
+            <p class="text-sm text-secondary"><%= @run.suggestions.selected.count %> selected across all pages</p>
+          </div>
+          <% if @run.complete? %>
+            <div class="text-sm text-secondary">
+              <%= @run.applied_count %> applied · <%= @run.skipped_count %> skipped · <%= @run.unchanged_count %> unchanged
+            </div>
+          <% end %>
+        </div>
+
+        <%= form_with url: auto_categorization_run_path(@run), method: :get, class: "grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto_auto] gap-2" do |form| %>
+          <%= hidden_field_tag :per_page, @per_page %>
+          <%= form.text_field :q, value: params[:q], placeholder: "Search", class: "form-field__input" %>
+          <%= form.select :status, options_for_select([ [ "Any status", "" ], [ "Suggested", "suggested" ], [ "Needs review", "needs_review" ], [ "Applied", "applied" ], [ "Skipped", "skipped" ], [ "Unchanged", "unchanged" ] ], params[:status]), {}, class: "form-field__input" %>
+          <%= form.select :selected, options_for_select([ [ "Any selection", "" ], [ "Selected", "true" ], [ "Unselected", "false" ] ], params[:selected]), {}, class: "form-field__input" %>
+          <%= form.select :category_id, options_for_select([ [ "Any category", "" ] ] + @categories.map { |category| [ category.name, category.id ] }, params[:category_id]), {}, class: "form-field__input" %>
+          <button class="button button--secondary" type="submit">Filter</button>
+        <% end %>
+      </div>
+
+      <% if @suggestions.any? %>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="text-secondary border-b border-secondary">
+              <tr>
+                <th class="text-left p-3 font-medium">Transaction</th>
+                <th class="text-left p-3 font-medium">Suggested</th>
+                <th class="text-left p-3 font-medium">Use</th>
+                <th class="text-left p-3 font-medium">Status</th>
+                <th class="text-right p-3 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-secondary">
+              <% @suggestions.each do |suggestion| %>
+                <% snapshot = suggestion.run_transaction.snapshot %>
+                <tr>
+                  <td class="p-3">
+                    <div class="font-medium text-primary"><%= snapshot["description"].presence || snapshot["name"] %></div>
+                    <div class="text-xs text-secondary">
+                      <%= snapshot["date"] %> · <%= snapshot["amount"] %> <%= snapshot["currency"] %>
+                      <% if suggestion.stale? %> · <span class="text-warning"><%= suggestion.stale_reason %></span><% end %>
+                    </div>
+                  </td>
+                  <td class="p-3"><%= suggestion.suggested_category_name.presence || "No suggestion" %></td>
+                  <td class="p-3">
+                    <% if @run.reviewing_transactions? %>
+                      <%= form_with url: suggestion_auto_categorization_run_path(@run, suggestion, request.query_parameters), method: :patch, class: "flex items-center gap-2" do |form| %>
+                        <%= hidden_field_tag :suggestion_selected, "false" %>
+                        <%= check_box_tag :suggestion_selected, "true", suggestion.selected?, class: "checkbox checkbox--light" %>
+                        <%= select_tag :selected_category_id,
+                              options_for_select(@categories.map { |category| [ category.name, category.id ] }, suggestion.selected_category_id),
+                              include_blank: true,
+                              class: "form-field__input min-w-44" %>
+                        <button class="button button--secondary" type="submit">Save</button>
+                      <% end %>
+                    <% else %>
+                      <span class="text-primary"><%= suggestion.selected_category_name.presence || "No category selected" %></span>
+                    <% end %>
+                  </td>
+                  <td class="p-3"><%= suggestion.status.humanize %></td>
+                  <td class="p-3 text-right">
+                    <% if suggestion.reason.present? %>
+                      <span class="text-xs text-secondary"><%= suggestion.reason %></span>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <div class="p-8 text-center space-y-3">
+          <p class="text-sm text-secondary">No suggestions match these filters.</p>
+          <%= render DS::Link.new(text: "Clear filters", href: auto_categorization_run_path(@run, per_page: @per_page), variant: "outline") %>
+        </div>
+      <% end %>
+
+      <% if @pagy %>
+        <div class="p-4 border-t border-secondary">
+          <%= render "shared/pagination", pagy: @pagy %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>
+
+<% if @run.reviewing_transactions? %>
+  <%= content_for :footer do %>
+    <div class="fixed bottom-0 left-0 right-0 bg-container border-t border-secondary px-8 py-4">
+      <div class="max-w-6xl mx-auto flex items-center justify-between gap-4">
+        <div class="text-sm text-secondary">
+          <span class="font-medium text-primary"><%= @run.suggestions.selected.where.not(selected_category_id: nil).count %></span>
+          selected suggestions
+        </div>
+        <%= button_to "Apply selected", apply_auto_categorization_run_path(@run, request.query_parameters), method: :post, class: "button button--primary", disabled: @run.suggestions.selected.none? %>
+      </div>
+    </div>
+  <% end %>
+<% end %>

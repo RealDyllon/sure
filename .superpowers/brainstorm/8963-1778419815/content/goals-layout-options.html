@@ -1,0 +1,74 @@
+<h2>Goals Tab UX Options</h2>
+<p class="subtitle">Three possible shapes for the new main tab. Click one if a direction feels right; my recommendation is A.</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="border:1px solid #ddd;border-radius:10px;overflow:hidden;background:#fafafa">
+        <div style="padding:10px 12px;border-bottom:1px solid #e5e5e5;font-weight:600">Goals</div>
+        <div style="padding:12px;display:grid;gap:10px">
+          <div style="background:white;border:1px solid #e5e5e5;border-radius:8px;padding:12px">
+            <div style="display:flex;justify-content:space-between;gap:10px">
+              <strong>Financial Independence</strong><span>62%</span>
+            </div>
+            <div style="height:8px;background:#eee;border-radius:999px;margin-top:10px"><div style="height:8px;width:62%;background:#16a34a;border-radius:999px"></div></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px;font-size:11px;color:#666">
+              <div>Liquid bridge<br><strong>$420k</strong></div><div>CPF later<br><strong>$210k</strong></div><div>Target<br><strong>$1.2m</strong></div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="background:white;border:1px solid #e5e5e5;border-radius:8px;padding:10px">Emergency fund<br><strong>4.8 / 6 mo</strong></div>
+            <div style="background:white;border:1px solid #e5e5e5;border-radius:8px;padding:10px">Debt payoff<br><strong>18 mo left</strong></div>
+            <div style="background:white;border:1px solid #e5e5e5;border-radius:8px;padding:10px">Savings rate<br><strong>41%</strong></div>
+            <div style="background:white;border:1px solid #e5e5e5;border-radius:8px;padding:10px">Custom goal<br><strong>Add goal</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Goal Cards With FIRE Hero</h3>
+      <p>Goals opens directly to progress. FIRE is the large Singapore-aware hero card; the other goals are compact cards below. Best for a main tab users revisit often.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="border:1px solid #ddd;border-radius:10px;overflow:hidden;background:#fafafa">
+        <div style="padding:10px 12px;border-bottom:1px solid #e5e5e5;font-weight:600">Goals Setup</div>
+        <div style="padding:12px;display:grid;gap:10px">
+          <div style="background:white;border:1px solid #e5e5e5;border-radius:8px;padding:12px">
+            <strong>Confirm Singapore assumptions</strong>
+            <div style="margin-top:10px;display:grid;gap:7px;font-size:12px;color:#666">
+              <div style="height:24px;background:#f0f0f0;border-radius:6px"></div>
+              <div style="height:24px;background:#f0f0f0;border-radius:6px"></div>
+              <div style="height:24px;background:#f0f0f0;border-radius:6px"></div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end"><span style="background:#111;color:white;border-radius:7px;padding:7px 10px;font-size:12px">Calculate goals</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Setup Wizard First</h3>
+      <p>Users answer assumptions before seeing progress. More accurate, but the tab starts as form work instead of immediate insight.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="border:1px solid #ddd;border-radius:10px;overflow:hidden;background:#fafafa">
+        <div style="padding:10px 12px;border-bottom:1px solid #e5e5e5;font-weight:600">Goals</div>
+        <div style="padding:12px;display:grid;gap:8px">
+          <div style="background:white;border:1px solid #e5e5e5;border-radius:8px;padding:10px">Financial Independence ▾</div>
+          <div style="background:white;border:1px solid #e5e5e5;border-radius:8px;padding:10px">Emergency Fund ▾</div>
+          <div style="background:white;border:1px solid #e5e5e5;border-radius:8px;padding:10px">Debt Payoff ▾</div>
+          <div style="background:white;border:1px solid #e5e5e5;border-radius:8px;padding:10px">Savings Rate ▾</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Reports-Style Modular Sections</h3>
+      <p>Each goal is a collapsible/reorderable section like Reports. Flexible, but it feels analytical instead of action-oriented.</p>
+    </div>
+  </div>
+</div>

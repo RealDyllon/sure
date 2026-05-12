@@ -96,6 +96,26 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert_dom "#total-transactions", count: 1, text: "1"
   end
 
+  test "defaults transaction index pagination to 50 records per page" do
+    family = families(:empty)
+    sign_in users(:empty)
+    account = family.accounts.create! name: "Test", balance: 0, currency: "USD", accountable: Depository.new
+
+    60.times do |i|
+      create_transaction(
+        account: account,
+        name: "Default page size transaction #{i + 1}",
+        amount: 100 + i,
+        date: Date.current - i.days
+      )
+    end
+
+    get transactions_url
+
+    assert_response :success
+    assert_equal 50, css_select("turbo-frame[id^='entry_']").count
+  end
+
   test "can update notes on split child transaction" do
     parent = create_transaction(account: accounts(:depository), amount: 100)
     parent.split!([ { name: "Part 1", amount: 60, category_id: nil }, { name: "Part 2", amount: 40, category_id: nil } ])
