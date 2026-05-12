@@ -40,7 +40,7 @@ module Goals
       def sum_balances(accounts)
         fx_unavailable = false
         total = accounts.sum do |account|
-          converted_balance(account)
+          [ converted_balance(account), 0.to_d ].max
         rescue Money::ConversionError
           fx_unavailable = true
           0.to_d

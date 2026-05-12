@@ -73,6 +73,15 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     assert_includes result.review_prompts, :fx_unavailable
   end
 
+  test "debt payoff clamps credit-balance liabilities to zero" do
+    create_account(name: "Example Reliable Loan", balance: 12_000, accountable: Loan.new(subtype: "other"))
+    create_account(name: "Example Overpaid Card", balance: -750, accountable: CreditCard.new)
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert_equal BigDecimal("12000"), result.total_debt_money.amount
+  end
+
   test "savings rate calculates from recent income and expenses when history exists" do
     account = create_account(name: "Example Spending Account", balance: 5_000, accountable: Depository.new)
     create_transaction(account: account, name: "Example Salary", amount: -8_000, currency: "SGD", date: 1.month.ago)
@@ -130,6 +139,31 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     assert_equal BigDecimal("8000"), result.monthly_income_money.amount
     assert_equal BigDecimal("2000"), result.monthly_expenses_money.amount
     assert_equal BigDecimal("0.75"), result.savings_rate
+  end
+
+  test "savings rate excludes investment internal movement labels" do
+    account = create_account(name: "Example Spending Account", balance: 5_000, accountable: Depository.new)
+    create_transaction(account: account, name: "Example Salary", amount: -8_000, currency: "SGD", date: 1.month.ago)
+    create_transaction(account: account, name: "Example Groceries", amount: 2_000, currency: "SGD", date: 1.month.ago)
+    create_transaction(account: account, name: "Example Sweep In", amount: -9_000, currency: "SGD", date: 1.month.ago, investment_activity_label: "Sweep In")
+    create_transaction(account: account, name: "Example Exchange", amount: 7_000, currency: "SGD", date: 1.month.ago, investment_activity_label: "Exchange")
+
+    result = Goals::SavingsRateCalculator.new(user: @user, profile: @profile).call
+
+    assert_equal BigDecimal("8000"), result.monthly_income_money.amount
+    assert_equal BigDecimal("2000"), result.monthly_expenses_money.amount
+    assert_equal BigDecimal("0.75"), result.savings_rate
+  end
+
+  test "savings rate surfaces unavailable FX for unconverted cashflow" do
+    account = create_account(name: "Example Spending Account", balance: 5_000, accountable: Depository.new)
+    create_transaction(account: account, name: "Example Salary", amount: -8_000, currency: "SGD", date: 1.month.ago)
+    create_transaction(account: account, name: "Example Foreign Expense", amount: 1_000, currency: "USD", date: 1.month.ago)
+
+    result = Goals::SavingsRateCalculator.new(user: @user, profile: @profile).call
+
+    assert_equal BigDecimal("8000"), result.monthly_income_money.amount
+    assert_includes result.review_prompts, :fx_unavailable
   end
 
   test "savings rate returns metric-only state when no target can be inferred" do

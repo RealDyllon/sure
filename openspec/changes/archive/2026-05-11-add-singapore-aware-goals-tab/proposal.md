@@ -15,6 +15,7 @@ Users can see what happened in Reports and control monthly spending in Budgets, 
 - Support editable age/timeline assumptions and show a missing-age review state when an age-based timeline cannot be calculated.
 - Gate Singapore-specific prompts to Singapore planning mode, SGD/CPF-detected families, or users who explicitly enable Singapore assumptions.
 - Show non-blocking review prompts when important inputs cannot be inferred, such as SRS account mapping.
+- Tighten PR review-discovered edge cases: locked retirement investments do not default to FIRE bridge assets, explicit empty emergency-account selections are preserved, negative liability balances do not reduce debt, investment internal transfers do not affect savings rate, savings-rate FX gaps are surfaced, manual spending overrides are validated, and saved custom goals can be edited from the dashboard.
 - Avoid financial-advice language by presenting projections as estimates and scenarios.
 - No breaking changes.
 

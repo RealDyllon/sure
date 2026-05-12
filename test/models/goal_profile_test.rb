@@ -128,6 +128,15 @@ class GoalProfileTest < ActiveSupport::TestCase
     assert_equal 36_000, profile.annual_spending(inferred: 36_000)
   end
 
+  test "validates manual spending override as non-negative" do
+    profile = GoalProfile.find_or_create_for!(@user)
+
+    profile.annual_spending_override = -1
+
+    assert_not profile.valid?
+    assert_includes profile.errors[:annual_spending_override], "must be greater than or equal to 0"
+  end
+
   test "stores account-role overrides only for accounts included in the user's finances" do
     member = users(:family_member)
     shared_account = accounts(:depository)

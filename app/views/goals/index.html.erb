@@ -94,6 +94,46 @@
               of
               <span class="privacy-sensitive"><%= goal_result.target_money.format %></span>
             </p>
+            <%= form_with model: goal_result.goal, url: financial_goal_path(goal_result.goal), method: :patch, class: "grid gap-3 border-t border-divider pt-3" do |form| %>
+              <%= form.hidden_field :goal_type, value: "custom" %>
+
+              <div>
+                <%= form.label :name, "Goal name", class: "block text-sm text-secondary mb-1" %>
+                <%= form.text_field :name, class: "w-full bg-container border border-secondary rounded-lg px-3 py-2" %>
+              </div>
+
+              <div class="grid sm:grid-cols-3 gap-3">
+                <div>
+                  <%= form.label :target_amount, "Target amount", class: "block text-sm text-secondary mb-1" %>
+                  <%= form.number_field :target_amount, step: "0.01", class: "w-full bg-container border border-secondary rounded-lg px-3 py-2" %>
+                </div>
+                <div>
+                  <%= form.label :target_currency, "Currency", class: "block text-sm text-secondary mb-1" %>
+                  <%= form.text_field :target_currency, class: "w-full bg-container border border-secondary rounded-lg px-3 py-2" %>
+                </div>
+                <div>
+                  <%= form.label :target_date, "Target date", class: "block text-sm text-secondary mb-1" %>
+                  <%= form.date_field :target_date, class: "w-full bg-container border border-secondary rounded-lg px-3 py-2" %>
+                </div>
+              </div>
+
+              <fieldset class="space-y-2">
+                <legend class="text-sm text-secondary">Funding accounts</legend>
+                <% selected_account_ids = goal_result.goal.funding_account_ids_for(Current.user).to_set %>
+                <div class="grid sm:grid-cols-2 gap-2">
+                  <% @accounts.each do |account| %>
+                    <label class="flex items-center gap-2 text-sm text-primary">
+                      <%= check_box_tag "financial_goal[funding_account_ids][]", account.id, selected_account_ids.include?(account.id) %>
+                      <span><%= account.name %></span>
+                    </label>
+                  <% end %>
+                </div>
+              </fieldset>
+
+              <div>
+                <%= form.submit "Update goal", class: "px-3 py-2 bg-primary text-white rounded-lg" %>
+              </div>
+            <% end %>
             <% if goal_result.fx_unavailable? %>
               <p class="text-sm text-warning">Some balances need exchange rates before they can be included.</p>
             <% end %>

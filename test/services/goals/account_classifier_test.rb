@@ -106,6 +106,34 @@ class GoalsAccountClassifierTest < ActiveSupport::TestCase
     assert_includes result.fire_excluded_accounts, other_asset
   end
 
+  test "keeps locked retirement investments out of default bridge assets unless explicitly mapped" do
+    @family.update!(country: "US", currency: "USD")
+    @profile.update!(planning_region: "generic")
+    brokerage = create_account(name: "Example Brokerage", balance: 40_000, accountable: Investment.new(subtype: "brokerage"), currency: "USD")
+    retirement = create_account(name: "Example 401k", balance: 120_000, accountable: Investment.new(subtype: "401k"), currency: "USD")
+
+    default_result = Goals::AccountClassifier.new(user: @user, profile: @profile.reload).call
+
+    assert_includes default_result.fire_bridge_accounts, brokerage
+    assert_not_includes default_result.fire_bridge_accounts, retirement
+    assert_includes default_result.fire_excluded_accounts, retirement
+
+    @profile.set_fire_role!(retirement, "bridge", user: @user)
+    override_result = Goals::AccountClassifier.new(user: @user, profile: @profile.reload).call
+
+    assert_includes override_result.fire_bridge_accounts, retirement
+  end
+
+  test "preserves an explicit empty emergency account selection" do
+    cash = create_account(name: "Example Cash Account", balance: 25_000, accountable: Depository.new)
+    @profile.set_emergency_included_account_ids!([], user: @user)
+
+    result = Goals::AccountClassifier.new(user: @user, profile: @profile.reload).call
+
+    assert_includes result.fire_bridge_accounts, cash
+    assert_empty result.emergency_accounts
+  end
+
   test "surfaces unavailable FX for FIRE balances" do
     usd_account = create_account(name: "Example USD Brokerage", balance: 20_000, accountable: Investment.new(subtype: "brokerage"), currency: "USD")
 

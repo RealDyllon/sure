@@ -70,3 +70,14 @@
 - [x] 7.3 Run `bin/rails test` or the narrowest reliable test subset covering changed Rails areas.
 - [x] 7.4 Run `bin/rubocop` and fix offenses in changed Ruby files.
 - [x] 7.5 Confirm no `spec/requests/api/v1/` rswag files are required because this change adds no public API endpoint.
+
+## 8. PR #11 Review Follow-Up
+
+- [x] 8.1 Exclude delayed-access or tax-advantaged retirement investment accounts, such as 401(k), IRA, SIPP, RRSP, pension, and superannuation subtypes, from default FIRE bridge classification unless the user explicitly maps them.
+- [x] 8.2 Preserve an explicit empty emergency-fund account selection so a saved "no emergency accounts" override does not fall back to every cash-like account.
+- [x] 8.3 Clamp credit-balance liability accounts to zero in debt payoff totals so overpaid cards or loans do not reduce remaining debt.
+- [x] 8.4 Exclude investment internal-movement activity labels (`Transfer`, `Sweep In`, `Sweep Out`, `Exchange`) from savings-rate income and expense totals.
+- [x] 8.5 Surface unavailable FX in savings-rate calculations instead of silently treating unconverted cashflow as zero.
+- [x] 8.6 Validate manual annual spending overrides as numeric and non-negative before saving assumptions.
+- [x] 8.7 Provide a dashboard edit path for saved custom goals that submits through the existing update route without forcing users to archive and recreate goals.
+- [ ] 8.8 Reply to and resolve the seven PR #11 review threads after implementation and verification.

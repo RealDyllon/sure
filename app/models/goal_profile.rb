@@ -9,6 +9,7 @@ class GoalProfile < ApplicationRecord
   validates :planning_region, inclusion: { in: PLANNING_REGIONS }, allow_blank: true
   validates :withdrawal_rate, numericality: { greater_than: 0 }
   validates :expected_return, :inflation_rate, numericality: true
+  validates :annual_spending_override, numericality: { greater_than_or_equal_to: 0 }, allow_blank: true
   validates :emergency_fund_months, :cpf_access_age, :cpf_life_age, :srs_access_age,
     numericality: { only_integer: true, greater_than: 0 }
   validates :current_age, numericality: { only_integer: true, greater_than: 0 }, allow_blank: true
@@ -73,6 +74,10 @@ class GoalProfile < ApplicationRecord
   def emergency_account_ids
     valid_ids = valid_finance_account_ids(user).to_set
     raw_emergency_account_ids.select { |account_id| valid_ids.include?(account_id) }
+  end
+
+  def emergency_account_ids_overridden?
+    account_role_overrides.key?("emergency_account_ids")
   end
 
   def update_account_role_overrides!(user:, fire_roles:, emergency_account_ids:)

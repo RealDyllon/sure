@@ -1,5 +1,11 @@
 module Goals
   class AccountClassifier
+    LOCKED_RETIREMENT_INVESTMENT_SUBTYPES = %w[
+      401k roth_401k 403b 457b tsp ira roth_ira sep_ira simple_ira
+      sipp workplace_pension_uk rrsp dpsp prpp lira rrif lif lrif prif rlif
+      super smsf pension retirement pillar_3a riester nps apy ppf ssy
+    ].freeze
+
     Result = Data.define(
       :fire_bridge_accounts,
       :fire_later_accounts,
@@ -79,7 +85,9 @@ module Goals
 
       def emergency_accounts
         explicit_ids = profile.emergency_account_ids.to_set
-        return accounts.select { |account| explicit_ids.include?(account.id) && emergency_account?(account) } if explicit_ids.any?
+        if profile.emergency_account_ids_overridden?
+          return accounts.select { |account| explicit_ids.include?(account.id) && emergency_account?(account) }
+        end
 
         accounts.select { |account| emergency_account?(account) }
       end
@@ -113,11 +121,18 @@ module Goals
       end
 
       def default_bridge_account?(account)
-        asset_account?(account) && %w[Depository Investment Crypto].include?(account.accountable_type)
+        asset_account?(account) &&
+          %w[Depository Investment Crypto].include?(account.accountable_type) &&
+          !locked_retirement_investment?(account)
       end
 
       def emergency_account?(account)
         asset_account?(account) && account.accountable_type == "Depository"
+      end
+
+      def locked_retirement_investment?(account)
+        account.accountable_type == "Investment" &&
+          LOCKED_RETIREMENT_INVESTMENT_SUBTYPES.include?(account.subtype.to_s)
       end
 
       def sum_balances(selected_accounts)

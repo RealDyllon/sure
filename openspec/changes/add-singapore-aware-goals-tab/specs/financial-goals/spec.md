@@ -53,6 +53,10 @@ The system SHALL calculate the Financial Independence goal using Singapore-aware
 - **WHEN** the user has included finance accounts that are not classified as CPF/SRS later retirement assets or excluded from goals
 - **THEN** the system classifies eligible liquid accounts into the bridge bucket by default
 
+#### Scenario: Locked retirement investments are not bridge defaults
+- **WHEN** the user has included tax-deferred, tax-exempt, or tax-advantaged retirement investment accounts such as 401(k), IRA, SIPP, RRSP, pension, or superannuation subtypes
+- **THEN** the system excludes those accounts from the default liquid bridge bucket unless the user explicitly maps them to bridge
+
 #### Scenario: FIRE progress shows bucket split
 - **WHEN** the Financial Independence goal is shown on the dashboard or detail view
 - **THEN** the system shows both liquid bridge progress and CPF/SRS later-bucket progress in addition to the headline FI progress
@@ -90,6 +94,10 @@ The system SHALL allow users to review and override assumptions and account buck
 #### Scenario: User edits FIRE assumptions
 - **WHEN** a user changes planning region, current age or birth year, annual spending, withdrawal rate, expected return, inflation, CPF access age, CPF LIFE age, or SRS access age
 - **THEN** the system persists those assumptions and recalculates Financial Independence progress using the updated values
+
+#### Scenario: Manual spending override is invalid
+- **WHEN** a user enters a negative or non-numeric annual spending override
+- **THEN** the system rejects the assumption update with validation feedback and keeps calculators from using the invalid value
 
 #### Scenario: User changes FIRE account role
 - **WHEN** a user assigns an account to the bridge bucket, CPF/SRS later bucket, or excluded FIRE bucket
@@ -145,6 +153,10 @@ The system SHALL calculate emergency fund progress from cash-like included accou
 - **WHEN** a user includes or excludes accounts from the emergency fund calculation
 - **THEN** the system recalculates the emergency fund goal using the updated account set
 
+#### Scenario: Emergency account inclusion can be explicitly empty
+- **WHEN** a user saves emergency-fund account treatment with no emergency accounts selected
+- **THEN** the system treats that empty selection as an explicit override and does not fall back to all cash-like accounts
+
 #### Scenario: Emergency fund explains shared cash usage
 - **WHEN** an emergency-fund account also counts as FIRE bridge liquidity
 - **THEN** the system explains that the same account is being viewed through both goal calculations and is not double-counted within a single calculation
@@ -160,6 +172,10 @@ The system SHALL show debt payoff progress using included liability accounts onl
 - **WHEN** a liability account balance represents available credit or another value that is not debt owed
 - **THEN** the system excludes that account from payoff math and shows a review or unavailable state for that account
 
+#### Scenario: Debt payoff ignores credit-balance liabilities
+- **WHEN** a liability account has a negative balance because the account is overpaid or carries a credit
+- **THEN** the system treats that account as zero debt owed instead of subtracting it from other debt balances
+
 #### Scenario: Debt payoff estimates months when possible
 - **WHEN** sufficient payment information is available for liabilities
 - **THEN** the system shows an estimated payoff duration
@@ -174,6 +190,14 @@ The system SHALL calculate a rolling savings rate from income and expense data a
 #### Scenario: Savings rate uses recent periods
 - **WHEN** the user has recent income and expense data
 - **THEN** the system calculates and displays a rolling savings rate using recent periods
+
+#### Scenario: Savings rate excludes investment internal movements
+- **WHEN** recent investment cash transactions have internal-movement activity labels such as Transfer, Sweep In, Sweep Out, or Exchange
+- **THEN** the system excludes those entries from savings-rate income and expense totals
+
+#### Scenario: Savings rate surfaces unavailable FX
+- **WHEN** recent income or expense entries require a missing exchange rate
+- **THEN** the system adds a non-blocking unavailable-FX review prompt instead of silently treating the entry as zero
 
 #### Scenario: Savings rate handles missing income
 - **WHEN** recent income is zero or unavailable
@@ -205,6 +229,10 @@ The system SHALL allow users to create custom goals with a target amount, option
 #### Scenario: Custom goal can be updated or archived
 - **WHEN** a user edits or archives a custom goal
 - **THEN** the system updates the dashboard to reflect the changed custom goal state
+
+#### Scenario: Saved custom goal exposes an edit path
+- **WHEN** the Goals dashboard lists an existing custom goal
+- **THEN** the system provides an edit form or link that lets the user update the goal target, date, currency, and funding accounts without archiving and recreating it
 
 ### Requirement: Goals copy is estimation-oriented
 The system SHALL present goal outputs as estimates and planning scenarios rather than prescriptive financial advice.

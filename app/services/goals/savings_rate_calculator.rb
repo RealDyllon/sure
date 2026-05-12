@@ -17,11 +17,13 @@ module Goals
     end
 
     def call
-      income, expenses, months = recent_income_expenses
+      income, expenses, months, fx_unavailable = recent_income_expenses
       monthly_income = months.positive? ? income / months : 0.to_d
       monthly_expenses = months.positive? ? expenses / months : 0.to_d
       rate = monthly_income.positive? ? (monthly_income - monthly_expenses) / monthly_income : nil
-      prompts = rate.nil? ? [ :insufficient_history ] : []
+      prompts = []
+      prompts << :insufficient_history if rate.nil?
+      prompts << :fx_unavailable if fx_unavailable
 
       Result.new(
         monthly_income_money: money(monthly_income),
@@ -37,22 +39,30 @@ module Goals
 
       def recent_income_expenses
         account_ids = user.finance_accounts.visible.pluck(:id)
-        return [ 0.to_d, 0.to_d, 0 ] if account_ids.empty?
+        return [ 0.to_d, 0.to_d, 0, false ] if account_ids.empty?
 
         entries = Entry.where(account_id: account_ids, entryable_type: "Transaction")
           .joins("INNER JOIN transactions ON transactions.id = entries.entryable_id")
           .excluding_pending
           .where(excluded: false)
           .where.not(transactions: { kind: Transaction::BUDGET_EXCLUDED_KINDS })
+          .where("transactions.investment_activity_label IS NULL OR transactions.investment_activity_label NOT IN (?)", Transaction::INTERNAL_MOVEMENT_LABELS)
           .where("date >= ?", 3.months.ago.to_date)
 
         income = 0.to_d
         expenses = 0.to_d
         active_months = Set.new
+        fx_unavailable = false
 
         entries.find_each do |entry|
           active_months << entry.date.beginning_of_month if entry.date
-          amount = converted_entry_amount(entry)
+          amount = begin
+            converted_entry_amount(entry)
+          rescue Money::ConversionError
+            fx_unavailable = true
+            0.to_d
+          end
+
           if budget_expense_transfer?(entry)
             expenses += amount.abs
           elsif amount.negative?
@@ -62,7 +72,7 @@ module Goals
           end
         end
 
-        [ income, expenses, active_months.count ]
+        [ income, expenses, active_months.count, fx_unavailable ]
       end
 
       def budget_expense_transfer?(entry)
@@ -73,8 +83,6 @@ module Goals
         return entry.amount.to_d if entry.currency == family.currency
 
         Money.new(entry.amount, entry.currency).exchange_to(family.currency, date: entry.date).amount
-      rescue Money::ConversionError
-        0.to_d
       end
 
       def target_available?

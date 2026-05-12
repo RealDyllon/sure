@@ -103,6 +103,14 @@ The new Goals tab should be a planning surface, not a replacement for Reports. R
 
    Use the app's Tailwind theme and existing component conventions: `bg-container`, `shadow-border-xs`, compact summary cards, `DS::Link`/button styles, `privacy-sensitive` on financial amounts, Lucide icons through the existing icon helper, and responsive grids similar to Reports/Budgets. The wireframes from brainstorming are structure only, not visual styling.
 
+10. Tighten review-discovered default classifications and overrides.
+
+   Default FIRE bridge assets must remain liquid and available for pre-retirement use. CPF/SRS-style accounts are already delayed-access in Singapore mode; generic planning must apply the same conservative treatment to tax-deferred, tax-exempt, and tax-advantaged retirement investment subtypes such as 401(k), IRA, SIPP, RRSP, pension, and superannuation. Those accounts should not satisfy bridge requirements unless the user explicitly maps them. Emergency-fund account overrides must distinguish "no override saved" from "override saved with no valid accounts" so users can intentionally exclude every cash account. Debt payoff must clamp negative liability balances to zero because credits are not debt owed. Savings-rate math must match income-statement exclusions for investment internal movements and must surface unavailable FX as a review prompt instead of silently dropping cashflow.
+
+11. Make saved custom goals editable from the dashboard.
+
+   The controller already supports `FinancialGoalsController#update`, so the dashboard should expose an edit path for existing custom goals. The first implementation can use an inline edit form per saved custom goal, reusing the create fields and funding-account checkboxes while keeping the archive action available. This avoids adding a separate page or modal solely for v1 editing and keeps the workflow discoverable.
+
 ## Risks / Trade-offs
 
 - CPF/SRS estimates may be mistaken or incomplete -> Show assumptions prominently, mark uncertain mappings, and allow users to override account roles and ages.
@@ -112,6 +120,7 @@ The new Goals tab should be a planning surface, not a replacement for Reports. R
 - Account mappings can become stale when sharing changes -> Validate persisted account IDs against `Current.user.finance_accounts` on every read/write and ignore deleted or no-longer-included accounts.
 - Multi-currency targets and accounts can be misleading -> Store target currency, normalize calculations to family currency, and show review states when exchange rates are unavailable.
 - Recent spending may be noisy -> Label the spending basis and allow manual annual-spend override.
+- Manual spending overrides can be nonsensical if negative -> Validate overrides as numeric and non-negative at the model layer before calculators consume them.
 - Shared-family/account access can produce confusing totals -> Scope calculations to the current user's finance accounts using existing account inclusion rules.
 - More persisted models increase migration scope -> Keep v1 persistence focused on assumptions and custom goals; computed defaults remain virtual.
 - Financial planning copy can sound like advice -> Use "estimated", "scenario", "based on current data", and "review assumptions"; avoid prescriptive recommendations.

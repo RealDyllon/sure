@@ -31,6 +31,29 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-testid='fire-hero']"
   end
 
+  test "dashboard renders an edit form for saved custom goals" do
+    goal = FinancialGoal.create!(
+      family: @family,
+      user: @user,
+      goal_type: "custom",
+      name: "Example Existing Goal",
+      target_amount: 12_000,
+      target_currency: "USD",
+      target_date: 1.year.from_now.to_date
+    )
+
+    get goals_path
+
+    assert_response :ok
+    assert_select "form[action='#{financial_goal_path(goal)}']" do
+      assert_select "input[name='_method'][value='patch']"
+      assert_select "input[name='financial_goal[name]'][value='Example Existing Goal']"
+      assert_select "input[name='financial_goal[target_amount]'][value='12000.0']"
+      assert_select "input[name='financial_goal[target_currency]'][value='USD']"
+      assert_select "input[type='submit'][value='Update goal']"
+    end
+  end
+
   test "dashboard renders review prompts and supports skipping the SRS prompt" do
     @family.update!(country: "SG", currency: "SGD")
     @family.accounts.create!(
