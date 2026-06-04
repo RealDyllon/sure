@@ -86,4 +86,4 @@
 - [x] 8.11 Reject future birth years and percentage assumptions outside their normalized valid ranges.
 - [x] 8.12 Persist intentionally saved FIRE scenarios, including annual contribution, while keeping preview non-persistent.
 - [x] 8.13 Add an explicit `srs_later` account role so renamed SRS accounts use SRS access age.
-- [ ] 8.14 Reply to and resolve the seven current unresolved PR #11 review threads after implementation and verification.
+- [x] 8.14 Reply to and resolve the seven current unresolved PR #11 review threads after implementation and verification.
