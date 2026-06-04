@@ -155,6 +155,35 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     assert_equal BigDecimal("0.75"), result.savings_rate
   end
 
+  test "savings rate excludes tax-advantaged account activity" do
+    spending_account = create_account(name: "Example Spending Account", balance: 5_000, accountable: Depository.new)
+    retirement_account = create_account(name: "Example 401k Account", balance: 100_000, accountable: Investment.new(subtype: "401k"))
+    @family.instance_variable_set(:@tax_advantaged_account_ids, nil)
+
+    create_transaction(account: spending_account, name: "Example Salary", amount: -8_000, currency: "SGD", date: 1.month.ago)
+    create_transaction(account: spending_account, name: "Example Groceries", amount: 2_000, currency: "SGD", date: 1.month.ago)
+    create_transaction(account: retirement_account, name: "Example Retirement Dividend", amount: -20_000, currency: "SGD", date: 1.month.ago)
+    create_transaction(account: retirement_account, name: "Example Retirement Fee", amount: 1_000, currency: "SGD", date: 1.month.ago)
+
+    result = Goals::SavingsRateCalculator.new(user: @user, profile: @profile).call
+
+    assert_equal BigDecimal("8000"), result.monthly_income_money.amount
+    assert_equal BigDecimal("2000"), result.monthly_expenses_money.amount
+    assert_equal BigDecimal("0.75"), result.savings_rate
+  end
+
+  test "savings rate exposes target and progress" do
+    @profile.update!(savings_rate_target: 0.5)
+    account = create_account(name: "Example Spending Account", balance: 5_000, accountable: Depository.new)
+    create_transaction(account: account, name: "Example Salary", amount: -8_000, currency: "SGD", date: 1.month.ago)
+    create_transaction(account: account, name: "Example Groceries", amount: 2_000, currency: "SGD", date: 1.month.ago)
+
+    result = Goals::SavingsRateCalculator.new(user: @user, profile: @profile.reload).call
+
+    assert_equal BigDecimal("0.5"), result.target_rate
+    assert_equal BigDecimal("1.5"), result.target_progress
+  end
+
   test "savings rate surfaces unavailable FX for unconverted cashflow" do
     account = create_account(name: "Example Spending Account", balance: 5_000, accountable: Depository.new)
     create_transaction(account: account, name: "Example Salary", amount: -8_000, currency: "SGD", date: 1.month.ago)

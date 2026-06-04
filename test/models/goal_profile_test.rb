@@ -107,6 +107,37 @@ class GoalProfileTest < ActiveSupport::TestCase
     assert_equal BigDecimal("0.02"), profile.inflation_rate
   end
 
+  test "rejects future birth years" do
+    profile = GoalProfile.find_or_create_for!(@user)
+
+    profile.birth_year = Date.current.year + 1
+
+    assert_not profile.valid?
+    assert_includes profile.errors[:birth_year], "must be less than or equal to #{Date.current.year}"
+  end
+
+  test "rejects impossible percentage assumptions after normalization" do
+    profile = GoalProfile.find_or_create_for!(@user)
+
+    {
+      withdrawal_rate: "150",
+      expected_return: "150",
+      inflation_rate: "150",
+      savings_rate_target: "150"
+    }.each do |field, value|
+      profile.assign_attributes(
+        withdrawal_rate: 0.04,
+        expected_return: 0.05,
+        inflation_rate: 0.02,
+        savings_rate_target: 0.5
+      )
+      profile[field] = value
+
+      assert_not profile.valid?, "#{field} should reject #{value}"
+      assert_includes profile.errors[field], "must be less than or equal to 1"
+    end
+  end
+
   test "persists skipped prompts" do
     profile = GoalProfile.find_or_create_for!(@user)
 
@@ -153,14 +184,14 @@ class GoalProfileTest < ActiveSupport::TestCase
     profile.update_account_role_overrides!(
       user: member,
       fire_roles: {
-        shared_account.id => "bridge",
+        shared_account.id => "srs_later",
         private_account.id => "later",
         other_family_account.id => "excluded"
       },
       emergency_account_ids: [ shared_account.id, private_account.id, other_family_account.id ]
     )
 
-    assert_equal({ shared_account.id => "bridge" }, profile.reload.fire_role_overrides)
+    assert_equal({ shared_account.id => "srs_later" }, profile.reload.fire_role_overrides)
     assert_equal [ shared_account.id ], profile.emergency_account_ids
   end
 

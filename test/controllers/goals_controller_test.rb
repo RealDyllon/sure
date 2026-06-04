@@ -1,6 +1,8 @@
 require "test_helper"
 
 class GoalsControllerTest < ActionDispatch::IntegrationTest
+  include EntriesTestHelper
+
   setup do
     sign_in @user = users(:family_admin)
     @family = @user.family
@@ -76,6 +78,31 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     assert GoalProfile.find_by!(user: @user).prompt_skipped?("srs")
   end
 
+  test "dashboard renders savings rate target and unavailable FX warning" do
+    @family.update!(country: "SG", currency: "SGD")
+    @family.accounts.update_all(status: "disabled")
+    profile = GoalProfile.find_or_create_for!(@user)
+    profile.update!(savings_rate_target: 0.5)
+    account = @family.accounts.create!(
+      owner: @user,
+      name: "Example Spending Account",
+      balance: 5_000,
+      cash_balance: 5_000,
+      currency: "SGD",
+      accountable: Depository.new
+    )
+    create_transaction(account: account, name: "Example Salary", amount: -8_000, currency: "SGD", date: 1.month.ago)
+    create_transaction(account: account, name: "Example Groceries", amount: 2_000, currency: "SGD", date: 1.month.ago)
+    create_transaction(account: account, name: "Example Foreign Expense", amount: 1_000, currency: "USD", date: 1.month.ago)
+
+    get goals_path
+
+    assert_response :ok
+    assert_select "article", text: /Savings rate.*Target: 50%/m
+    assert_select "article", text: /Savings rate.*Progress: 150%/m
+    assert_select "article", text: /Savings rate.*Some cashflow needs exchange rates/m
+  end
+
   test "FIRE detail renders assumptions and timeline" do
     get goals_fire_path
 
@@ -92,6 +119,8 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name='goal_profile[birth_year]']"
     assert_select "input[name='goal_profile[cpf_life_age]']"
     assert_select "input[name='goal_profile[savings_rate_target]']"
+    assert_select "input[name='goal_profile[annual_contribution]']"
+    assert_select "option[value='srs_later']", text: "Later (SRS)"
   end
 
   test "assumption updates persist profile changes" do
@@ -100,6 +129,7 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
         planning_region: "singapore",
         current_age: 38,
         annual_spending_override: 72_000,
+        annual_contribution: 18_000,
         withdrawal_rate: 3.5,
         cpf_access_age: 55,
         srs_access_age: 63,
@@ -112,6 +142,7 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "singapore", profile.planning_region
     assert_equal 38, profile.current_age
     assert_equal BigDecimal("72000"), profile.annual_spending_override
+    assert_equal BigDecimal("18000"), profile.annual_contribution
     assert_equal BigDecimal("0.035"), profile.withdrawal_rate
     assert_equal 9, profile.emergency_fund_months
   end
@@ -171,11 +202,31 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
 
   test "scenario preview does not save assumptions" do
     profile = GoalProfile.find_or_create_for!(@user)
-    profile.update!(annual_spending_override: 48_000)
+    profile.update!(annual_spending_override: 48_000, annual_contribution: 12_000)
 
-    post preview_goals_fire_path, params: { scenario: { annual_spending: 60_000, withdrawal_rate: 3.5 } }
+    post preview_goals_fire_path, params: { scenario: { annual_spending: 60_000, withdrawal_rate: 3.5, annual_contribution: 24_000 } }
 
     assert_response :ok
     assert_equal BigDecimal("48000"), profile.reload.annual_spending_override
+    assert_equal BigDecimal("12000"), profile.annual_contribution
+  end
+
+  test "scenario save persists assumptions" do
+    profile = GoalProfile.find_or_create_for!(@user)
+    profile.update!(annual_spending_override: 48_000, withdrawal_rate: 0.04, annual_contribution: 12_000)
+
+    post save_scenario_goals_fire_path, params: {
+      scenario: {
+        annual_spending: 60_000,
+        withdrawal_rate: 3.5,
+        annual_contribution: 24_000
+      }
+    }
+
+    assert_redirected_to goals_fire_path
+    profile.reload
+    assert_equal BigDecimal("60000"), profile.annual_spending_override
+    assert_equal BigDecimal("0.035"), profile.withdrawal_rate
+    assert_equal BigDecimal("24000"), profile.annual_contribution
   end
 end

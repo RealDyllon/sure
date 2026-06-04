@@ -42,7 +42,7 @@ The new Goals tab should be a planning surface, not a replacement for Reports. R
 
 2. Store user-specific goal assumptions in a profile record.
 
-   Add a `GoalProfile` or similarly named model scoped to `family_id` and `user_id`. Store editable assumptions such as planning region, current age or birth year, annual spending override, withdrawal rate, expected return, inflation, emergency-fund months, CPF access age, CPF LIFE age, SRS access age, skipped review prompts, and account role overrides. Store manual overrides separately from live inferred defaults so auto-first values continue to update until the user explicitly overrides them. This avoids overloading `User#preferences` with important planning state and keeps assumptions queryable/testable. The alternative was JSON-only preferences; that is cheaper initially but harder to validate, evolve, and test.
+   Add a `GoalProfile` or similarly named model scoped to `family_id` and `user_id`. Store editable assumptions such as planning region, current age or birth year, annual spending override, annual contribution, withdrawal rate, expected return, inflation, savings-rate target, emergency-fund months, CPF access age, CPF LIFE age, SRS access age, skipped review prompts, and account role overrides. Store manual overrides separately from live inferred defaults so auto-first values continue to update until the user explicitly overrides them. This avoids overloading `User#preferences` with important planning state and keeps assumptions queryable/testable. The alternative was JSON-only preferences; that is cheaper initially but harder to validate, evolve, and test.
 
 3. Represent custom goals separately from computed default goals.
 
@@ -68,7 +68,7 @@ The new Goals tab should be a planning surface, not a replacement for Reports. R
    - CPF later bucket from investment accounts with CPF subtypes.
    - Liquid bridge bucket from included taxable investment, cash, and other liquid asset accounts unless overridden.
    - Emergency-fund inclusion from cash-like depository accounts unless overridden.
-   - SRS only from explicit user mapping until an SRS subtype exists.
+   - SRS only from explicit user mapping until an SRS subtype exists. The explicit mapping should distinguish generic later assets from `srs_later` assets so renamed SRS accounts still use the SRS access age.
 
    FIRE bucket roles and goal-specific inclusions are separate concepts. Each account has at most one FIRE role (`bridge`, `later`, or `excluded`), while emergency fund and custom goals maintain their own account inclusion sets. Emergency cash can therefore appear in the emergency-fund card and still count as bridge liquidity for FIRE, with copy clarifying that the views answer different questions and do not create new money. Users must be able to override account roles. This preserves Singapore-aware defaults without silently misclassifying important assets. The alternative was to add an SRS subtype immediately and rely on subtype inference, but existing data may still need mapping and some users may hold SRS in accounts that do not fit a new subtype cleanly.
 
@@ -105,9 +105,13 @@ The new Goals tab should be a planning surface, not a replacement for Reports. R
 
 10. Tighten review-discovered default classifications and overrides.
 
-   Default FIRE bridge assets must remain liquid and available for pre-retirement use. CPF/SRS-style accounts are already delayed-access in Singapore mode; generic planning must apply the same conservative treatment to tax-deferred, tax-exempt, and tax-advantaged retirement investment subtypes such as 401(k), IRA, SIPP, RRSP, pension, and superannuation. Those accounts should not satisfy bridge requirements unless the user explicitly maps them. Emergency-fund account overrides must distinguish "no override saved" from "override saved with no valid accounts" so users can intentionally exclude every cash account. Debt payoff must clamp negative liability balances to zero because credits are not debt owed. Savings-rate math must match income-statement exclusions for investment internal movements and must surface unavailable FX as a review prompt instead of silently dropping cashflow.
+   Default FIRE bridge assets must remain liquid and available for pre-retirement use. CPF/SRS-style accounts are already delayed-access in Singapore mode; generic planning must apply the same conservative treatment to tax-deferred, tax-exempt, and tax-advantaged retirement investment subtypes such as 401(k), IRA, SIPP, RRSP, pension, and superannuation. Those accounts should not satisfy bridge requirements unless the user explicitly maps them. Emergency-fund account overrides must distinguish "no override saved" from "override saved with no valid accounts" so users can intentionally exclude every cash account. Debt payoff must clamp negative liability balances to zero because credits are not debt owed. Savings-rate math must match income-statement exclusions for investment internal movements and tax-advantaged account activity, expose configured savings-rate targets and progress, and surface unavailable FX as a review prompt on the dashboard instead of silently dropping cashflow.
 
-11. Make saved custom goals editable from the dashboard.
+11. Persist intentionally saved FIRE scenarios.
+
+   Scenario preview must remain non-persistent, but the FIRE detail view also needs an explicit save path for assumptions the user chooses to keep. Saving a scenario should persist annual spending override, withdrawal rate, and annual contribution to the `GoalProfile`; preview should continue to pass temporary values to `Goals::FireCalculator` without changing the profile. This keeps exploration lightweight while making deliberate scenario changes durable.
+
+12. Make saved custom goals editable from the dashboard.
 
    The controller already supports `FinancialGoalsController#update`, so the dashboard should expose an edit path for existing custom goals. The first implementation can use an inline edit form per saved custom goal, reusing the create fields and funding-account checkboxes while keeping the archive action available. This avoids adding a separate page or modal solely for v1 editing and keeps the workflow discoverable.
 

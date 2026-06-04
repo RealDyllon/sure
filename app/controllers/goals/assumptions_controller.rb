@@ -27,6 +27,7 @@ module Goals
           :current_age,
           :birth_year,
           :annual_spending_override,
+          :annual_contribution,
           :withdrawal_rate,
           :expected_return,
           :inflation_rate,

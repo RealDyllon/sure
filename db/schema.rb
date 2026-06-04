@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_10_120300) do
+ActiveRecord::Schema[7.2].define(version: 2026_06_04_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -757,6 +757,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_120300) do
     t.integer "current_age"
     t.integer "birth_year"
     t.decimal "annual_spending_override", precision: 19, scale: 4
+    t.decimal "annual_contribution", precision: 19, scale: 4, default: "0.0", null: false
     t.decimal "withdrawal_rate", precision: 10, scale: 6, default: "0.04", null: false
     t.decimal "expected_return", precision: 10, scale: 6, default: "0.05", null: false
     t.decimal "inflation_rate", precision: 10, scale: 6, default: "0.02", null: false

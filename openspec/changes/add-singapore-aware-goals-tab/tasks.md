@@ -81,3 +81,9 @@
 - [x] 8.6 Validate manual annual spending overrides as numeric and non-negative before saving assumptions.
 - [x] 8.7 Provide a dashboard edit path for saved custom goals that submits through the existing update route without forcing users to archive and recreate goals.
 - [x] 8.8 Reply to and resolve the seven PR #11 review threads after implementation and verification.
+- [x] 8.9 Exclude tax-advantaged account activity from savings-rate cashflow totals.
+- [x] 8.10 Render savings-rate unavailable-FX warnings and configured target/progress on the dashboard.
+- [x] 8.11 Reject future birth years and percentage assumptions outside their normalized valid ranges.
+- [x] 8.12 Persist intentionally saved FIRE scenarios, including annual contribution, while keeping preview non-persistent.
+- [x] 8.13 Add an explicit `srs_later` account role so renamed SRS accounts use SRS access age.
+- [ ] 8.14 Reply to and resolve the seven current unresolved PR #11 review threads after implementation and verification.

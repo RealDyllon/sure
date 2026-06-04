@@ -4,6 +4,8 @@ module Goals
       :monthly_income_money,
       :monthly_expenses_money,
       :savings_rate,
+      :target_rate,
+      :target_progress,
       :target_available,
       :review_prompts
     ) do
@@ -21,6 +23,8 @@ module Goals
       monthly_income = months.positive? ? income / months : 0.to_d
       monthly_expenses = months.positive? ? expenses / months : 0.to_d
       rate = monthly_income.positive? ? (monthly_income - monthly_expenses) / monthly_income : nil
+      target = target_rate
+      target_progress = target.present? && target.positive? && rate.present? ? rate / target : nil
       prompts = []
       prompts << :insufficient_history if rate.nil?
       prompts << :fx_unavailable if fx_unavailable
@@ -29,6 +33,8 @@ module Goals
         monthly_income_money: money(monthly_income),
         monthly_expenses_money: money(monthly_expenses),
         savings_rate: rate,
+        target_rate: target,
+        target_progress: target_progress,
         target_available: target_available?,
         review_prompts: prompts
       )
@@ -39,6 +45,8 @@ module Goals
 
       def recent_income_expenses
         account_ids = user.finance_accounts.visible.pluck(:id)
+        tax_advantaged_account_ids = family.tax_advantaged_account_ids
+        account_ids -= tax_advantaged_account_ids if tax_advantaged_account_ids.present?
         return [ 0.to_d, 0.to_d, 0, false ] if account_ids.empty?
 
         entries = Entry.where(account_id: account_ids, entryable_type: "Transaction")
@@ -87,6 +95,10 @@ module Goals
 
       def target_available?
         profile.savings_rate_target.present? || profile.annual_spending_override.present?
+      end
+
+      def target_rate
+        profile.savings_rate_target&.to_d
       end
 
       def money(amount)

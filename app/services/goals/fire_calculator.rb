@@ -79,7 +79,7 @@ module Goals
       end
 
       def annual_contribution
-        (scenario[:annual_contribution].presence || 0).to_d
+        (scenario[:annual_contribution].presence || profile.annual_contribution || 0).to_d
       end
 
       def estimate_years_to_fi(classifier)
@@ -113,7 +113,7 @@ module Goals
       end
 
       def srs_account?(account)
-        account.name.to_s.match?(/\bsrs\b/i)
+        profile.fire_role_overrides[account.id] == "srs_later" || account.name.to_s.match?(/\bsrs\b/i)
       end
 
       def progress(amount, target)

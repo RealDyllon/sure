@@ -1,19 +1,21 @@
 class GoalProfile < ApplicationRecord
   PLANNING_REGIONS = %w[generic singapore].freeze
-  FIRE_ROLES = %w[bridge later excluded].freeze
+  FIRE_ROLES = %w[bridge later srs_later excluded].freeze
   UUID_PATTERN = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i
 
   belongs_to :family
   belongs_to :user
 
   validates :planning_region, inclusion: { in: PLANNING_REGIONS }, allow_blank: true
-  validates :withdrawal_rate, numericality: { greater_than: 0 }
-  validates :expected_return, :inflation_rate, numericality: true
+  validates :withdrawal_rate, numericality: { greater_than: 0, less_than_or_equal_to: 1 }
+  validates :expected_return, :inflation_rate, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 1 }
+  validates :savings_rate_target, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 1 }, allow_blank: true
   validates :annual_spending_override, numericality: { greater_than_or_equal_to: 0 }, allow_blank: true
+  validates :annual_contribution, numericality: { greater_than_or_equal_to: 0 }
   validates :emergency_fund_months, :cpf_access_age, :cpf_life_age, :srs_access_age,
     numericality: { only_integer: true, greater_than: 0 }
   validates :current_age, numericality: { only_integer: true, greater_than: 0 }, allow_blank: true
-  validates :birth_year, numericality: { only_integer: true, greater_than: 1900 }, allow_blank: true
+  validates :birth_year, numericality: { only_integer: true, greater_than: 1900, less_than_or_equal_to: ->(_profile) { Date.current.year } }, allow_blank: true
 
   before_validation :normalize_percentage_fields
 

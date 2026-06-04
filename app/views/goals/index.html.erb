@@ -73,6 +73,15 @@
       <% else %>
         <p class="text-sm text-secondary">Insufficient recent history</p>
       <% end %>
+      <% if @dashboard.savings_rate.target_rate %>
+        <p class="text-sm text-secondary">Target: <%= number_to_percentage(@dashboard.savings_rate.target_rate * 100, precision: 0) %></p>
+      <% end %>
+      <% if @dashboard.savings_rate.target_progress %>
+        <p class="text-sm text-secondary">Progress: <%= number_to_percentage(@dashboard.savings_rate.target_progress * 100, precision: 0) %></p>
+      <% end %>
+      <% if @dashboard.savings_rate.review_prompts.include?(:fx_unavailable) %>
+        <p class="text-sm text-warning">Some cashflow needs exchange rates before it can be included.</p>
+      <% end %>
     </article>
   </section>
 

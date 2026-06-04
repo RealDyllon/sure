@@ -31,18 +31,19 @@
     <%= form_with url: preview_goals_fire_path, method: :post, class: "grid md:grid-cols-3 gap-4" do |form| %>
       <div>
         <%= label_tag "scenario_annual_spending", "Annual spending", class: "block text-sm text-secondary mb-1" %>
-        <%= number_field_tag "scenario[annual_spending]", nil, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+        <%= number_field_tag "scenario[annual_spending]", @profile.annual_spending_override, autocomplete: "off", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
         <%= label_tag "scenario_withdrawal_rate", "Withdrawal rate", class: "block text-sm text-secondary mb-1" %>
-        <%= number_field_tag "scenario[withdrawal_rate]", nil, step: "0.01", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+        <%= number_field_tag "scenario[withdrawal_rate]", @profile.withdrawal_rate, step: "0.01", autocomplete: "off", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
         <%= label_tag "scenario_annual_contribution", "Annual contribution", class: "block text-sm text-secondary mb-1" %>
-        <%= number_field_tag "scenario[annual_contribution]", nil, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+        <%= number_field_tag "scenario[annual_contribution]", @profile.annual_contribution, autocomplete: "off", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
-      <div class="md:col-span-3">
+      <div class="md:col-span-3 flex flex-wrap gap-3">
         <%= submit_tag "Preview scenario", class: "px-4 py-2 bg-primary text-white rounded-lg" %>
+        <%= submit_tag "Save scenario", formaction: save_scenario_goals_fire_path, class: "px-4 py-2 bg-surface border border-secondary text-primary rounded-lg" %>
       </div>
     <% end %>
   </section>

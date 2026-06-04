@@ -39,7 +39,7 @@ module Goals
           else
             excluded_accounts << account
           end
-        when "later"
+        when "later", "srs_later"
           if asset_account?(account)
             later_accounts << account
           else

@@ -24,6 +24,7 @@ class GoalsTest < ApplicationSystemTestCase
 
     assert_text "Goal assumptions"
     assert_field "Current age"
+    assert_text "Later (SRS)"
   end
 
   test "mobile navigation includes Goals" do

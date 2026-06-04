@@ -255,6 +255,7 @@ Rails.application.routes.draw do
   namespace :goals do
     resource :fire, only: :show, controller: :fire do
       post :preview
+      post :save_scenario
     end
     resource :assumptions, only: %i[show update]
     resource :account_mappings, only: :update do
