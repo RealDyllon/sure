@@ -173,7 +173,7 @@ class SimplefinItem::ReplacementDetectorTest < ActiveSupport::TestCase
                        transactions: [ tx(when_ago: 60.days) ])
     link(dormant, name: "Old Checking")
     make_sfa(name: "New Checking", account_id: "sf_checking_new",
-             account_type: "depository", org_name: "Chase", balance: 00000009,
+             account_type: "depository", org_name: "Chase", balance: 9,
              transactions: [ tx(when_ago: 2.days) ])
 
     assert_empty SimplefinItem::ReplacementDetector.new(@item).call

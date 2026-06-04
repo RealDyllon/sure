@@ -12,8 +12,8 @@ class StatementExtraction::CsvExtractorTest < ActiveSupport::TestCase
     assert_equal 1, result.accounts.size
 
     account = result.accounts.first
-    assert_equal "DBS 0178", account["name"]
-    assert_equal "dbs:0178", account["source_id"]
+    assert_equal "DBS 0018", account["name"]
+    assert_equal "dbs:0018", account["source_id"]
     assert_equal "Depository", account["account_type"]
     assert_equal "SGD", account["currency"]
     assert_equal "3945.40", account["closing_balance"]
@@ -24,7 +24,7 @@ class StatementExtraction::CsvExtractorTest < ActiveSupport::TestCase
     assert_equal "2026-04-01", first["date"]
     assert_equal "PayNow Transfer", first["name"]
     assert_equal "12.50", first["amount"]
-    assert_equal "dbs:0178:2026-04-01:12.50:PayNow Transfer", first["external_id"]
+    assert_equal "dbs:0018:2026-04-01:12.50:PayNow Transfer", first["external_id"]
   end
 
   test "extracts CPF buckets as separate investment accounts" do
@@ -82,8 +82,8 @@ class StatementExtraction::CsvExtractorTest < ActiveSupport::TestCase
     assert_equal 1, result.accounts.size
 
     account = result.accounts.first
-    assert_equal "IBKR 9567", account["name"]
-    assert_equal "ibkr:9567", account["source_id"]
+    assert_equal "IBKR 0017", account["name"]
+    assert_equal "ibkr:0017", account["source_id"]
     assert_equal "Investment", account["account_type"]
     assert_equal "brokerage", account["subtype"]
     assert_equal "USD", account["currency"]
@@ -98,7 +98,7 @@ class StatementExtraction::CsvExtractorTest < ActiveSupport::TestCase
     assert_equal "1020.00", trade["price"]
     assert_equal "-1701.00", trade["amount"]
     assert_equal "Buy", trade["activity_label"]
-    assert_equal "ibkr:9567:trade:2026-04-02:AAPL:10.00:1020.00:-1701.00", trade["external_id"]
+    assert_equal "ibkr:0017:trade:2026-04-02:AAPL:10.00:1020.00:-1701.00", trade["external_id"]
 
     assert_equal 2, account["transactions"].size
     assert_equal [ "AAPL Dividend", "ACH Deposit" ], account["transactions"].map { |txn| txn["name"] }

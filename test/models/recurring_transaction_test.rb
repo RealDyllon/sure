@@ -403,7 +403,7 @@ class RecurringTransactionTest < ActiveSupport::TestCase
 
   test "create_from_transaction automatically calculates amount variance from history" do
     # Create multiple historical transactions with varying amounts on the same day of month
-    amounts = [ 90.00, 1017.00, 110.00, 1018.00 ]
+    amounts = [ 90.00, 100.00, 110.00, 120.00 ]
     amounts.each_with_index do |amount, i|
       transaction = Transaction.create!(
         merchant: @merchant,
@@ -418,14 +418,14 @@ class RecurringTransactionTest < ActiveSupport::TestCase
       )
     end
 
-    # Mark the most recent one as recurring (find the 1018.00 entry we created last)
-    most_recent_entry = @account.entries.where(amount: 1018.00, currency: "USD").order(date: :desc).first
+    # Mark the most recent one as recurring (find the 120.00 entry we created last)
+    most_recent_entry = @account.entries.where(amount: 120.00, currency: "USD").order(date: :desc).first
     recurring = RecurringTransaction.create_from_transaction(most_recent_entry.transaction)
 
     assert recurring.manual?
     assert_equal @account, recurring.account
     assert_equal 90.00, recurring.expected_amount_min
-    assert_equal 1018.00, recurring.expected_amount_max
+    assert_equal 120.00, recurring.expected_amount_max
     assert_equal 105.00, recurring.expected_amount_avg # (90 + 100 + 110 + 120) / 4
     assert_equal 4, recurring.occurrence_count
     # Next expected date should be in the future
@@ -462,7 +462,7 @@ class RecurringTransactionTest < ActiveSupport::TestCase
     recurring = @family.recurring_transactions.create!(
       account: @account,
       merchant: @merchant,
-      amount: 1017.00,
+      amount: 100.00,
       currency: "USD",
       expected_day_of_month: 15,
       last_occurrence_date: 1.month.ago,
@@ -470,8 +470,8 @@ class RecurringTransactionTest < ActiveSupport::TestCase
       status: "active",
       manual: true,
       expected_amount_min: 80.00,
-      expected_amount_max: 1018.00,
-      expected_amount_avg: 1017.00
+      expected_amount_max: 120.00,
+      expected_amount_avg: 100.00
     )
 
     # Create transactions with varying amounts on day 14 (within +/-2 days of day 15)
@@ -533,7 +533,7 @@ class RecurringTransactionTest < ActiveSupport::TestCase
     recurring = @family.recurring_transactions.create!(
       account: @account,
       merchant: @merchant,
-      amount: 1017.00,
+      amount: 100.00,
       currency: "USD",
       expected_day_of_month: 15,
       last_occurrence_date: Date.current,
@@ -544,21 +544,21 @@ class RecurringTransactionTest < ActiveSupport::TestCase
     )
 
     # Record first occurrence with amount variance
-    recurring.record_occurrence!(Date.current, 1017.00)
-    assert_equal 1017.00, recurring.expected_amount_min.to_f
-    assert_equal 1017.00, recurring.expected_amount_max.to_f
-    assert_equal 1017.00, recurring.expected_amount_avg.to_f
+    recurring.record_occurrence!(Date.current, 100.00)
+    assert_equal 100.00, recurring.expected_amount_min.to_f
+    assert_equal 100.00, recurring.expected_amount_max.to_f
+    assert_equal 100.00, recurring.expected_amount_avg.to_f
 
     # Record second occurrence with different amount
-    recurring.record_occurrence!(1.month.from_now, 1018.00)
-    assert_equal 1017.00, recurring.expected_amount_min.to_f
-    assert_equal 1018.00, recurring.expected_amount_max.to_f
+    recurring.record_occurrence!(1.month.from_now, 120.00)
+    assert_equal 100.00, recurring.expected_amount_min.to_f
+    assert_equal 120.00, recurring.expected_amount_max.to_f
     assert_in_delta 110.00, recurring.expected_amount_avg.to_f, 0.01
 
     # Record third occurrence with lower amount
     recurring.record_occurrence!(2.months.from_now, 90.00)
     assert_equal 90.00, recurring.expected_amount_min.to_f
-    assert_equal 1018.00, recurring.expected_amount_max.to_f
+    assert_equal 120.00, recurring.expected_amount_max.to_f
     assert_in_delta 103.33, recurring.expected_amount_avg.to_f, 0.01
   end
 

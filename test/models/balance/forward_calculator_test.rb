@@ -104,7 +104,7 @@ class Balance::ForwardCalculatorTest < ActiveSupport::TestCase
       account = create_account_with_ledger(
         account: { type: account_type, currency: "USD" },
         entries: [
-          { type: "opening_anchor", date: 3.days.ago.to_date, balance: 000000150 },
+          { type: "opening_anchor", date: 3.days.ago.to_date, balance: 17000 },
           { type: "reconciliation", date: 2.days.ago.to_date, balance: 18000 }
         ]
       )
@@ -116,15 +116,15 @@ class Balance::ForwardCalculatorTest < ActiveSupport::TestCase
         expected_data: [
           {
             date: 3.days.ago.to_date,
-            legacy_balances: { balance: 000000150, cash_balance: 000000150 },
-            balances: { start: 000000150, start_cash: 000000150, start_non_cash: 0, end_cash: 000000150, end_non_cash: 0, end: 000000150 },
+            legacy_balances: { balance: 17000, cash_balance: 17000 },
+            balances: { start: 17000, start_cash: 17000, start_non_cash: 0, end_cash: 17000, end_non_cash: 0, end: 17000 },
             flows: 0,
             adjustments: 0
           },
           {
             date: 2.days.ago.to_date,
             legacy_balances: { balance: 18000, cash_balance: 18000 },
-            balances: { start: 000000150, start_cash: 000000150, start_non_cash: 0, end_cash: 18000, end_non_cash: 0, end: 18000 },
+            balances: { start: 17000, start_cash: 17000, start_non_cash: 0, end_cash: 18000, end_non_cash: 0, end: 18000 },
             flows: 0,
             adjustments: { cash_adjustments: 1000, non_cash_adjustments: 0 }
           }
@@ -138,7 +138,7 @@ class Balance::ForwardCalculatorTest < ActiveSupport::TestCase
       account = create_account_with_ledger(
         account: { type: account_type, currency: "USD" },
         entries: [
-          { type: "opening_anchor", date: 3.days.ago.to_date, balance: 000000150 },
+          { type: "opening_anchor", date: 3.days.ago.to_date, balance: 17000 },
           { type: "reconciliation", date: 2.days.ago.to_date, balance: 18000 }
         ]
       )
@@ -150,15 +150,15 @@ class Balance::ForwardCalculatorTest < ActiveSupport::TestCase
         expected_data: [
           {
             date: 3.days.ago.to_date,
-            legacy_balances: { balance: 000000150, cash_balance: 0.0 },
-            balances: { start: 000000150, start_cash: 0, start_non_cash: 000000150, end_cash: 0, end_non_cash: 000000150, end: 000000150 },
+            legacy_balances: { balance: 17000, cash_balance: 0.0 },
+            balances: { start: 17000, start_cash: 0, start_non_cash: 17000, end_cash: 0, end_non_cash: 17000, end: 17000 },
             flows: 0,
             adjustments: 0
           },
           {
             date: 2.days.ago.to_date,
             legacy_balances: { balance: 18000, cash_balance: 0.0 },
-            balances: { start: 000000150, start_cash: 0, start_non_cash: 000000150, end_cash: 0, end_non_cash: 18000, end: 18000 },
+            balances: { start: 17000, start_cash: 0, start_non_cash: 17000, end_cash: 0, end_non_cash: 18000, end: 18000 },
             flows: 0,
             adjustments: { cash_adjustments: 0, non_cash_adjustments: 1000 }
           }
@@ -171,7 +171,7 @@ class Balance::ForwardCalculatorTest < ActiveSupport::TestCase
     account = create_account_with_ledger(
       account: { type: Investment, currency: "USD" },
       entries: [
-        { type: "opening_anchor", date: 3.days.ago.to_date, balance: 000000150 },
+        { type: "opening_anchor", date: 3.days.ago.to_date, balance: 17000 },
         { type: "reconciliation", date: 2.days.ago.to_date, balance: 18000 }
       ]
     )
@@ -184,15 +184,15 @@ class Balance::ForwardCalculatorTest < ActiveSupport::TestCase
       expected_data: [
         {
           date: 3.days.ago.to_date,
-          legacy_balances: { balance: 000000150, cash_balance: 000000150 },
-          balances: { start: 000000150, start_cash: 000000150, start_non_cash: 0, end_cash: 000000150, end_non_cash: 0, end: 000000150 },
+          legacy_balances: { balance: 17000, cash_balance: 17000 },
+          balances: { start: 17000, start_cash: 17000, start_non_cash: 0, end_cash: 17000, end_non_cash: 0, end: 17000 },
           flows: { market_flows: 0 },
           adjustments: 0
         },
         {
           date: 2.days.ago.to_date,
           legacy_balances: { balance: 18000, cash_balance: 18000 },
-          balances: { start: 000000150, start_cash: 000000150, start_non_cash: 0, end_cash: 18000, end_non_cash: 0, end: 18000 },
+          balances: { start: 17000, start_cash: 17000, start_non_cash: 0, end_cash: 18000, end_non_cash: 0, end: 18000 },
           flows: { market_flows: 0 },
           adjustments: { cash_adjustments: 1000, non_cash_adjustments: 0 } # Since no holdings present, adjustment is all cash
         }
@@ -305,7 +305,7 @@ class Balance::ForwardCalculatorTest < ActiveSupport::TestCase
       entries: [
         { type: "opening_anchor", date: 4.days.ago.to_date, balance: 20000 },
         { type: "transaction", date: 3.days.ago.to_date, amount: -5000 },
-        { type: "reconciliation", date: 2.days.ago.to_date, balance: 000000150 },
+        { type: "reconciliation", date: 2.days.ago.to_date, balance: 17000 },
         { type: "transaction", date: 1.day.ago.to_date, amount: -500 }
       ]
     )
@@ -331,15 +331,15 @@ class Balance::ForwardCalculatorTest < ActiveSupport::TestCase
         },
         {
           date: 2.days.ago.to_date,
-          legacy_balances: { balance: 000000150, cash_balance: 000000150 },
-          balances: { start: 25000, start_cash: 25000, start_non_cash: 0, end_cash: 000000150, end_non_cash: 0, end: 000000150 },
+          legacy_balances: { balance: 17000, cash_balance: 17000 },
+          balances: { start: 25000, start_cash: 25000, start_non_cash: 0, end_cash: 17000, end_non_cash: 0, end: 17000 },
           flows: 0,
           adjustments: { cash_adjustments: -8000, non_cash_adjustments: 0 }
         },
         {
           date: 1.day.ago.to_date,
           legacy_balances: { balance: 17500, cash_balance: 17500 },
-          balances: { start: 000000150, start_cash: 000000150, start_non_cash: 0, end_cash: 17500, end_non_cash: 0, end: 17500 },
+          balances: { start: 17000, start_cash: 17000, start_non_cash: 0, end_cash: 17500, end_non_cash: 0, end: 17500 },
           flows: { cash_inflows: 500, cash_outflows: 0 },
           adjustments: 0
         }

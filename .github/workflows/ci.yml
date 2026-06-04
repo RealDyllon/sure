@@ -2,6 +2,7 @@ name: CI
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   scan_ruby:
@@ -66,11 +67,20 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         shell: bash
 
-      - name: Lint/Format js code
+      - name: Lint JavaScript
         run: npm run lint
+
+      - name: Check JavaScript formatting
+        run: npm run format:check
+
+      - name: Check generated design tokens
+        run: npm run tokens:check
+
+      - name: Run JavaScript tests
+        run: npm run test:js
 
   test:
     runs-on: ubuntu-latest
@@ -111,6 +121,12 @@ jobs:
         with:
           ruby-version: .ruby-version
           bundler-cache: true
+
+      - name: Check API endpoint consistency
+        run: bundle exec ruby test/support/verify_api_endpoint_consistency.rb
+
+      - name: Lint ERB views
+        run: bundle exec erb_lint app/views app/components
 
       - name: DB setup and smoke test
         run: |

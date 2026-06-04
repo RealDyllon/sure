@@ -7,7 +7,7 @@ export default class extends Controller {
     const query = this.inputTarget.value.toLocaleLowerCase().trim();
     let visibleCount = 0;
 
-    this.itemTargets.forEach(item => {
+    this.itemTargets.forEach((item) => {
       const name = item.dataset.bankName?.toLocaleLowerCase() ?? "";
       const match = name.includes(query);
       item.style.display = match ? "" : "none";

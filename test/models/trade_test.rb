@@ -25,7 +25,7 @@ class TradeTest < ActiveSupport::TestCase
     security = Security.create!(ticker: "TEST", exchange_operating_mic: "XNAS")
 
     # up to 10 decimal places — should persist exactly
-    precise_price = BigDecimal("12.30000001789012")
+    precise_price = BigDecimal("12.3000000179")
     trade = Trade.create!(
       security: security,
       price: precise_price,

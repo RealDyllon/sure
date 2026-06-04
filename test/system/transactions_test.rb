@@ -210,7 +210,7 @@ class TransactionsTest < ApplicationSystemTestCase
     visit transactions_url
 
     within "#entry-group-" + Date.current.to_s + "-totals" do
-      assert_text "-$1017.00" # transaction eleven from setup
+      assert_text "-$100.00" # transaction eleven from setup
     end
   end
 

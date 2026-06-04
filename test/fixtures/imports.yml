@@ -40,7 +40,7 @@ pdf_with_rows:
         category: "Food & Drink"
         notes: "Morning coffee"
       - date: "2024-01-16"
-        amount: 11025.00
+        amount: 1500.00
         name: "Salary"
         category: "Income"
         notes: ""

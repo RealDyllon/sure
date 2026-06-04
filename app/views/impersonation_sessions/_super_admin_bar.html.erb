@@ -4,17 +4,17 @@
     <span class="text-inverse font-semibold uppercase">Super Admin</span>
   </div>
   <div>
-    <%= link_to "Jobs", sidekiq_web_url, class: "text-white underline hover:text-gray-100" %>
+    <%= link_to "Jobs", sidekiq_web_url, class: "text-inverse underline hover:text-secondary" %>
   </div>
 
-  <div class="flex items-center space-x-2 px-2 py-2 text-white">
+  <div class="flex items-center space-x-2 px-2 py-2 text-inverse">
     <% if Current.session.active_impersonator_session.present? %>
-      <div class="flex items-center space-x-3 bg-gray-800 border border-gray-700 rounded-md pl-3">
+      <div class="flex items-center space-x-3 bg-inverse border border-inverse rounded-md pl-3">
         <div class="text-sm">
           Impersonating: <span class="font-semibold text-red-400"><%= Current.impersonated_user.email %></span>
         </div>
-        <%= button_to "Leave", leave_impersonation_sessions_path, method: :delete, class: "items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500" %>
-        <%= button_to "Terminate", complete_impersonation_session_path(Current.session.active_impersonator_session), method: :put, class: "items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500" %>
+        <%= button_to "Leave", leave_impersonation_sessions_path, method: :delete, class: "items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-inverse bg-red-600 hover:bg-red-700 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500" %>
+        <%= button_to "Terminate", complete_impersonation_session_path(Current.session.active_impersonator_session), method: :put, class: "items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-inverse bg-red-600 hover:bg-red-700 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500" %>
       </div>
     <% else %>
       <% if Current.true_user.impersonator_support_sessions.in_progress.any? %>
@@ -26,13 +26,13 @@
             { prompt: "Join a session" },
             { class: "rounded-md text-sm border-0 focus:ring-0 ring-0 text-black font-mono" } %>
           <%= f.submit "Join",
-            class: "inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500" %>
+            class: "inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-inverse bg-red-600 hover:bg-red-700 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500" %>
         <% end %>
       <% end %>
 
       <%= form_with model: ImpersonationSession.new, class: "flex items-center space-x-2" do |f| %>
         <%= f.text_field :impersonated_id, class: "rounded-md text-sm border-0 focus:ring-0 ring-0 text-black font-mono w-96", placeholder: "UUID", autocomplete: "off" %>
-        <%= f.submit "Request Impersonation", class: "inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500" %>
+        <%= f.submit "Request Impersonation", class: "inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-inverse bg-red-600 hover:bg-red-700 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-red-500" %>
       <% end %>
     <% end %>
   </div>

@@ -34,7 +34,7 @@ class Assistant::TokenEstimatorTest < ActiveSupport::TestCase
   end
 
   test "estimate coerces unknown types via to_s" do
-    assert Assistant::TokenEstimator.estimate(000000095) > 0
+    assert Assistant::TokenEstimator.estimate(95) > 0
     assert Assistant::TokenEstimator.estimate(:symbol) > 0
   end
 end

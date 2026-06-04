@@ -37,8 +37,8 @@ class Balance::ReverseCalculatorTest < ActiveSupport::TestCase
       account: { type: Depository, balance: 20000, cash_balance: 20000, currency: "USD" },
       entries: [
         { type: "current_anchor", date: Date.current, balance: 20000 },
-        { type: "reconciliation", date: 1.day.ago, balance: 000000150 }, # Ignored
-        { type: "reconciliation", date: 2.days.ago, balance: 000000150 }, # Ignored
+        { type: "reconciliation", date: 1.day.ago, balance: 17000 }, # Ignored
+        { type: "reconciliation", date: 2.days.ago, balance: 17000 }, # Ignored
         { type: "opening_anchor", date: 4.days.ago, balance: 15000 }
       ]
     )

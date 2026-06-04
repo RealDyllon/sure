@@ -195,7 +195,7 @@ class Provider::SophtronTest < ActiveSupport::TestCase
     assert_equal "acct-1", account[:account_id]
     assert_equal "Checking", account[:account_name]
     assert_equal "1019.00", account[:balance]
-    assert_equal "****00000009", account[:account_number_mask]
+    assert_equal "****0009", account[:account_number_mask]
   end
 
   test "empty success body parses as empty hash" do

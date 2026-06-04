@@ -12,7 +12,7 @@ class Family::DataImporterTest < ActiveSupport::TestCase
         data: {
           id: "old-account-1",
           name: "Test Checking",
-          balance: "11025.00",
+          balance: "1500.00",
           currency: "USD",
           accountable_type: "Depository",
           accountable: { subtype: "checking" }
@@ -1090,7 +1090,7 @@ class Family::DataImporterTest < ActiveSupport::TestCase
           start_date: "2024-01-01",
           end_date: "2024-01-31",
           budgeted_spending: "3000.00",
-          expected_income: "1013.00",
+          expected_income: "5000.00",
           currency: "USD"
         }
       }
@@ -1125,7 +1125,7 @@ class Family::DataImporterTest < ActiveSupport::TestCase
           start_date: "2024-01-01",
           end_date: "2024-01-31",
           budgeted_spending: "3000.00",
-          expected_income: "1013.00",
+          expected_income: "5000.00",
           currency: "USD"
         }
       },
@@ -1135,7 +1135,7 @@ class Family::DataImporterTest < ActiveSupport::TestCase
           id: "bc-1",
           budget_id: "budget-1",
           category_id: "cat-groceries",
-          budgeted_spending: "1025.00",
+          budgeted_spending: "500.00",
           currency: "USD"
         }
       }

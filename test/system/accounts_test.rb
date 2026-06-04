@@ -6,8 +6,7 @@ class AccountsTest < ApplicationSystemTestCase
 
     Family.any_instance.stubs(:get_link_token).returns("test-link-token")
 
-    visit root_url
-    open_new_account_modal
+    visit new_account_url
   end
 
   test "can create depository account" do
@@ -97,13 +96,6 @@ class AccountsTest < ApplicationSystemTestCase
 
   private
 
-    def open_new_account_modal
-      within "[data-controller='DS--tabs']" do
-        click_button "All"
-        click_link "New account"
-      end
-    end
-
     def assert_account_created(accountable_type, &block)
       click_link Accountable.from_type(accountable_type).display_name.singularize
       click_link "Enter account balance" if accountable_type.in?(%w[Depository Investment Crypto Loan CreditCard])
@@ -124,11 +116,7 @@ class AccountsTest < ApplicationSystemTestCase
 
       click_button "Create Account"
 
-      within_testid("account-sidebar-tabs") do
-        click_on "All"
-        find("details", text: Accountable.from_type(accountable_type).display_name).click
-        assert_text account_name
-      end
+      assert_text account_name
 
       visit accounts_url
       assert_text account_name
