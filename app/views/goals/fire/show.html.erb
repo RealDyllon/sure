@@ -28,18 +28,19 @@
 
   <section class="bg-container shadow-border-xs rounded-xl p-5">
     <h2 class="text-lg text-primary font-medium mb-4">Scenario</h2>
+    <% scenario = @scenario || {} %>
     <%= form_with url: preview_goals_fire_path, method: :post, class: "grid md:grid-cols-3 gap-4" do |form| %>
       <div>
         <%= label_tag "scenario_annual_spending", "Annual spending", class: "block text-sm text-secondary mb-1" %>
-        <%= number_field_tag "scenario[annual_spending]", @profile.annual_spending_override, autocomplete: "off", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+        <%= number_field_tag "scenario[annual_spending]", scenario.fetch(:annual_spending, @profile.annual_spending_override), autocomplete: "off", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
         <%= label_tag "scenario_withdrawal_rate", "Withdrawal rate", class: "block text-sm text-secondary mb-1" %>
-        <%= number_field_tag "scenario[withdrawal_rate]", @profile.withdrawal_rate, step: "0.01", autocomplete: "off", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+        <%= number_field_tag "scenario[withdrawal_rate]", scenario.fetch(:withdrawal_rate, @profile.withdrawal_rate), step: "0.01", autocomplete: "off", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
         <%= label_tag "scenario_annual_contribution", "Annual contribution", class: "block text-sm text-secondary mb-1" %>
-        <%= number_field_tag "scenario[annual_contribution]", @profile.annual_contribution, autocomplete: "off", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+        <%= number_field_tag "scenario[annual_contribution]", scenario.fetch(:annual_contribution, @profile.annual_contribution), autocomplete: "off", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div class="md:col-span-3 flex flex-wrap gap-3">
         <%= submit_tag "Preview scenario", class: "px-4 py-2 bg-primary text-white rounded-lg" %>

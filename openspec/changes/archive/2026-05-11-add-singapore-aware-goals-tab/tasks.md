@@ -87,3 +87,7 @@
 - [x] 8.12 Persist intentionally saved FIRE scenarios, including annual contribution, while keeping preview non-persistent.
 - [x] 8.13 Add an explicit `srs_later` account role so renamed SRS accounts use SRS access age.
 - [x] 8.14 Reply to and resolve the seven current unresolved PR #11 review threads after implementation and verification.
+- [x] 8.15 Keep failed custom-goal edit validation errors on the edited goal card instead of the create form.
+- [x] 8.16 Render default emergency accounts checked before an explicit emergency-account override exists.
+- [x] 8.17 Preserve previewed FIRE scenario values in the form so saving from a preview persists the previewed assumptions.
+- [x] 8.18 Keep inferred planning mode as an auto-detect blank value until the user explicitly chooses a planning region.

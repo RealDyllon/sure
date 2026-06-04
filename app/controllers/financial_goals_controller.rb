@@ -19,7 +19,7 @@ class FinancialGoalsController < ApplicationController
 
       redirect_to goals_path
     else
-      prepare_goals_index(financial_goal: goal)
+      prepare_goals_index(editing_financial_goal: goal)
       render "goals/index", status: :unprocessable_entity
     end
   end
@@ -48,11 +48,16 @@ class FinancialGoalsController < ApplicationController
       financial_goal_params.fetch(:funding_account_ids, [])
     end
 
-    def prepare_goals_index(financial_goal:)
+    def prepare_goals_index(financial_goal: nil, editing_financial_goal: nil)
       @dashboard = Goals::DashboardBuilder.new(user: Current.user).call
       @profile = @dashboard.profile
       @fire = @dashboard.fire
       @accounts = Current.user.finance_accounts.visible.assets.alphabetically
-      @financial_goal = financial_goal
+      @financial_goal = financial_goal || Current.user.financial_goals.build(
+        family: Current.family,
+        goal_type: "custom",
+        target_currency: Current.family.currency
+      )
+      @editing_financial_goal = editing_financial_goal
     end
 end

@@ -83,6 +83,34 @@ class FinancialGoalsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ valid_account.id ], goal.funding_account_ids_for(@user)
   end
 
+  test "update renders validation errors on the edited custom goal form" do
+    goal = FinancialGoal.create!(
+      family: @family,
+      user: @user,
+      goal_type: "custom",
+      name: "Example Existing Goal",
+      target_amount: 10_000,
+      target_currency: "USD"
+    )
+
+    patch financial_goal_path(goal), params: {
+      financial_goal: {
+        goal_type: "custom",
+        name: "Example Existing Goal",
+        target_amount: "",
+        target_currency: "XYZ"
+      }
+    }
+
+    assert_response :unprocessable_entity
+    assert_select "form[action='#{financial_goal_path(goal)}']" do
+      assert_select ".text-destructive", text: /Target amount/
+      assert_select ".text-destructive", text: /Target currency/
+      assert_select "input[name='financial_goal[target_currency]'][value='XYZ']"
+    end
+    assert_select "form[action='#{financial_goals_path}'] .text-destructive", count: 0
+  end
+
   test "archives a custom goal instead of destroying it" do
     goal = FinancialGoal.create!(
       family: @family,

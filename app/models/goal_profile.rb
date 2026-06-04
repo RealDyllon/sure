@@ -17,6 +17,7 @@ class GoalProfile < ApplicationRecord
   validates :current_age, numericality: { only_integer: true, greater_than: 0 }, allow_blank: true
   validates :birth_year, numericality: { only_integer: true, greater_than: 1900, less_than_or_equal_to: ->(_profile) { Date.current.year } }, allow_blank: true
 
+  before_validation :normalize_blank_planning_region
   before_validation :normalize_percentage_fields
 
   class << self
@@ -155,5 +156,9 @@ class GoalProfile < ApplicationRecord
 
         self[field] = value / 100
       end
+    end
+
+    def normalize_blank_planning_region
+      self.planning_region = nil if self[:planning_region].blank?
     end
 end

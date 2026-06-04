@@ -20,7 +20,9 @@
 
     <div>
       <%= form.label :planning_region, "Planning region", class: "block text-sm text-secondary mb-1" %>
-      <%= form.select :planning_region, [["Generic", "generic"], ["Singapore", "singapore"]], {}, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
+      <%= select_tag "goal_profile[planning_region]",
+        options_for_select([["Default (auto-detect)", ""], ["Generic", "generic"], ["Singapore", "singapore"]], @profile[:planning_region].presence || ""),
+        class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
     </div>
 
     <div class="grid md:grid-cols-2 gap-4">
@@ -85,7 +87,7 @@
             include_blank: "Default",
             class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
           <label class="flex items-center gap-2 text-sm text-primary">
-            <%= check_box_tag "emergency_account_ids[]", account.id, @profile.emergency_account_ids.include?(account.id) %>
+            <%= check_box_tag "emergency_account_ids[]", account.id, @emergency_account_ids.include?(account.id) %>
             Emergency
           </label>
         </div>

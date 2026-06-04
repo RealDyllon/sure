@@ -123,6 +123,60 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     assert_select "option[value='srs_later']", text: "Later (SRS)"
   end
 
+  test "assumptions page preserves inferred planning mode as auto-detect" do
+    @family.update!(country: "US", currency: "USD")
+    profile = GoalProfile.find_or_create_for!(@user)
+    profile.update!(planning_region: nil)
+
+    get goals_assumptions_path
+
+    assert_response :ok
+    assert_select "select[name='goal_profile[planning_region]'] option[value=''][selected]", text: "Default (auto-detect)"
+  end
+
+  test "assumption updates do not persist inferred planning mode accidentally" do
+    @family.update!(country: "US", currency: "USD")
+    profile = GoalProfile.find_or_create_for!(@user)
+    profile.update!(planning_region: nil)
+
+    patch goals_assumptions_path, params: {
+      goal_profile: {
+        planning_region: "",
+        current_age: 39,
+        withdrawal_rate: 0.04,
+        expected_return: 0.05,
+        inflation_rate: 0.02,
+        cpf_access_age: 55,
+        cpf_life_age: 65,
+        srs_access_age: 63,
+        emergency_fund_months: 6
+      }
+    }
+
+    assert_redirected_to goals_path
+    assert_nil profile.reload[:planning_region]
+    assert_equal "generic", profile.planning_region
+  end
+
+  test "account mappings form renders default emergency accounts checked before override" do
+    @family.accounts.update_all(status: "disabled")
+    cash = @family.accounts.create!(
+      owner: @user,
+      name: "Example Emergency Cash",
+      balance: 5_000,
+      cash_balance: 5_000,
+      currency: @family.currency,
+      accountable: Depository.new
+    )
+    profile = GoalProfile.find_or_create_for!(@user)
+    profile.update!(account_role_overrides: {})
+
+    get goals_assumptions_path
+
+    assert_response :ok
+    assert_select "input[type='checkbox'][name='emergency_account_ids[]'][value='#{cash.id}'][checked]"
+  end
+
   test "assumption updates persist profile changes" do
     patch goals_assumptions_path, params: {
       goal_profile: {
@@ -207,6 +261,9 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     post preview_goals_fire_path, params: { scenario: { annual_spending: 60_000, withdrawal_rate: 3.5, annual_contribution: 24_000 } }
 
     assert_response :ok
+    assert_select "input[name='scenario[annual_spending]'][value='60000']"
+    assert_select "input[name='scenario[withdrawal_rate]'][value='3.5']"
+    assert_select "input[name='scenario[annual_contribution]'][value='24000']"
     assert_equal BigDecimal("48000"), profile.reload.annual_spending_override
     assert_equal BigDecimal("12000"), profile.annual_contribution
   end

@@ -93,17 +93,22 @@
     <% if @dashboard.custom_goals.any? %>
       <div class="grid md:grid-cols-2 gap-3">
         <% @dashboard.custom_goals.each do |goal_result| %>
+          <% goal = @editing_financial_goal&.id == goal_result.goal.id ? @editing_financial_goal : goal_result.goal %>
           <article class="bg-surface rounded-lg p-4 space-y-2">
             <div class="flex items-start justify-between gap-3">
-              <h3 class="text-primary font-medium"><%= goal_result.goal.name %></h3>
-              <%= button_to "Archive", archive_financial_goal_path(goal_result.goal), method: :patch, class: "text-sm text-secondary underline" %>
+              <h3 class="text-primary font-medium"><%= goal.name %></h3>
+              <%= button_to "Archive", archive_financial_goal_path(goal), method: :patch, class: "text-sm text-secondary underline" %>
             </div>
             <p class="text-sm text-secondary">
               <span class="privacy-sensitive"><%= goal_result.available_money.format %></span>
               of
               <span class="privacy-sensitive"><%= goal_result.target_money.format %></span>
             </p>
-            <%= form_with model: goal_result.goal, url: financial_goal_path(goal_result.goal), method: :patch, class: "grid gap-3 border-t border-divider pt-3" do |form| %>
+            <%= form_with model: goal, url: financial_goal_path(goal), method: :patch, class: "grid gap-3 border-t border-divider pt-3" do |form| %>
+              <% if goal.errors.any? %>
+                <%= render "shared/form_errors", model: goal %>
+              <% end %>
+
               <%= form.hidden_field :goal_type, value: "custom" %>
 
               <div>
@@ -128,7 +133,7 @@
 
               <fieldset class="space-y-2">
                 <legend class="text-sm text-secondary">Funding accounts</legend>
-                <% selected_account_ids = goal_result.goal.funding_account_ids_for(Current.user).to_set %>
+                <% selected_account_ids = goal.funding_account_ids_for(Current.user).to_set %>
                 <div class="grid sm:grid-cols-2 gap-2">
                   <% @accounts.each do |account| %>
                     <label class="flex items-center gap-2 text-sm text-primary">
