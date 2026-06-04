@@ -1,0 +1,15 @@
+---
+en:
+  goals:
+    index:
+      title: Goals
+    fire:
+      title: Financial Independence
+      card:
+        title: Financial Independence
+        review_assumptions: Review assumptions
+    assumptions:
+      title: Goal assumptions
+      current_age: Current age
+      annual_spending: Annual spending
+      planning_region: Planning region

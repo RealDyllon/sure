@@ -1,0 +1,23 @@
+<% prompts = Array(local_assigns.fetch(:prompts, [])).map(&:to_sym) %>
+
+<% if prompts.any? %>
+  <section data-testid="goals-review-prompts" class="bg-warning/10 border border-warning/30 rounded-xl p-4 space-y-3">
+    <% if prompts.include?(:srs_mapping) %>
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <p class="text-sm text-primary">SRS account detected. Review whether it should unlock at the SRS access age.</p>
+        <div class="flex items-center gap-3">
+          <%= link_to "Map SRS", goals_assumptions_path, class: "text-sm font-medium text-primary underline" %>
+          <%= button_to "Skip", skip_prompt_goals_account_mappings_path(prompt: "srs"), method: :patch, class: "text-sm text-secondary underline" %>
+        </div>
+      </div>
+    <% end %>
+
+    <% if prompts.include?(:fx_unavailable) %>
+      <p class="text-sm text-primary">Some cross-currency balances need exchange rates before they can be included in FIRE progress.</p>
+    <% end %>
+
+    <% if prompts.include?(:current_age_missing) %>
+      <p class="text-sm text-primary">Add a current age or birth year to estimate a FIRE age instead of only years to FI.</p>
+    <% end %>
+  </section>
+<% end %>
