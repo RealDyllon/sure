@@ -112,7 +112,13 @@
             <h2 class="text-lg font-medium text-primary">Review transaction suggestions</h2>
             <p class="text-sm text-secondary"><%= @run.suggestions.selected.count %> selected across all pages</p>
           </div>
-          <% if @run.complete? %>
+          <% if @run.reviewing_transactions? %>
+            <%= button_to "Refresh AI suggestions",
+                          refresh_suggestions_auto_categorization_run_path(@run),
+                          method: :post,
+                          class: "button button--secondary",
+                          form: { data: { turbo_confirm: "Replace these AI suggestions with new suggestions based on your current categories?" } } %>
+          <% elsif @run.complete? %>
             <div class="text-sm text-secondary">
               <%= @run.applied_count %> applied · <%= @run.skipped_count %> skipped · <%= @run.unchanged_count %> unchanged
             </div>

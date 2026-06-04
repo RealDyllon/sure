@@ -12,12 +12,19 @@ class Provider::OpenaiViaCodex::ClientTest < ActiveSupport::TestCase
           "ChatGPT-Account-ID" => "account-123",
           "Content-Type" => "application/json"
         },
-        body: hash_including(model: "gpt-5.4", input: [ { role: "user", content: "hi" } ])
+        body: hash_including(model: "gpt-5.4", input: [ { role: "user", content: "hi" } ], stream: true)
       )
       .to_return(
         status: 200,
-        body: { id: "resp_1", output: [], usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 } }.to_json,
-        headers: { "Content-Type" => "application/json" }
+        body: "data: #{{
+          type: "response.completed",
+          response: {
+            id: "resp_1",
+            output: [],
+            usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 }
+          }
+        }.to_json}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
       )
 
     response = client.responses.create(parameters: {
@@ -36,12 +43,15 @@ class Provider::OpenaiViaCodex::ClientTest < ActiveSupport::TestCase
     stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
       .with do |request|
         body = JSON.parse(request.body)
-        body["model"] == "gpt-5.4" && !body.key?("previous_response_id")
+        body["model"] == "gpt-5.4" && body["stream"] == true && !body.key?("previous_response_id")
       end
       .to_return(
         status: 200,
-        body: { id: "resp_1", output: [], usage: { total_tokens: 0 } }.to_json,
-        headers: { "Content-Type" => "application/json" }
+        body: "data: #{{
+          type: "response.completed",
+          response: { id: "resp_1", output: [], usage: { total_tokens: 0 } }
+        }.to_json}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
       )
 
     response = client.responses.create(parameters: {
@@ -51,6 +61,32 @@ class Provider::OpenaiViaCodex::ClientTest < ActiveSupport::TestCase
     })
 
     assert_equal "resp_1", response["id"]
+  end
+
+  test "responses.create returns a completed response from internal streaming" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with(body: hash_including(model: "gpt-5.4", stream: true))
+      .to_return(
+        status: 200,
+        body: "data: {\"type\":\"response.output_text.delta\",\"delta\":\"{\\\"ok\\\":\"}\n\n" \
+              "data: {\"type\":\"response.output_text.delta\",\"delta\":\"true}\"}\n\n" \
+              "data: #{{
+                type: "response.completed",
+                response: { id: "resp_1", model: "gpt-5.4", output: [], usage: { total_tokens: 2 } }
+              }.to_json}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    response = client.responses.create(parameters: {
+      model: "openai-codex/gpt-5.4",
+      input: [ { role: "user", content: "hi" } ]
+    })
+
+    assert_equal "resp_1", response["id"]
+    assert_equal "{\"ok\":true}", response.dig("output", 0, "content", 0, "text")
   end
 
   test "responses.create streams SSE hashes to the supplied callback" do
