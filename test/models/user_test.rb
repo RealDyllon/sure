@@ -265,7 +265,7 @@ class UserTest < ActiveSupport::TestCase
   test "ai_available? returns true when openai access token set in settings" do
     Rails.application.config.app_mode.stubs(:self_hosted?).returns(true)
     previous = Setting.openai_access_token
-    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: nil, EXTERNAL_ASSISTANT_TOKEN: nil do
+    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: nil, EXTERNAL_ASSISTANT_TOKEN: nil, ASSISTANT_TYPE: nil, LLM_PROVIDER: nil do
       Setting.openai_access_token = nil
       assert_not @user.ai_available?
 
@@ -279,7 +279,7 @@ class UserTest < ActiveSupport::TestCase
   test "ai_available? returns true when codex llm provider is configured" do
     Rails.application.config.app_mode.stubs(:self_hosted?).returns(true)
 
-    with_env_overrides OPENAI_ACCESS_TOKEN: nil, LLM_PROVIDER: "codex" do
+    with_env_overrides OPENAI_ACCESS_TOKEN: nil, ASSISTANT_TYPE: nil, LLM_PROVIDER: "codex" do
       Provider::OpenaiViaCodex.stubs(:configured?).returns(true)
       Provider::OpenaiViaCodex::Client.stubs(:new).returns(stub)
 
@@ -291,7 +291,7 @@ class UserTest < ActiveSupport::TestCase
     Rails.application.config.app_mode.stubs(:self_hosted?).returns(true)
     previous = Setting.openai_access_token
     @user.family.update!(assistant_type: "external")
-    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: "http://localhost:18789/v1/chat", EXTERNAL_ASSISTANT_TOKEN: "test-token" do
+    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: "http://localhost:18789/v1/chat", EXTERNAL_ASSISTANT_TOKEN: "test-token", ASSISTANT_TYPE: nil, LLM_PROVIDER: nil do
       Setting.openai_access_token = nil
       assert @user.ai_available?
     end
@@ -303,7 +303,7 @@ class UserTest < ActiveSupport::TestCase
   test "ai_available? returns false when external assistant is configured but family type is builtin" do
     Rails.application.config.app_mode.stubs(:self_hosted?).returns(true)
     previous = Setting.openai_access_token
-    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: "http://localhost:18789/v1/chat", EXTERNAL_ASSISTANT_TOKEN: "test-token" do
+    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: "http://localhost:18789/v1/chat", EXTERNAL_ASSISTANT_TOKEN: "test-token", ASSISTANT_TYPE: nil, LLM_PROVIDER: nil do
       Setting.openai_access_token = nil
       assert_not @user.ai_available?
     end
@@ -315,7 +315,7 @@ class UserTest < ActiveSupport::TestCase
     Rails.application.config.app_mode.stubs(:self_hosted?).returns(true)
     previous = Setting.openai_access_token
     @user.family.update!(assistant_type: "external")
-    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: "http://localhost:18789/v1/chat", EXTERNAL_ASSISTANT_TOKEN: "test-token", EXTERNAL_ASSISTANT_ALLOWED_EMAILS: "other@example.com" do
+    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: "http://localhost:18789/v1/chat", EXTERNAL_ASSISTANT_TOKEN: "test-token", EXTERNAL_ASSISTANT_ALLOWED_EMAILS: "other@example.com", ASSISTANT_TYPE: nil, LLM_PROVIDER: nil do
       Setting.openai_access_token = nil
       assert_not @user.ai_available?
     end
@@ -368,7 +368,7 @@ class UserTest < ActiveSupport::TestCase
   test "new member defaults show_ai_sidebar to false when AI is not available" do
     Rails.application.config.app_mode.stubs(:self_hosted?).returns(true)
     previous = Setting.openai_access_token
-    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: nil, EXTERNAL_ASSISTANT_TOKEN: nil do
+    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: nil, EXTERNAL_ASSISTANT_TOKEN: nil, ASSISTANT_TYPE: nil, LLM_PROVIDER: nil do
       Setting.openai_access_token = nil
       user = User.new(
         family: families(:empty),
@@ -387,7 +387,7 @@ class UserTest < ActiveSupport::TestCase
   test "new admin defaults show_ai_sidebar to true even when AI is not available" do
     Rails.application.config.app_mode.stubs(:self_hosted?).returns(true)
     previous = Setting.openai_access_token
-    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: nil, EXTERNAL_ASSISTANT_TOKEN: nil do
+    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: nil, EXTERNAL_ASSISTANT_TOKEN: nil, ASSISTANT_TYPE: nil, LLM_PROVIDER: nil do
       Setting.openai_access_token = nil
       user = User.new(
         family: families(:empty),
@@ -419,7 +419,7 @@ class UserTest < ActiveSupport::TestCase
   test "new guest defaults show_ai_sidebar to false when AI is not available" do
     Rails.application.config.app_mode.stubs(:self_hosted?).returns(true)
     previous = Setting.openai_access_token
-    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: nil, EXTERNAL_ASSISTANT_TOKEN: nil do
+    with_env_overrides OPENAI_ACCESS_TOKEN: nil, EXTERNAL_ASSISTANT_URL: nil, EXTERNAL_ASSISTANT_TOKEN: nil, ASSISTANT_TYPE: nil, LLM_PROVIDER: nil do
       Setting.openai_access_token = nil
       user = User.new(
         family: families(:empty),

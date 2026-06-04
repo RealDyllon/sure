@@ -166,7 +166,7 @@ class Api::V1::ValuationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal existing_entry.id, response_data["id"]
     assert_equal existing_entry.date.to_s, response_data["date"]
     assert_equal "API correction", response_data["notes"]
-    assert_equal BigDecimal("11009.00"), existing_entry.reload.amount
+    assert_equal BigDecimal("12345.67"), existing_entry.reload.amount
   end
 
   test "should create valuation when upsert is requested without an existing same-date valuation" do
@@ -215,7 +215,7 @@ class Api::V1::ValuationsControllerTest < ActionDispatch::IntegrationTest
     response_data = JSON.parse(response.body)
     assert_equal existing_entry.id, response_data["id"]
     assert_equal "Nested upsert correction", response_data["notes"]
-    assert_equal BigDecimal("21008.00"), existing_entry.reload.amount
+    assert_equal BigDecimal("22222.22"), existing_entry.reload.amount
   end
 
   test "should reject create with read-only API key" do

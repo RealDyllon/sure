@@ -67,14 +67,14 @@ class QifImportTest < ActiveSupport::TestCase
   QIF_WITH_OPENING_BALANCE = <<~QIF
     !Type:Bank
     D1/ 1'20
-    U1025.00
-    T1025.00
+    U500.00
+    T500.00
     POpening Balance
     L[Checking Account]
     ^
     D3/ 1'20
-    U1017.00
-    T1017.00
+    U100.00
+    T100.00
     PFirst Deposit
     ^
     D4/ 1'20

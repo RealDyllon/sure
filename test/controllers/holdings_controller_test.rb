@@ -33,7 +33,7 @@ class HoldingsControllerTest < ActionDispatch::IntegrationTest
     @holding.update!(qty: 10, cost_basis: nil, cost_basis_source: nil, cost_basis_locked: false)
 
     # When: user submits total cost basis of $100 (should become $10 per share)
-    patch holding_path(@holding), params: { holding: { cost_basis: "1017.00" } }
+    patch holding_path(@holding), params: { holding: { cost_basis: "100.00" } }
 
     # Redirects to account page holdings tab to refresh list
     assert_redirected_to account_path(@holding.account, tab: "holdings")

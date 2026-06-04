@@ -65,7 +65,7 @@ module ImportInterfaceTest
       date_format: "%m/%d/%Y"
     )
 
-    csv_data = "date,amount,name\n01/01/2024,\"1,1023.00\",Test"
+    csv_data = "date,amount,name\n01/01/2024,\"1,004.00\",Test"
     import.update!(raw_file_str: csv_data)
     import.generate_rows_from_csv
     import.reload
@@ -83,7 +83,7 @@ module ImportInterfaceTest
       date_format: "%m/%d/%Y"
     )
 
-    csv_data = "date,amount,name\n01/01/2024,\"1.234,56\",Test"
+    csv_data = "date,amount,name\n01/01/2024,\"1.004,00\",Test"
     import.update!(raw_file_str: csv_data)
     import.generate_rows_from_csv
     import.reload
@@ -103,7 +103,7 @@ module ImportInterfaceTest
     )
 
     # Quote the amount field to ensure proper CSV parsing
-    csv_data = "date,amount,name\n01/01/2024,\"1 234,56\",Test"
+    csv_data = "date,amount,name\n01/01/2024,\"1 004,00\",Test"
     import.update!(raw_file_str: csv_data)
     import.generate_rows_from_csv
     import.reload

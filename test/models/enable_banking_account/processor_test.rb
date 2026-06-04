@@ -16,7 +16,7 @@ class EnableBankingAccount::ProcessorTest < ActiveSupport::TestCase
       name: "Compte courant",
       uid: "hash_abc",
       currency: "EUR",
-      current_balance: 11025.00
+      current_balance: 1500.00
     )
     AccountProvider.create!(account: @account, provider: @enable_banking_account)
   end
@@ -46,7 +46,7 @@ class EnableBankingAccount::ProcessorTest < ActiveSupport::TestCase
     cc_account = accounts(:credit_card)
     @enable_banking_account.update!(
       current_balance: 450.00,
-      credit_limit: 1002.00
+      credit_limit: 1000.00
     )
     AccountProvider.find_by(provider: @enable_banking_account)&.destroy
     AccountProvider.create!(account: cc_account, provider: @enable_banking_account)

@@ -59,7 +59,7 @@ class Account::ProviderImportAdapterTest < ActiveSupport::TestCase
     # Create initial transaction
     entry = @adapter.import_transaction(
       external_id: "plaid_duplicate_test",
-      amount: 1017.00,
+      amount: 100.00,
       currency: "USD",
       date: Date.today,
       name: "Original Name",
@@ -87,7 +87,7 @@ class Account::ProviderImportAdapterTest < ActiveSupport::TestCase
     # Create transaction from SimpleFin with ID "transaction_123"
     simplefin_entry = @adapter.import_transaction(
       external_id: "transaction_123",
-      amount: 1017.00,
+      amount: 100.00,
       currency: "USD",
       date: Date.today,
       name: "SimpleFin Transaction",
@@ -119,7 +119,7 @@ class Account::ProviderImportAdapterTest < ActiveSupport::TestCase
     exception = assert_raises(ArgumentError) do
       @adapter.import_transaction(
         external_id: "",
-        amount: 1017.00,
+        amount: 100.00,
         currency: "USD",
         date: Date.today,
         name: "Test",
@@ -134,7 +134,7 @@ class Account::ProviderImportAdapterTest < ActiveSupport::TestCase
     exception = assert_raises(ArgumentError) do
       @adapter.import_transaction(
         external_id: "test_123",
-        amount: 1017.00,
+        amount: 100.00,
         currency: "USD",
         date: Date.today,
         name: "Test",
@@ -524,7 +524,7 @@ class Account::ProviderImportAdapterTest < ActiveSupport::TestCase
     exception = assert_raises(ArgumentError) do
       adapter.import_transaction(
         external_id: "collision_test",
-        amount: 1017.00,
+        amount: 100.00,
         currency: "USD",
         date: Date.today,
         name: "Test Transaction",
@@ -543,7 +543,7 @@ class Account::ProviderImportAdapterTest < ActiveSupport::TestCase
     # Create a transaction with external_id "collision_test_2"
     adapter.import_transaction(
       external_id: "collision_test_2",
-      amount: 1017.00,
+      amount: 100.00,
       currency: "USD",
       date: Date.today,
       name: "Test Transaction",
@@ -859,7 +859,7 @@ class Account::ProviderImportAdapterTest < ActiveSupport::TestCase
     # Import pending transaction (pre-tip authorization)
     pending_entry = @adapter.import_transaction(
       external_id: "simplefin_pending_amount_test",
-      amount: 1017.00,
+      amount: 100.00,
       currency: "USD",
       date: Date.today - 1.day,
       name: "Restaurant",
@@ -908,7 +908,7 @@ class Account::ProviderImportAdapterTest < ActiveSupport::TestCase
     assert_difference "@account.entries.count", 1 do
       posted_entry = @adapter.import_transaction(
         external_id: "simplefin_posted_big_diff",
-        amount: 1017.00, # 100% increase - way outside 25% tolerance
+        amount: 100.00, # 100% increase - way outside 25% tolerance
         currency: "USD",
         date: Date.today,
         name: "Store",

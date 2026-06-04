@@ -485,7 +485,7 @@ class Family::DataExporterTest < ActiveSupport::TestCase
       assert balance_data
       assert_equal @account.id, balance_data["data"]["account_id"]
       assert_equal "2024-01-15", balance_data["data"]["date"]
-      assert_equal "1004.00", BigDecimal(balance_data["data"]["balance"].to_s).to_s("F")
+      assert_equal "1004.0", BigDecimal(balance_data["data"]["balance"].to_s).to_s("F")
       assert_equal "USD", balance_data["data"]["currency"]
     end
   end

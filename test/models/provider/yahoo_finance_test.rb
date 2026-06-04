@@ -343,7 +343,7 @@ class Provider::YahooFinanceTest < ActiveSupport::TestCase
   # ================================
 
   test "normalize_currency_and_price converts GBp to GBP" do
-    currency, price = @provider.send(:normalize_currency_and_price, "GBp", 1004.00)
+    currency, price = @provider.send(:normalize_currency_and_price, "GBp", 1234.56)
     assert_equal "GBP", currency
     assert_equal 12.3456, price
   end

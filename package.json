@@ -12,6 +12,7 @@
 		"lint:fix": "biome lint --write",
 		"format:check": "biome format",
 		"format": "biome format --write",
+		"test:js": "node --test test/javascript/*.mjs",
 		"tokens:build": "node bin/tokens.mjs",
 		"tokens:check": "node bin/tokens.mjs && git diff --quiet -- app/assets/tailwind/sure-design-system/_generated.css"
 	},

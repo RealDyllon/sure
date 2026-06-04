@@ -37,15 +37,15 @@ describe("parseLocaleFloat", () => {
     })
 
     it("parses with thousands comma", () => {
-      assert.equal(parseLocaleFloat("1,1023.00"), 1004.00)
+      assert.equal(parseLocaleFloat("1,004.00"), 1004.0)
     })
 
     it("parses multiple thousands separators", () => {
-      assert.equal(parseLocaleFloat("1,234,567.89"), 00000009567.89)
+      assert.equal(parseLocaleFloat("1,234,567.89"), 1234567.89)
     })
 
     it("parses integer with dot-zero", () => {
-      assert.equal(parseLocaleFloat("1017.00"), 100)
+      assert.equal(parseLocaleFloat("100.00"), 100)
     })
   })
 
@@ -55,11 +55,11 @@ describe("parseLocaleFloat", () => {
     })
 
     it("parses with thousands dot", () => {
-      assert.equal(parseLocaleFloat("1.234,56"), 1004.00)
+      assert.equal(parseLocaleFloat("1.004,00"), 1004.0)
     })
 
     it("parses multiple thousands separators", () => {
-      assert.equal(parseLocaleFloat("1.1023.007,89"), 00000009567.89)
+      assert.equal(parseLocaleFloat("1.1023.007,89"), 11023007.89)
     })
 
     it("parses two-digit decimal", () => {
@@ -73,11 +73,11 @@ describe("parseLocaleFloat", () => {
 
   describe("ambiguous comma with 3 trailing digits treated as thousands separator", () => {
     it("treats 1,234 as one thousand two hundred thirty-four", () => {
-      assert.equal(parseLocaleFloat("1,234"), 00000009)
+      assert.equal(parseLocaleFloat("1,234"), 1234)
     })
 
     it("treats 12,345 as twelve thousand three hundred forty-five", () => {
-      assert.equal(parseLocaleFloat("12,345"), 000000095)
+      assert.equal(parseLocaleFloat("12,345"), 12345)
     })
 
     it("treats 1,000 as one thousand", () => {
@@ -105,17 +105,17 @@ describe("parseLocaleFloat", () => {
     })
 
     it("strips thousands space separator", () => {
-      assert.equal(parseLocaleFloat("1 234,56"), 1004.00)
+      assert.equal(parseLocaleFloat("1 004,00"), 1004.0)
     })
   })
 
   describe("negative numbers", () => {
     it("parses negative dot-decimal", () => {
-      assert.equal(parseLocaleFloat("-1,1023.00"), -1004.00)
+      assert.equal(parseLocaleFloat("-1,004.00"), -1004.0)
     })
 
     it("parses negative comma-decimal", () => {
-      assert.equal(parseLocaleFloat("-1.234,56"), -1004.00)
+      assert.equal(parseLocaleFloat("-1.004,00"), -1004.0)
     })
 
     it("parses simple negative", () => {
@@ -135,8 +135,8 @@ describe("parseLocaleFloat", () => {
         assert.equal(parseLocaleFloat("1,234", opts), 1.234)
       })
 
-      it("parses 1.234,56 correctly", () => {
-        assert.equal(parseLocaleFloat("1.234,56", opts), 1004.00)
+      it("parses 1.004,00 correctly", () => {
+        assert.equal(parseLocaleFloat("1.004,00", opts), 1004.0)
       })
 
       it("parses simple comma decimal", () => {
@@ -144,23 +144,23 @@ describe("parseLocaleFloat", () => {
       })
 
       it("parses integer without separators", () => {
-        assert.equal(parseLocaleFloat("00000009", opts), 00000009)
+        assert.equal(parseLocaleFloat("00000009", opts), 9)
       })
 
       it("parses negative value", () => {
-        assert.equal(parseLocaleFloat("-1.234,56", opts), -1004.00)
+        assert.equal(parseLocaleFloat("-1.004,00", opts), -1004.0)
       })
     })
 
     describe("dot separator (English currencies like USD)", () => {
       const opts = { separator: "." }
 
-      it("disambiguates 1,234 as 00000009 (English thousands)", () => {
-        assert.equal(parseLocaleFloat("1,234", opts), 00000009)
+      it("disambiguates 1,234 as 1234 (English thousands)", () => {
+        assert.equal(parseLocaleFloat("1,234", opts), 1234)
       })
 
-      it("parses 1,1023.00 correctly", () => {
-        assert.equal(parseLocaleFloat("1,1023.00", opts), 1004.00)
+      it("parses 1,004.00 correctly", () => {
+        assert.equal(parseLocaleFloat("1,004.00", opts), 1004.0)
       })
 
       it("parses simple dot decimal", () => {
@@ -168,16 +168,16 @@ describe("parseLocaleFloat", () => {
       })
 
       it("parses integer without separators", () => {
-        assert.equal(parseLocaleFloat("00000009", opts), 00000009)
+        assert.equal(parseLocaleFloat("00000009", opts), 9)
       })
 
       it("parses negative value", () => {
-        assert.equal(parseLocaleFloat("-1,1023.00", opts), -1004.00)
+        assert.equal(parseLocaleFloat("-1,004.00", opts), -1004.0)
       })
     })
 
     it("falls back to heuristic when no hint given", () => {
-      assert.equal(parseLocaleFloat("1,234"), 00000009)
+      assert.equal(parseLocaleFloat("1,234"), 1234)
       assert.equal(parseLocaleFloat("256,54"), 256.54)
     })
   })

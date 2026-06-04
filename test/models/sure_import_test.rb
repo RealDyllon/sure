@@ -141,7 +141,7 @@ class SureImportTest < ActiveSupport::TestCase
       { type: "Account", data: {
         id: "uuid-1",
         name: "Import Test Account",
-        balance: "1002.00",
+        balance: "1000.00",
         currency: "USD",
         accountable_type: "Depository",
         accountable: { subtype: "checking" }

@@ -47,10 +47,10 @@ class StatementImportTest < ActiveSupport::TestCase
     assert_equal "Depository", account.accountable_type
     assert_equal "SGD", account.currency
     assert_equal 3, statement_import.entries.where(entryable_type: "Transaction").count
-    assert statement_import.entries.exists?(source: "statement_import", external_id: "dbs:00000018:2026-04-01:12.50:PayNow Transfer")
+    assert statement_import.entries.exists?(source: "statement_import", external_id: "dbs:0018:2026-04-01:12.50:PayNow Transfer")
     assert_equal statement_import.entries.where(entryable_type: "Transaction").pluck(:entryable_id).sort, enqueued_transaction_ids.sort
 
-    profile = @family.statement_profiles.find_by!(provider: "dbs", source_id: "dbs:00000018")
+    profile = @family.statement_profiles.find_by!(provider: "dbs", source_id: "dbs:0018")
     assert_equal account, profile.account
     assert_equal Date.parse("2026-04-03"), profile.last_statement_end_on
   end
@@ -516,8 +516,8 @@ class StatementImportTest < ActiveSupport::TestCase
     assert_equal "USD", account.currency
     assert_equal 2, statement_import.entries.where(entryable_type: "Transaction").count
     assert_equal 1, statement_import.entries.where(entryable_type: "Trade").count
-    assert statement_import.entries.exists?(source: "statement_import", external_id: "ibkr:00000017:trade:2026-04-02:AAPL:10.00:1020.00:-1701.00")
-    assert statement_import.entries.exists?(source: "statement_import", external_id: "ibkr:00000017:cash:2026-04-15:12.34:AAPL Dividend")
+    assert statement_import.entries.exists?(source: "statement_import", external_id: "ibkr:0017:trade:2026-04-02:AAPL:10.00:1020.00:-1701.00")
+    assert statement_import.entries.exists?(source: "statement_import", external_id: "ibkr:0017:cash:2026-04-15:12.34:AAPL Dividend")
 
     trade = account.trades.first
     assert_equal securities(:aapl), trade.security
@@ -525,7 +525,7 @@ class StatementImportTest < ActiveSupport::TestCase
     assert_equal BigDecimal("1020.00"), trade.price
     assert_equal "Buy", trade.investment_activity_label
 
-    profile = @family.statement_profiles.find_by!(provider: "ibkr", source_id: "ibkr:00000017")
+    profile = @family.statement_profiles.find_by!(provider: "ibkr", source_id: "ibkr:0017")
     assert_equal account, profile.account
     assert_equal Date.parse("2026-04-30"), profile.last_statement_end_on
     assert_equal "1", profile.metadata.dig("counts", "positions").to_s

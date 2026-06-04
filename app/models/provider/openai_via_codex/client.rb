@@ -297,32 +297,32 @@ class Provider::OpenaiViaCodex::Client
       JSON.parse(value)
     end
 
-  class Responses
-    def initialize(client)
-      @client = client
+    class Responses
+      def initialize(client)
+        @client = client
+      end
+
+      def create(parameters:)
+        params = normalize_parameters(parameters)
+        stream = params.delete(:stream)
+        params[:model] = strip_model_prefix(params[:model])
+        params[:store] = false unless params.key?(:store)
+
+        if stream.respond_to?(:call)
+          @client.request_json(:post, "/responses", body: params.merge(stream: true), stream: stream)
+        else
+          @client.request_json(:post, "/responses", body: params)
+        end
+      end
+
+      private
+
+        def normalize_parameters(parameters)
+          parameters.to_h.deep_symbolize_keys.except(:previous_response_id).compact
+        end
+
+        def strip_model_prefix(model)
+          model.to_s.delete_prefix(Provider::OpenaiViaCodex::MODEL_PREFIX)
+        end
     end
-
-    def create(parameters:)
-      params = normalize_parameters(parameters)
-      stream = params.delete(:stream)
-      params[:model] = strip_model_prefix(params[:model])
-      params[:store] = false unless params.key?(:store)
-
-      if stream.respond_to?(:call)
-        @client.request_json(:post, "/responses", body: params.merge(stream: true), stream: stream)
-      else
-        @client.request_json(:post, "/responses", body: params)
-      end
-    end
-
-    private
-
-      def normalize_parameters(parameters)
-        parameters.to_h.deep_symbolize_keys.except(:previous_response_id).compact
-      end
-
-      def strip_model_prefix(model)
-        model.to_s.delete_prefix(Provider::OpenaiViaCodex::MODEL_PREFIX)
-      end
-  end
 end

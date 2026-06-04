@@ -199,13 +199,13 @@ class CoinstatsItem::WalletLinkerTest < ActiveSupport::TestCase
     ]
 
     bulk_response = [
-      { blockchain: "ethereum", address: "0xABCDEF0000000956", connectionId: "ethereum", balances: token_data }
+      { blockchain: "ethereum", address: "0xABCDEF123456", connectionId: "ethereum", balances: token_data }
     ]
 
     Provider::Coinstats.any_instance.expects(:get_wallet_balances).returns(success_response(bulk_response))
     Provider::Coinstats.any_instance.expects(:extract_wallet_balance).returns(token_data)
 
-    linker = CoinstatsItem::WalletLinker.new(@coinstats_item, address: "0xABCDEF0000000956", blockchain: "ethereum")
+    linker = CoinstatsItem::WalletLinker.new(@coinstats_item, address: "0xABCDEF123456", blockchain: "ethereum")
     linker.link
 
     # Account name includes the address suffix (created before upsert_coinstats_snapshot)
