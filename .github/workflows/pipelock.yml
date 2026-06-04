@@ -24,6 +24,8 @@ jobs:
           test-vectors: 'false'
           exclude-paths: |
             .env.example
+            .env.local.example
+            .env.test.example
             compose.example.yml
             compose.example.ai.yml
             config/locales/views/reports/
