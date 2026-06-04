@@ -19,6 +19,7 @@ class Family::Syncer
     mercury_items
     snaptrade_items
     sophtron_items
+    wise_items
   ].freeze
 
   def initialize(family)

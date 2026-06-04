@@ -131,6 +131,42 @@ class Family::AutoTransferMatchableTest < ActiveSupport::TestCase
     end
   end
 
+  test "auto-matches bank outflow to Wise top up using existing transfer matching" do
+    wise_item = WiseItem.create!(
+      family: @family,
+      name: "Wise Connection",
+      auth_mode: "oauth",
+      access_token: "access-token",
+      refresh_token: "refresh-token"
+    )
+    wise_balance = wise_item.wise_balances.create!(
+      balance_id: "wise-sgd",
+      name: "Wise SGD",
+      currency: "SGD",
+      balance_type: "STANDARD",
+      current_balance: 500
+    )
+    wise_account = Account.create_and_sync(
+      {
+        family: @family,
+        name: "Wise SGD",
+        balance: 500,
+        currency: "SGD",
+        accountable_type: "Depository",
+        accountable_attributes: {}
+      },
+      skip_initial_sync: true
+    )
+    AccountProvider.create!(account: wise_account, provider: wise_balance)
+
+    create_transaction(date: Date.current, account: @depository, amount: 250, currency: "SGD")
+    create_transaction(date: Date.current, account: wise_account, amount: -250, currency: "SGD")
+
+    assert_difference -> { Transfer.count }, 1 do
+      @family.auto_match_transfers!
+    end
+  end
+
   # Regression tests for loan transfer kind assignment bug
   # The kind should be determined by the DESTINATION account (inflow), not the source (outflow)
   test "loan payment (cash to loan) assigns loan_payment kind to outflow" do

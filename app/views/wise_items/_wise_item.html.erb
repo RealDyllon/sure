@@ -1,0 +1,206 @@
+<%# locals: (wise_item:) %>
+
+<%= tag.div id: dom_id(wise_item) do %>
+  <% unlinked_count = if defined?(@wise_unlinked_count_map) && @wise_unlinked_count_map
+       @wise_unlinked_count_map[wise_item.id] || 0
+     else
+       wise_item.unlinked_accounts_count
+     end %>
+
+  <details open class="group bg-container p-4 shadow-border-xs rounded-xl">
+    <summary class="flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <%= icon "chevron-right", class: "group-open:transform group-open:rotate-90" %>
+
+        <div class="flex items-center justify-center h-8 w-8 bg-cyan-500/10 rounded-full">
+          <div class="flex items-center justify-center">
+            <%= tag.p "W", class: "text-cyan-600 text-xs font-medium" %>
+          </div>
+        </div>
+
+        <div class="pl-1 text-sm">
+          <div class="flex items-center gap-2">
+            <%= tag.p wise_item.name, class: "font-medium text-primary" %>
+            <% if wise_item.scheduled_for_deletion? %>
+              <p class="text-destructive text-sm animate-pulse">Deletion in progress</p>
+            <% end %>
+          </div>
+          <p class="text-xs text-secondary"><%= wise_item.institution_summary %></p>
+
+          <% if wise_item.syncing? %>
+            <div class="text-secondary flex items-center gap-1">
+              <%= icon "loader", size: "sm", class: "animate-spin" %>
+              <%= tag.span "Syncing" %>
+            </div>
+          <% elsif wise_item.sync_error.present? %>
+            <div class="text-secondary flex items-center gap-1">
+              <%= render DS::Tooltip.new(text: wise_item.sync_error, icon: "alert-circle", size: "sm", color: "destructive") %>
+              <%= tag.span "Error", class: "text-destructive" %>
+            </div>
+          <% else %>
+            <p class="text-secondary">
+              <% if wise_item.last_synced_at %>
+                Synced <%= time_ago_in_words(wise_item.last_synced_at) %> ago
+                <% if wise_item.sync_status_summary.present? %>
+                  • <%= wise_item.sync_status_summary %>
+                <% end %>
+              <% else %>
+                Never synced
+              <% end %>
+            </p>
+          <% end %>
+        </div>
+      </div>
+
+      <% if Current.user&.admin? %>
+        <div class="flex items-center gap-2">
+          <%= button_to sync_wise_item_path(wise_item),
+                method: :post,
+                class: "button button--icon",
+                disabled: wise_item.syncing?,
+                title: "Sync Wise" do %>
+            <%= icon "refresh-cw" %>
+          <% end %>
+
+          <%= render DS::Menu.new do |menu| %>
+            <% if unlinked_count.to_i > 0 %>
+              <% menu.with_item(
+                variant: "link",
+                text: "Set up balances",
+                icon: "settings",
+                href: setup_accounts_wise_item_path(wise_item),
+                frame: :modal
+              ) %>
+            <% end %>
+            <% menu.with_item(
+              variant: "button",
+              text: "Delete",
+              icon: "trash-2",
+              href: wise_item_path(wise_item),
+              method: :delete,
+              confirm: CustomConfirm.for_resource_deletion(wise_item.name, high_severity: true)
+            ) %>
+          <% end %>
+        </div>
+      <% end %>
+    </summary>
+
+    <% unless wise_item.scheduled_for_deletion? %>
+      <div class="space-y-4 mt-4">
+        <% if wise_item.accounts.any? %>
+          <%= render "accounts/index/account_groups", accounts: wise_item.accounts %>
+        <% end %>
+
+        <% if wise_item.wise_cards.any? %>
+          <div class="border border-primary rounded-lg p-3">
+            <div class="flex items-center gap-2 mb-3">
+              <%= icon "credit-card", size: "sm" %>
+              <p class="text-sm font-medium text-primary">Wise cards</p>
+            </div>
+            <div class="grid gap-2 md:grid-cols-2">
+              <% wise_item.wise_cards.each do |card| %>
+                <div class="rounded-lg bg-surface p-3 text-sm">
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="font-medium text-primary"><%= card.card_type.to_s.titleize.presence || "Wise card" %></p>
+                    <span class="text-xs text-secondary"><%= card.status.to_s.titleize.presence || "Unknown" %></span>
+                  </div>
+                  <p class="text-secondary mt-1">
+                    <% if card.last_four.present? %>•••• <%= card.last_four %><% else %>No card number details stored<% end %>
+                    <% if card.expiry_month.present? && card.expiry_year.present? %>
+                      • Expires <%= card.expiry_month.to_s.rjust(2, "0") %>/<%= card.expiry_year %>
+                    <% end %>
+                  </p>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+
+        <% stats = if defined?(@wise_sync_stats_map) && @wise_sync_stats_map
+             @wise_sync_stats_map[wise_item.id] || {}
+           else
+             wise_item.syncs.ordered.first&.sync_stats || {}
+           end %>
+        <%= render ProviderSyncSummary.new(
+          stats: stats,
+          provider_item: wise_item,
+          institutions_count: wise_item.connected_institutions.size
+        ) %>
+
+        <% if unlinked_count.to_i > 0 %>
+          <div class="p-4 flex flex-col gap-3 items-center justify-center">
+            <p class="text-primary font-medium text-sm">Wise balances need setup</p>
+            <p class="text-secondary text-sm"><%= unlinked_count %> Wise <%= "balance".pluralize(unlinked_count) %> can be created, linked, or skipped.</p>
+            <%= render DS::Link.new(
+              text: "Set up balances",
+              icon: "settings",
+              variant: "primary",
+              href: setup_accounts_wise_item_path(wise_item),
+              frame: :modal
+            ) %>
+          </div>
+        <% end %>
+
+        <div class="border border-primary rounded-lg p-3 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <%= icon "repeat", size: "sm" %>
+              <p class="text-sm font-medium text-primary">Conversion plans</p>
+            </div>
+          </div>
+
+          <% plans = wise_item.family.wise_conversion_intentions.active.order(created_at: :desc) %>
+          <% if plans.any? %>
+            <div class="space-y-2">
+              <% plans.each do |plan| %>
+                <% snapshot = plan.latest_snapshot %>
+                <div class="rounded-lg bg-surface p-3 text-sm flex items-center justify-between gap-3">
+                  <div>
+                    <p class="font-medium text-primary"><%= plan.source_currency %> to <%= plan.target_currency %></p>
+                    <p class="text-secondary">
+                      <%= plan.target_status_label %>
+                      <% if snapshot&.provider_rate.present? %>
+                        • Rate <%= snapshot.provider_rate %>
+                      <% end %>
+                      <% if snapshot&.rate_90d_percentile.present? %>
+                        • 90d percentile <%= snapshot.rate_90d_percentile %>%
+                      <% end %>
+                    </p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <%= button_to "Refresh", refresh_wise_conversion_intention_path(plan), method: :post, class: "text-sm link" %>
+                    <%= button_to "Delete", wise_conversion_intention_path(plan), method: :delete, class: "text-sm text-destructive" %>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <p class="text-sm text-secondary">No conversion plans yet.</p>
+          <% end %>
+
+          <% if Current.user&.admin? %>
+            <%= form_with model: WiseConversionIntention.new,
+                          url: wise_conversion_intentions_path,
+                          method: :post,
+                          data: { turbo_frame: "_top" },
+                          class: "grid gap-2 md:grid-cols-6" do |form| %>
+              <%= form.collection_select :source_account_id,
+                    wise_item.accounts,
+                    :id,
+                    :name,
+                    { include_blank: "Source account" },
+                    class: "appearance-none bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary md:col-span-2" %>
+              <%= form.text_field :source_currency, placeholder: "From", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
+              <%= form.text_field :target_currency, placeholder: "To", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
+              <%= form.number_field :target_amount, step: "0.01", placeholder: "Amount", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
+              <%= form.number_field :desired_rate, step: "0.0001", placeholder: "Target rate", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
+              <%= form.date_field :deadline_on, class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary md:col-span-2" %>
+              <%= form.text_field :notes, placeholder: "Notes", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary md:col-span-3" %>
+              <%= form.submit "Save plan", class: "rounded-lg px-3 py-2 text-sm font-medium text-inverse button-bg-primary" %>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </details>
+<% end %>

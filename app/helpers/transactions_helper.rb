@@ -25,7 +25,7 @@ module TransactionsHelper
   # Input can be a Transaction or an Entry (responds_to :transaction).
   # Structure:
   #   {
-  #     kind: :simplefin | :raw,
+  #     kind: :simplefin | :wise | :raw,
   #     simplefin: { payee:, description:, memo: },
   #     provider_extras: [ { key:, value:, title: } ],
   #     raw: String (pretty JSON or string)
@@ -36,7 +36,27 @@ module TransactionsHelper
 
     extra = tx.extra
 
-    if extra.is_a?(Hash) && extra["simplefin"].present?
+    if extra.is_a?(Hash) && extra["wise"].present?
+      wise = extra["wise"].is_a?(Hash) ? extra["wise"] : {}
+      extras = wise.each_with_object([]) do |(key, value), result|
+        next if value.blank?
+
+        display = (value.is_a?(Hash) || value.is_a?(Array)) ? value.to_json : value
+        result << {
+          key: key.to_s.humanize,
+          value: display,
+          title: (value.is_a?(String) ? value : display.to_s)
+        }
+      end
+
+      {
+        kind: :wise,
+        simplefin: {},
+        wise: wise,
+        provider_extras: extras,
+        raw: nil
+      }
+    elsif extra.is_a?(Hash) && extra["simplefin"].present?
       sf = extra["simplefin"]
       simple = {
         payee: sf.is_a?(Hash) ? sf["payee"].presence : nil,
@@ -71,6 +91,7 @@ module TransactionsHelper
       {
         kind: :raw,
         simplefin: {},
+        wise: {},
         provider_extras: [],
         raw: pretty
       }

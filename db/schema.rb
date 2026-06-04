@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_06_04_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_06_04_120100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -1827,6 +1827,110 @@ ActiveRecord::Schema[7.2].define(version: 2026_06_04_120000) do
     t.check_constraint "sign_count >= 0", name: "chk_webauthn_credentials_sign_count_non_negative"
   end
 
+  create_table "wise_balances", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "wise_item_id", null: false
+    t.string "balance_id"
+    t.string "profile_id"
+    t.string "name"
+    t.string "currency"
+    t.string "balance_type"
+    t.string "account_status"
+    t.decimal "current_balance", precision: 19, scale: 4
+    t.decimal "available_balance", precision: 19, scale: 4
+    t.boolean "skipped", default: false, null: false
+    t.jsonb "institution_metadata"
+    t.jsonb "raw_payload"
+    t.jsonb "raw_transactions_payload", default: [], null: false
+    t.jsonb "extra", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["balance_id"], name: "index_wise_balances_on_balance_id"
+    t.index ["wise_item_id", "balance_id"], name: "index_wise_balances_on_item_and_balance_id", unique: true, where: "(balance_id IS NOT NULL)"
+    t.index ["wise_item_id"], name: "index_wise_balances_on_wise_item_id"
+  end
+
+  create_table "wise_cards", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "wise_item_id", null: false
+    t.string "wise_card_id"
+    t.string "wise_balance_id"
+    t.string "profile_id"
+    t.string "name"
+    t.string "card_type"
+    t.string "status"
+    t.string "last_four"
+    t.integer "expiry_month"
+    t.integer "expiry_year"
+    t.string "currency"
+    t.jsonb "raw_payload"
+    t.jsonb "raw_transactions_payload", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["wise_item_id", "wise_card_id"], name: "index_wise_cards_on_item_and_card_id", unique: true, where: "(wise_card_id IS NOT NULL)"
+    t.index ["wise_item_id"], name: "index_wise_cards_on_wise_item_id"
+  end
+
+  create_table "wise_conversion_intentions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "family_id", null: false
+    t.uuid "source_account_id"
+    t.string "source_currency", null: false
+    t.string "target_currency", null: false
+    t.decimal "target_amount", precision: 19, scale: 4
+    t.date "deadline_on"
+    t.date "trip_starts_on"
+    t.date "trip_ends_on"
+    t.decimal "desired_rate", precision: 19, scale: 8
+    t.text "notes"
+    t.string "status", default: "active", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["family_id", "status"], name: "index_wise_conversion_intentions_on_family_id_and_status"
+    t.index ["family_id"], name: "index_wise_conversion_intentions_on_family_id"
+    t.index ["source_account_id"], name: "index_wise_conversion_intentions_on_source_account_id"
+  end
+
+  create_table "wise_conversion_snapshots", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "wise_conversion_intention_id", null: false
+    t.decimal "quote_rate", precision: 19, scale: 8
+    t.decimal "quote_fee_amount", precision: 19, scale: 4
+    t.string "quote_fee_currency"
+    t.decimal "provider_rate", precision: 19, scale: 8
+    t.string "provider_name"
+    t.decimal "rate_30d_percentile", precision: 6, scale: 2
+    t.decimal "rate_90d_percentile", precision: 6, scale: 2
+    t.decimal "rate_365d_percentile", precision: 6, scale: 2
+    t.date "observed_on", null: false
+    t.jsonb "raw_quote_payload"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["wise_conversion_intention_id", "observed_on"], name: "index_wise_conversion_snapshots_on_plan_and_observed_on"
+    t.index ["wise_conversion_intention_id"], name: "idx_on_wise_conversion_intention_id_3a39dc73b0"
+  end
+
+  create_table "wise_items", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "family_id", null: false
+    t.string "name"
+    t.string "profile_id"
+    t.string "profile_type"
+    t.string "auth_mode", default: "oauth", null: false
+    t.string "status", default: "good"
+    t.boolean "scheduled_for_deletion", default: false
+    t.boolean "pending_account_setup", default: false
+    t.date "sync_start_date"
+    t.jsonb "raw_payload"
+    t.jsonb "raw_institution_payload"
+    t.text "access_token"
+    t.text "refresh_token"
+    t.text "personal_token"
+    t.datetime "token_expires_at"
+    t.string "base_url"
+    t.string "auth_url"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["auth_mode"], name: "index_wise_items_on_auth_mode"
+    t.index ["family_id"], name: "index_wise_items_on_family_id"
+    t.index ["status"], name: "index_wise_items_on_status"
+  end
+
   add_foreign_key "account_providers", "accounts", on_delete: :cascade
   add_foreign_key "account_shares", "accounts"
   add_foreign_key "account_shares", "users"
@@ -1943,4 +2047,10 @@ ActiveRecord::Schema[7.2].define(version: 2026_06_04_120000) do
   add_foreign_key "users", "chats", column: "last_viewed_chat_id"
   add_foreign_key "users", "families"
   add_foreign_key "webauthn_credentials", "users"
+  add_foreign_key "wise_balances", "wise_items"
+  add_foreign_key "wise_cards", "wise_items"
+  add_foreign_key "wise_conversion_intentions", "accounts", column: "source_account_id"
+  add_foreign_key "wise_conversion_intentions", "families"
+  add_foreign_key "wise_conversion_snapshots", "wise_conversion_intentions"
+  add_foreign_key "wise_items", "families"
 end
