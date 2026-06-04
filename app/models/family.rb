@@ -28,6 +28,7 @@ class Family < ApplicationRecord
 
   has_many :imports, dependent: :destroy
   has_many :auto_categorization_runs, dependent: :destroy
+  has_many :category_cleanup_runs, dependent: :destroy
   has_many :statement_profiles, dependent: :destroy
   has_many :family_exports, dependent: :destroy
 

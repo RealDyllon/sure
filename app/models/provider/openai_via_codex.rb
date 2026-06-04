@@ -5,6 +5,12 @@ class Provider::OpenaiViaCodex < Provider::Openai
   MODEL_PREFIX = "openai-codex/".freeze
   DEFAULT_MODEL_SLUGS = %w[gpt-5.4 gpt-5.4-mini gpt-5.4-nano].freeze
   DEFAULT_MODEL = "#{MODEL_PREFIX}#{DEFAULT_MODEL_SLUGS.first}".freeze
+  DEFAULT_CONTEXT_WINDOWS = {
+    "gpt-5.4" => 1_050_000,
+    "gpt-5.4-mini" => 400_000,
+    "gpt-5.4-nano" => 400_000
+  }.freeze
+  DEFAULT_MAX_RESPONSE_TOKENS = 128_000
 
   def self.effective_model
     configured = ENV.fetch("OPENAI_MODEL") { Setting.openai_model }.presence
@@ -29,6 +35,14 @@ class Provider::OpenaiViaCodex < Provider::Openai
 
   def supports_responses_endpoint?
     true
+  end
+
+  def context_window
+    positive_budget(ENV["LLM_CONTEXT_WINDOW"], Setting.llm_context_window, default_context_window)
+  end
+
+  def max_response_tokens
+    positive_budget(ENV["LLM_MAX_RESPONSE_TOKENS"], Setting.llm_max_response_tokens, DEFAULT_MAX_RESPONSE_TOKENS)
   end
 
   def chat_response(
@@ -79,5 +93,9 @@ class Provider::OpenaiViaCodex < Provider::Openai
 
     def normalize_model(model)
       model.to_s.start_with?(MODEL_PREFIX) ? model : "#{MODEL_PREFIX}#{model}"
+    end
+
+    def default_context_window
+      DEFAULT_CONTEXT_WINDOWS.fetch(@default_model.delete_prefix(MODEL_PREFIX), DEFAULT_CONTEXT_WINDOWS.fetch(DEFAULT_MODEL_SLUGS.first))
     end
 end

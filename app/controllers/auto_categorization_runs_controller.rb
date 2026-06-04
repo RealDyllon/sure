@@ -34,6 +34,17 @@ class AutoCategorizationRunsController < ApplicationController
     redirect_to auto_categorization_run_path(@run), notice: queued ? "Retry queued." : "This run cannot be retried right now."
   end
 
+  def refresh_suggestions
+    unless provider_configured?
+      redirect_to auto_categorization_run_path(@run), alert: "AI configuration is required before refreshing suggestions."
+      return
+    end
+
+    queued = @run.queue_transaction_suggestion_refresh!
+    redirect_to auto_categorization_run_path(@run),
+                notice: queued ? "AI suggestions are being refreshed with your current categories." : "This run cannot refresh suggestions right now."
+  end
+
   def update_category_suggestion
     unless category_review_editable?
       redirect_to auto_categorization_run_path(@run, review_query_params), alert: "This run is no longer editable."

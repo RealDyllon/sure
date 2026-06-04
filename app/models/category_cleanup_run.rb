@@ -1,32 +1,20 @@
-class AutoCategorizationRun < ApplicationRecord
+class CategoryCleanupRun < ApplicationRecord
   PROCESSING_PROGRESS_STALE_AFTER = 5.minutes
-  GENERATION_BATCH_SIZE = 25
   MAX_GENERATION_RETRIES = 1
   MAX_APPLY_RETRIES = 1
 
   belongs_to :family
   belongs_to :user
 
-  has_many :run_transactions,
-           class_name: "AutoCategorizationRunTransaction",
-           dependent: :destroy,
-           inverse_of: :run
-  has_many :category_suggestions,
-           class_name: "AutoCategorizationCategorySuggestion",
-           dependent: :destroy,
-           inverse_of: :run
   has_many :suggestions,
-           class_name: "AutoCategorizationSuggestion",
+           class_name: "CategoryCleanupSuggestion",
            dependent: :destroy,
            inverse_of: :run
 
   enum :status, {
     draft: "draft",
-    suggesting_categories: "suggesting_categories",
-    reviewing_categories: "reviewing_categories",
-    creating_categories: "creating_categories",
-    suggesting_transactions: "suggesting_transactions",
-    reviewing_transactions: "reviewing_transactions",
+    generating: "generating",
+    reviewing: "reviewing",
     applying: "applying",
     complete: "complete",
     empty: "empty",
@@ -34,61 +22,31 @@ class AutoCategorizationRun < ApplicationRecord
   }, validate: true, default: "draft"
 
   scope :ordered, -> { order(created_at: :desc) }
-  scope :active, -> { where(status: %w[draft suggesting_categories reviewing_categories creating_categories suggesting_transactions reviewing_transactions applying failed]) }
+  scope :active, -> { where(status: %w[draft generating reviewing applying failed]) }
 
-  def category_setup_required?
-    family.categories.none? || category_suggestions.exists?
-  end
-
-  def processable?
-    run_transactions.exists?
+  def category_snapshot
+    metadata.to_h["categories_snapshot"].to_a
   end
 
   def queue_generation!(allow_retry: false)
-    job = AutoCategorizationGenerateJob.new(self)
+    job = CategoryCleanupGenerateJob.new(self)
     queued = false
 
     with_lock do
       reload
       return false if applying? || complete?
 
-      next_status = family.categories.exists? ? :suggesting_transactions : :suggesting_categories
       update!(
-        status: next_status,
+        status: :generating,
         error: nil,
         started_at: started_at || Time.current,
         finished_at: nil
       )
       update_processing_progress!(
-        phase: next_status,
-        message: family.categories.exists? ? "Generating transaction suggestions" : "Generating starter categories",
+        phase: :generating,
+        message: "Generating category cleanup suggestions",
         current: 0,
-        total: family.categories.exists? ? run_transactions.count : nil,
-        job_id: job.job_id,
-        retry_count: allow_retry ? processing_progress.to_h["retry_count"].to_i : 0
-      )
-      queued = true
-    end
-
-    job.enqueue if queued
-    queued
-  end
-
-  def queue_category_creation!(allow_retry: false)
-    job = AutoCategorizationCreateCategoriesJob.new(self)
-    queued = false
-
-    with_lock do
-      reload
-      return false unless reviewing_categories? || (allow_retry && retrying_category_creation?)
-      return false unless category_suggestions.selected.valid_for_creation.exists?
-
-      update!(status: :creating_categories, error: nil)
-      update_processing_progress!(
-        phase: :creating_categories,
-        message: "Creating reviewed categories",
-        current: 0,
-        total: category_suggestions.selected.valid_for_creation.count,
+        total: category_snapshot.size,
         job_id: job.job_id,
         retry_count: allow_retry ? processing_progress.to_h["retry_count"].to_i : 0
       )
@@ -100,59 +58,22 @@ class AutoCategorizationRun < ApplicationRecord
   end
 
   def queue_apply!(allow_retry: false)
-    job = AutoCategorizationApplyJob.new(self)
+    job = CategoryCleanupApplyJob.new(self)
     queued = false
 
     with_lock do
       reload
-      return false unless reviewing_transactions? || (failed? && metadata.to_h["failed_phase"] == "applying")
-      return false unless suggestions.selected.exists?
+      return false unless reviewing? || (failed? && metadata.to_h["failed_phase"] == "applying")
+      return false unless suggestions.selected.actionable.exists?
 
       update!(status: :applying, error: nil)
       update_processing_progress!(
         phase: :applying,
-        message: "Applying reviewed categories",
+        message: "Applying reviewed category cleanup",
         current: 0,
-        total: suggestions.selected.count,
+        total: suggestions.selected.actionable.count,
         job_id: job.job_id,
         retry_count: allow_retry ? processing_progress.to_h["retry_count"].to_i : 0
-      )
-      queued = true
-    end
-
-    job.enqueue if queued
-    queued
-  end
-
-  def queue_transaction_suggestion_refresh!
-    job = AutoCategorizationGenerateJob.new(self)
-    queued = false
-
-    with_lock do
-      reload
-      return false unless reviewing_transactions?
-      return false unless family.categories.exists?
-      return false unless run_transactions.exists?
-
-      suggestions.delete_all
-      run_transactions.update_all(status: AutoCategorizationRunTransaction.statuses[:pending_generation], updated_at: Time.current)
-      update!(
-        status: :suggesting_transactions,
-        error: nil,
-        finished_at: nil,
-        transaction_suggestions_count: 0,
-        selected_count: 0,
-        applied_count: 0,
-        skipped_count: 0,
-        unchanged_count: 0
-      )
-      update_processing_progress!(
-        phase: :suggesting_transactions,
-        message: "Refreshing transaction suggestions with current categories",
-        current: 0,
-        total: run_transactions.count,
-        job_id: job.job_id,
-        retry_count: 0
       )
       queued = true
     end
@@ -194,7 +115,6 @@ class AutoCategorizationRun < ApplicationRecord
       return false if guard_job_id.present? && progress["job_id"].present? && progress["job_id"] != guard_job_id
 
       total = progress["total"]
-
       progress["phase"] = "complete"
       progress["message"] = message.to_s
       progress["current"] = total if total.present?
@@ -238,7 +158,7 @@ class AutoCategorizationRun < ApplicationRecord
   end
 
   def processing_progress_stale?
-    return false unless suggesting_categories? || creating_categories? || suggesting_transactions? || applying?
+    return false unless generating? || applying?
 
     last_updated_at = processing_progress&.dig("last_updated_at")
     return updated_at < PROCESSING_PROGRESS_STALE_AFTER.ago if last_updated_at.blank?
@@ -273,8 +193,6 @@ class AutoCategorizationRun < ApplicationRecord
 
     if progress["phase"] == "applying" || metadata.to_h["failed_phase"] == "applying"
       queue_apply!(allow_retry: true)
-    elsif progress["phase"] == "creating_categories" || metadata.to_h["failed_phase"] == "creating_categories"
-      queue_category_creation!(allow_retry: true)
     else
       queue_generation!(allow_retry: true)
     end
@@ -282,8 +200,7 @@ class AutoCategorizationRun < ApplicationRecord
 
   def refresh_counts!
     update!(
-      category_suggestions_count: category_suggestions.count,
-      transaction_suggestions_count: suggestions.count,
+      suggestions_count: suggestions.count,
       selected_count: suggestions.selected.count,
       applied_count: suggestions.applied.count,
       skipped_count: suggestions.skipped.count,
@@ -308,9 +225,5 @@ class AutoCategorizationRun < ApplicationRecord
 
     def retry_limit_for_current_phase
       applying? || metadata.to_h["failed_phase"] == "applying" ? MAX_APPLY_RETRIES : MAX_GENERATION_RETRIES
-    end
-
-    def retrying_category_creation?
-      creating_categories? || (failed? && metadata.to_h["failed_phase"] == "creating_categories")
     end
 end

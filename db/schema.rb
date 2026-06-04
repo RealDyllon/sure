@@ -339,6 +339,57 @@ ActiveRecord::Schema[7.2].define(version: 2026_06_04_120100) do
     t.index ["family_id"], name: "index_categories_on_family_id"
   end
 
+  create_table "category_cleanup_runs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "family_id", null: false
+    t.uuid "user_id", null: false
+    t.string "status", default: "draft", null: false
+    t.string "provider_name"
+    t.string "model"
+    t.integer "suggestions_count", default: 0, null: false
+    t.integer "selected_count", default: 0, null: false
+    t.integer "applied_count", default: 0, null: false
+    t.integer "skipped_count", default: 0, null: false
+    t.integer "unchanged_count", default: 0, null: false
+    t.text "error"
+    t.jsonb "processing_progress", default: {}, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["family_id"], name: "index_category_cleanup_runs_on_family_id"
+    t.index ["user_id", "status", "created_at"], name: "idx_on_user_id_status_created_at_5d58ff2aca"
+    t.index ["user_id"], name: "index_category_cleanup_runs_on_user_id"
+  end
+
+  create_table "category_cleanup_suggestions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "category_cleanup_run_id", null: false
+    t.uuid "source_category_id"
+    t.uuid "target_category_id"
+    t.uuid "parent_category_id"
+    t.string "suggested_action", default: "keep", null: false
+    t.string "source_category_name"
+    t.string "target_category_name"
+    t.string "parent_category_name"
+    t.string "new_name"
+    t.decimal "confidence", precision: 5, scale: 4
+    t.text "rationale"
+    t.boolean "selected", default: false, null: false
+    t.string "status", default: "suggested", null: false
+    t.text "error"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "applied_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category_cleanup_run_id", "selected"], name: "idx_category_cleanup_suggestions_on_run_selected"
+    t.index ["category_cleanup_run_id", "status"], name: "idx_category_cleanup_suggestions_on_run_status"
+    t.index ["category_cleanup_run_id", "suggested_action"], name: "idx_category_cleanup_suggestions_on_run_action"
+    t.index ["category_cleanup_run_id"], name: "idx_category_cleanup_suggestions_on_run_id"
+    t.index ["parent_category_id"], name: "index_category_cleanup_suggestions_on_parent_category_id"
+    t.index ["source_category_id"], name: "index_category_cleanup_suggestions_on_source_category_id"
+    t.index ["target_category_id"], name: "index_category_cleanup_suggestions_on_target_category_id"
+  end
+
   create_table "chats", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.string "title", null: false
@@ -1961,6 +2012,12 @@ ActiveRecord::Schema[7.2].define(version: 2026_06_04_120100) do
   add_foreign_key "budget_categories", "categories"
   add_foreign_key "budgets", "families"
   add_foreign_key "categories", "families"
+  add_foreign_key "category_cleanup_runs", "families"
+  add_foreign_key "category_cleanup_runs", "users"
+  add_foreign_key "category_cleanup_suggestions", "categories", column: "parent_category_id", on_delete: :nullify
+  add_foreign_key "category_cleanup_suggestions", "categories", column: "source_category_id", on_delete: :nullify
+  add_foreign_key "category_cleanup_suggestions", "categories", column: "target_category_id", on_delete: :nullify
+  add_foreign_key "category_cleanup_suggestions", "category_cleanup_runs"
   add_foreign_key "chats", "users"
   add_foreign_key "coinbase_accounts", "coinbase_items"
   add_foreign_key "coinbase_items", "families"

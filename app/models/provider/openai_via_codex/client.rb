@@ -311,7 +311,22 @@ class Provider::OpenaiViaCodex::Client
         if stream.respond_to?(:call)
           @client.request_json(:post, "/responses", body: params.merge(stream: true), stream: stream)
         else
-          @client.request_json(:post, "/responses", body: params)
+          response = nil
+          output_text = +""
+          internal_stream = proc do |event|
+            case event["type"]
+            when "response.output_text.delta", "response.refusal.delta"
+              output_text << event["delta"].to_s
+            when "response.completed"
+              response = event["response"]
+            end
+          end
+
+          @client.request_json(:post, "/responses", body: params.merge(stream: true), stream: internal_stream)
+          raise Error, "Codex API stream completed without a response" if response.blank?
+
+          ensure_output_text!(response, output_text)
+          response
         end
       end
 
@@ -323,6 +338,25 @@ class Provider::OpenaiViaCodex::Client
 
         def strip_model_prefix(model)
           model.to_s.delete_prefix(Provider::OpenaiViaCodex::MODEL_PREFIX)
+        end
+
+        def ensure_output_text!(response, output_text)
+          return if output_text.blank?
+          return if Array(response["output"]).any? do |item|
+            item["type"] == "message" && Array(item["content"]).any? { |content| (content["text"] || content["refusal"]).present? }
+          end
+
+          response["output"] = Array(response["output"]) + [
+            {
+              "type" => "message",
+              "content" => [
+                {
+                  "type" => "output_text",
+                  "text" => output_text
+                }
+              ]
+            }
+          ]
         end
     end
 end
