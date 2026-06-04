@@ -23,8 +23,19 @@
 involved: [Discord](https://discord.gg/36ZGBsxYEK) • [Website](https://sure.am) • [Issues](https://github.com/we-promise/sure/issues)</b>
 
 > [!IMPORTANT]
-> This repository is a community fork of the now-abandoned Maybe Finance project. <br />
-> Learn more in their [final release](https://github.com/maybe-finance/maybe/releases/tag/v0.6.0) doc.
+> This repository is a fork of [we-promise/sure](https://github.com/we-promise/sure), which is itself a community fork of the now-abandoned [Maybe Finance](https://github.com/maybe-finance/maybe) project. <br />
+> This fork is not affiliated with or endorsed by Maybe Finance Inc. or the upstream Sure maintainers.
+
+## What This Fork Adds
+
+This fork builds on Sure with additional work around AI-assisted categorization, statement import, and Singapore-aware personal finance workflows.
+
+- AI category wizard for reviewing suggested categories and applying transaction categorization changes.
+- PDF/CSV statement import pipeline with processing progress, review controls, and enrichment support.
+- OpenAI/Codex-backed provider work for AI categorization and statement extraction.
+- Singapore-focused import/reporting improvements, including CPF, DBS, and IBKR statement handling.
+
+For the detailed fork comparison, including remotes and rewritten-history context, see [FORK.md](FORK.md).
 
 ## Backstory
 
@@ -36,7 +47,7 @@ After spending nearly $1 million on development (employees, contractors, data pr
 
 They actually did launch that hosted version … briefly.
 
-That also didn’t work out — at least not as a sustainable B2C business — so now here we are: hosting a community-maintained fork to keep the codebase alive and see where this can go next.
+That also didn’t work out — at least not as a sustainable B2C business — which led to Sure, a community-maintained fork. This repository builds on that fork with additional product and localization work.
 
 Join us!
 
@@ -46,12 +57,12 @@ Sure is a fully working personal finance app that can be [self hosted with Docke
 
 ## Forking and Attribution
 
-This repo is a community fork of the archived Maybe Finance repo.
-You’re free to fork it under the AGPLv3 license — but we’d love it if you stuck around and contributed here instead.
+This repo is a fork of `we-promise/sure`, which is a community fork of the archived Maybe Finance repo.
+You’re free to fork it under the AGPLv3 license.
 
 To stay compliant and avoid trademark issues:
 
-- Be sure to include the original [AGPLv3 license](https://github.com/maybe-finance/maybe/blob/main/LICENSE) and clearly state in your README that your fork is based on Maybe Finance but is **not affiliated with or endorsed by** Maybe Finance Inc.
+- Be sure to include the original [AGPLv3 license](https://github.com/maybe-finance/maybe/blob/main/LICENSE) and clearly state in your README that your fork is based on Sure and Maybe Finance but is **not affiliated with or endorsed by** Maybe Finance Inc. or the upstream Sure maintainers.
 - "Maybe" is a trademark of Maybe Finance Inc. and therefore, use of it is NOT allowed in forked repositories (or the logo)
 
 ## Performance Issues
@@ -114,9 +125,9 @@ For further instructions, see guides below.
 
 ## License and Trademarks
 
-Maybe and Sure are both distributed under
+Maybe, Sure, and this fork are distributed under
 an [AGPLv3 license](https://github.com/we-promise/sure/blob/main/LICENSE).
 - "Maybe" is a trademark of Maybe Finance, Inc.
-- "Sure" is not, and refers to this community fork.
+- "Sure" refers to the upstream community fork at `we-promise/sure`.
 
 ![Alt](https://repobeats.axiom.co/api/embed/3a9753cff07501fba8a6749d0ebd567ff63848c8.svg "Repobeats analytics image")
