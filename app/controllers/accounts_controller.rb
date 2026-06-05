@@ -22,6 +22,7 @@ class AccountsController < ApplicationController
     @snaptrade_items = visible_provider_items(family.snaptrade_items.ordered.includes(:syncs, :snaptrade_accounts))
     @indexa_capital_items = visible_provider_items(family.indexa_capital_items.ordered.includes(:syncs, :indexa_capital_accounts))
     @sophtron_items = visible_provider_items(family.sophtron_items.ordered.includes(:syncs, :sophtron_accounts))
+    @wise_items = visible_provider_items(family.wise_items.ordered.includes(:syncs, :wise_balances, :wise_cards))
 
     # Build sync stats maps for all providers
     build_sync_stats_maps
@@ -335,6 +336,15 @@ class AccountsController < ApplicationController
       @indexa_capital_items.each do |item|
         latest_sync = item.syncs.ordered.first
         @indexa_capital_sync_stats_map[item.id] = latest_sync&.sync_stats || {}
+      end
+
+      # Wise sync stats
+      @wise_sync_stats_map = {}
+      @wise_unlinked_count_map = {}
+      @wise_items.each do |item|
+        latest_sync = item.syncs.ordered.first
+        @wise_sync_stats_map[item.id] = latest_sync&.sync_stats || {}
+        @wise_unlinked_count_map[item.id] = item.wise_balances.requires_setup.count
       end
     end
 end

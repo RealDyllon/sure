@@ -1,0 +1,81 @@
+<% content_for :title, "Set Up Wise Balances" %>
+
+<%= render DS::Dialog.new do |dialog| %>
+  <% dialog.with_header(title: "Set up Wise balances") do %>
+    <div class="flex items-center gap-2">
+      <%= icon "wallet-cards", class: "text-primary" %>
+      <span class="text-primary">Create one Sure account for each Wise currency balance.</span>
+    </div>
+  <% end %>
+
+  <% dialog.with_body do %>
+    <%= form_with url: complete_account_setup_wise_item_path(@wise_item),
+                  method: :post,
+                  local: true,
+                  data: { turbo_frame: "_top" },
+                  class: "space-y-6" do %>
+      <div class="space-y-4">
+        <% if @api_error.present? %>
+          <div class="p-8 flex flex-col gap-3 items-center justify-center text-center">
+            <%= icon "alert-circle", size: "lg", class: "text-destructive" %>
+            <p class="text-primary font-medium">Could not fetch Wise balances</p>
+            <p class="text-destructive text-sm"><%= @api_error %></p>
+          </div>
+        <% elsif @wise_balances.empty? %>
+          <div class="p-8 flex flex-col gap-3 items-center justify-center text-center">
+            <%= icon "check-circle", size: "lg", class: "text-success" %>
+            <p class="text-primary font-medium">All Wise balances are set up</p>
+            <p class="text-secondary text-sm">There are no unlinked STANDARD Wise balances.</p>
+          </div>
+        <% else %>
+          <div class="bg-surface border border-primary p-4 rounded-lg text-sm text-secondary">
+            Only Wise STANDARD balances are shown. Cards stay inside the Wise provider item and are not created as Sure accounts.
+          </div>
+
+          <% @wise_balances.each do |wise_balance| %>
+            <div class="border border-primary rounded-lg p-4 space-y-3">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <h3 class="font-medium text-primary"><%= wise_balance.name %></h3>
+                  <p class="text-sm text-secondary"><%= wise_balance.currency %> • <%= wise_balance.current_balance || 0 %></p>
+                </div>
+              </div>
+
+              <div class="grid gap-3 md:grid-cols-2">
+                <div>
+                  <%= label_tag "balance_actions[#{wise_balance.id}]", "Action", class: "block text-sm font-medium text-primary mb-2" %>
+                  <%= select_tag "balance_actions[#{wise_balance.id}]",
+                        options_for_select([ [ "Skip", "skip" ], [ "Create depository account", "create" ], [ "Link existing depository account", "link" ] ], "skip"),
+                        class: "appearance-none bg-container border border-primary rounded-md px-3 py-2 text-sm leading-6 text-primary focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none w-full" %>
+                </div>
+                <div>
+                  <%= label_tag "existing_account_ids[#{wise_balance.id}]", "Existing account", class: "block text-sm font-medium text-primary mb-2" %>
+                  <%= select_tag "existing_account_ids[#{wise_balance.id}]",
+                        options_from_collection_for_select(@existing_accounts, :id, :name),
+                        include_blank: "Choose only when linking",
+                        class: "appearance-none bg-container border border-primary rounded-md px-3 py-2 text-sm leading-6 text-primary focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none w-full" %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+
+      <div class="flex gap-3">
+        <%= render DS::Button.new(
+          text: "Apply setup",
+          variant: "primary",
+          icon: "plus",
+          type: "submit",
+          class: "flex-1",
+          disabled: @api_error.present? || @wise_balances.empty?
+        ) %>
+        <%= render DS::Link.new(
+          text: "Cancel",
+          variant: "secondary",
+          href: accounts_path
+        ) %>
+      </div>
+    <% end %>
+  <% end %>
+<% end %>

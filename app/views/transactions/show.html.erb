@@ -133,7 +133,18 @@
     <% if (details = build_transaction_extra_details(@entry)) %>
       <% dialog.with_section(title: "Additional details", open: false) do %>
         <div class="px-3 py-2 space-y-3">
-          <% if details[:kind] == :simplefin %>
+          <% if details[:kind] == :wise %>
+            <% if details[:provider_extras].present? %>
+              <dl class="space-y-2">
+                <% details[:provider_extras].each do |ex| %>
+                  <div class="flex items-center justify-between gap-2">
+                    <dt class="text-secondary text-sm"><%= ex[:key] %></dt>
+                    <dd class="text-sm text-primary truncate max-w-[60%]" title="<%= ex[:title] %>"><%= ex[:value] %></dd>
+                  </div>
+                <% end %>
+              </dl>
+            <% end %>
+          <% elsif details[:kind] == :simplefin %>
             <% sf = details[:simplefin] %>
             <% if sf.present? %>
               <dl class="space-y-2">

@@ -1,0 +1,68 @@
+<div class="space-y-4">
+  <% error_msg = local_assigns[:error_message] || @error_message %>
+  <% if error_msg.present? %>
+    <div class="p-2 rounded-md bg-destructive/10 text-destructive text-sm overflow-hidden">
+      <p class="line-clamp-3" title="<%= error_msg %>"><%= error_msg %></p>
+    </div>
+  <% end %>
+
+  <div class="prose prose-sm text-secondary">
+    <p class="text-primary font-medium">Connection</p>
+    <p>OAuth is required for full Wise sync, including balances, cards, and balance-statement transactions.</p>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <% if Provider::Wise.oauth_configured? %>
+      <%= render DS::Link.new(
+        text: "Connect with Wise",
+        icon: "link",
+        variant: "primary",
+        href: oauth_start_wise_items_path,
+        frame: :_top
+      ) %>
+    <% else %>
+      <div class="p-3 rounded-lg border border-primary bg-surface text-sm text-secondary">
+        Set <code>WISE_CLIENT_ID</code> and <code>WISE_CLIENT_SECRET</code> to enable OAuth full sync.
+      </div>
+    <% end %>
+  </div>
+
+  <div class="border border-primary rounded-lg p-3 space-y-3">
+    <div class="text-sm">
+      <p class="font-medium text-primary">Limited personal-token fallback</p>
+      <p class="text-secondary">Wise personal API tokens are for Wise business accounts and have limited endpoint access. Balance statements are not available for all regions, so this is not equivalent to OAuth full sync.</p>
+    </div>
+
+    <%= styled_form_with model: WiseItem.new,
+                         url: wise_items_path,
+                         scope: :wise_item,
+                         method: :post,
+                         data: { turbo: true },
+                         class: "space-y-3" do |form| %>
+      <%= form.text_field :personal_token,
+                          label: "Personal API token",
+                          placeholder: "Paste limited personal token",
+                          type: :password %>
+      <%= form.text_field :base_url,
+                          label: "Base URL (optional)",
+                          placeholder: Provider::Wise::DEFAULT_BASE_URL %>
+      <div class="flex justify-end">
+        <%= form.submit "Save Limited Token",
+                        class: "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-inverse button-bg-primary hover:button-bg-primary-hover focus:outline-none focus:ring-2 focus:ring-gray-900 theme-dark:focus:ring-white focus:ring-offset-2 transition-colors" %>
+      </div>
+    <% end %>
+  </div>
+
+  <% items = local_assigns[:wise_items] || @wise_items || Current.family.wise_items.active %>
+  <div class="space-y-2">
+    <div class="flex items-center gap-2">
+      <% if items&.any? %>
+        <div class="w-2 h-2 bg-success rounded-full"></div>
+        <p class="text-sm text-secondary">Configured. Visit <a href="<%= accounts_path %>" class="link">Accounts</a> to set up balances and conversion plans.</p>
+      <% else %>
+        <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
+        <p class="text-sm text-secondary">Not configured</p>
+      <% end %>
+    </div>
+  </div>
+</div>

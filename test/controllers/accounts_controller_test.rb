@@ -198,6 +198,28 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     assert_includes @response.body, @account.name
   end
 
+  test "Wise skipped balances do not show setup required CTA on index" do
+    wise_item = @user.family.wise_items.create!(
+      name: "Wise Connection",
+      auth_mode: "oauth",
+      access_token: "access-token",
+      refresh_token: "refresh-token"
+    )
+    wise_item.wise_balances.create!(
+      balance_id: "balance-eur",
+      name: "Wise EUR",
+      currency: "EUR",
+      balance_type: "STANDARD",
+      current_balance: 100,
+      skipped: true
+    )
+
+    get accounts_path
+
+    assert_response :success
+    assert_no_match "Wise balances need setup", response.body
+  end
+
   test "toggle_active disables and re-enables an account" do
     patch toggle_active_account_url(@account)
     assert_redirected_to accounts_path

@@ -3,7 +3,8 @@ require "test_helper"
 class Provider::RegistryTest < ActiveSupport::TestCase
   test "providers filters out nil values when provider is not configured" do
     # Ensure OpenAI is not configured
-    ClimateControl.modify("OPENAI_ACCESS_TOKEN" => nil) do
+    ClimateControl.modify("OPENAI_ACCESS_TOKEN" => nil, "LLM_PROVIDER" => nil) do
+      Setting.stubs(:llm_provider).returns("openai")
       Setting.stubs(:openai_access_token).returns(nil)
 
       registry = Provider::Registry.for_concept(:llm)
@@ -15,12 +16,15 @@ class Provider::RegistryTest < ActiveSupport::TestCase
 
   test "providers returns configured providers" do
     # Mock a configured OpenAI provider
-    mock_provider = mock("openai_provider")
-    Provider::Registry.stubs(:openai).returns(mock_provider)
+    ClimateControl.modify("LLM_PROVIDER" => nil) do
+      Setting.stubs(:llm_provider).returns("openai")
+      mock_provider = mock("openai_provider")
+      Provider::Registry.stubs(:openai).returns(mock_provider)
 
-    registry = Provider::Registry.for_concept(:llm)
+      registry = Provider::Registry.for_concept(:llm)
 
-    assert_equal [ mock_provider ], registry.providers
+      assert_equal [ mock_provider ], registry.providers
+    end
   end
 
   test "get_provider raises error when provider not found for concept" do
@@ -35,7 +39,8 @@ class Provider::RegistryTest < ActiveSupport::TestCase
 
   test "get_provider returns nil when provider not configured" do
     # Ensure OpenAI is not configured
-    ClimateControl.modify("OPENAI_ACCESS_TOKEN" => nil) do
+    ClimateControl.modify("OPENAI_ACCESS_TOKEN" => nil, "LLM_PROVIDER" => nil) do
+      Setting.stubs(:llm_provider).returns("openai")
       Setting.stubs(:openai_access_token).returns(nil)
 
       registry = Provider::Registry.for_concept(:llm)
