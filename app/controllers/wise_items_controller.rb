@@ -67,9 +67,12 @@ class WiseItemsController < ApplicationController
     end
 
     redirect_uri = Provider::Wise.oauth_redirect_uri.presence || oauth_callback_wise_items_url
+    oauth_base_url = Provider::Wise.oauth_base_url
+    oauth_auth_url = Provider::Wise.oauth_auth_url
     provider = Provider::Wise.new(
       access_token: "",
-      base_url: Provider::Wise::DEFAULT_BASE_URL,
+      base_url: oauth_base_url,
+      auth_url: oauth_auth_url,
       client_id: Provider::Wise.oauth_client_id,
       client_secret: Provider::Wise.oauth_client_secret
     )
@@ -79,6 +82,8 @@ class WiseItemsController < ApplicationController
       name: "Wise Connection",
       auth_mode: "oauth",
       profile_id: params[:profileId].presence || params[:profile_id].presence,
+      base_url: oauth_base_url,
+      auth_url: oauth_auth_url,
       access_token: token_payload[:access_token],
       refresh_token: token_payload[:refresh_token],
       token_expires_at: token_payload[:expires_in].present? ? Time.current + token_payload[:expires_in].to_i.seconds : nil
@@ -256,7 +261,7 @@ class WiseItemsController < ApplicationController
 
       return_to = params[:return_to].to_s
       uri = URI.parse(return_to)
-      return nil if uri.scheme.present?
+      return nil if uri.scheme.present? || uri.host.present? || return_to.start_with?("//")
       return nil unless return_to.start_with?("/")
 
       return_to

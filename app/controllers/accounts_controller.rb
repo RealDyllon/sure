@@ -344,10 +344,7 @@ class AccountsController < ApplicationController
       @wise_items.each do |item|
         latest_sync = item.syncs.ordered.first
         @wise_sync_stats_map[item.id] = latest_sync&.sync_stats || {}
-        @wise_unlinked_count_map[item.id] = item.wise_balances
-          .left_joins(:account_provider)
-          .where(account_providers: { id: nil })
-          .count
+        @wise_unlinked_count_map[item.id] = item.wise_balances.requires_setup.count
       end
     end
 end

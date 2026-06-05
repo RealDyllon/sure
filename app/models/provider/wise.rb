@@ -26,6 +26,10 @@ class Provider::Wise
     ENV["WISE_AUTH_URL"].presence || Setting["wise_auth_url"].presence || DEFAULT_AUTH_URL
   end
 
+  def self.oauth_base_url
+    ENV["WISE_BASE_URL"].presence || Setting["wise_base_url"].presence || DEFAULT_BASE_URL
+  end
+
   def self.oauth_configured?
     oauth_client_id.present? && oauth_client_secret.present?
   end

@@ -2,11 +2,18 @@ require "test_helper"
 
 class Provider::WiseTest < ActiveSupport::TestCase
   test "uses documented production OAuth hosts" do
-    with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret", "WISE_AUTH_URL" => nil) do
+    with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret", "WISE_AUTH_URL" => nil, "WISE_BASE_URL" => nil) do
       authorize_url = Provider::Wise.oauth_authorize_url(redirect_uri: "https://sure.example/wise/callback", state: "state-token")
 
       assert_match %r{\Ahttps://wise\.com/oauth/authorize\?}, authorize_url
+      assert_equal "https://api.wise.com", Provider::Wise.oauth_base_url
       assert_includes authorize_url, "client_id=client-id"
+    end
+  end
+
+  test "uses configured OAuth API base URL" do
+    with_env_overrides("WISE_BASE_URL" => "https://api.sandbox.transferwise.tech") do
+      assert_equal "https://api.sandbox.transferwise.tech", Provider::Wise.oauth_base_url
     end
   end
 

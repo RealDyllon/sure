@@ -54,6 +54,30 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "oauth callback uses and stores configured Wise OAuth hosts" do
+    with_env_overrides(
+      "WISE_CLIENT_ID" => "client-id",
+      "WISE_CLIENT_SECRET" => "client-secret",
+      "WISE_AUTH_URL" => "https://sandbox.wise.com",
+      "WISE_BASE_URL" => "https://api.sandbox.transferwise.tech"
+    ) do
+      get oauth_start_wise_items_url
+
+      state = Rack::Utils.parse_query(URI.parse(response.location).query).fetch("state")
+      stub_request(:post, "https://api.sandbox.transferwise.tech/oauth/token")
+        .with(basic_auth: [ "client-id", "client-secret" ])
+        .to_return(status: 200, body: { access_token: "access-token", refresh_token: "refresh-token" }.to_json)
+
+      assert_difference -> { @family.wise_items.count }, 1 do
+        get oauth_callback_wise_items_url, params: { code: "auth-code", state: state }
+      end
+
+      item = @family.wise_items.order(:created_at).last
+      assert_equal "https://api.sandbox.transferwise.tech", item.base_url
+      assert_equal "https://sandbox.wise.com", item.auth_url
+    end
+  end
+
   test "creates limited personal token item" do
     assert_difference -> { @family.wise_items.count }, 1 do
       post wise_items_url, params: {
@@ -145,6 +169,21 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to accounts_url
     assert_equal "This account is already linked.", flash[:alert]
+  end
+
+  test "direct Wise link rejects protocol-relative return path" do
+    item = create_wise_item
+    balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")
+    account = accounts(:depository)
+    account.update!(currency: "USD")
+
+    post link_existing_account_wise_items_url, params: {
+      account_id: account.id,
+      wise_balance_id: balance.id,
+      return_to: "//evil.example"
+    }
+
+    assert_redirected_to accounts_url
   end
 
   test "sync creates one visible sync when not already syncing" do
