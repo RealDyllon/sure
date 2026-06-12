@@ -251,11 +251,7 @@ services:
       - sure_net
 
   web:
-    image: ${SURE_IMAGE:-sure:local}
-    build:
-      context: .
-      args:
-        BUILD_COMMIT_SHA: ${BUILD_COMMIT_SHA:-local}
+    image: ghcr.io/we-promise/sure:stable
     volumes:
       - app-storage:/rails/storage
     ports:
@@ -295,11 +291,7 @@ services:
       - sure_net
 
   worker:
-    image: ${SURE_IMAGE:-sure:local}
-    build:
-      context: .
-      args:
-        BUILD_COMMIT_SHA: ${BUILD_COMMIT_SHA:-local}
+    image: ghcr.io/we-promise/sure:stable
     command: bundle exec sidekiq
     volumes:
       - app-storage:/rails/storage

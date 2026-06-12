@@ -97,41 +97,41 @@
                     <% if suggestion.rationale.present? %>
                       <div class="text-xs text-secondary mt-1"><%= suggestion.rationale %></div>
                     <% end %>
-	                  </td>
-	                  <% if @run.reviewing? %>
-	                    <td class="p-3" colspan="5">
-	                      <%= form_with url: suggestion_category_cleanup_run_path(@run, suggestion, request.query_parameters), method: :patch, class: "grid grid-cols-1 xl:grid-cols-[160px_1fr_auto_auto_auto] gap-2 items-start" do %>
-	                        <%= select_tag :suggested_action,
-	                              options_for_select([ [ "Merge", "merge" ], [ "Rename", "rename" ], [ "Reparent", "reparent" ], [ "Keep", "keep" ] ], suggestion.suggested_action),
-	                              class: "form-field__input" %>
+                  </td>
+                  <% if @run.reviewing? %>
+                    <td class="p-3" colspan="5">
+                      <%= form_with url: suggestion_category_cleanup_run_path(@run, suggestion, request.query_parameters), method: :patch, class: "grid grid-cols-1 xl:grid-cols-[160px_1fr_auto_auto_auto] gap-2 items-start" do %>
+                        <%= select_tag :suggested_action,
+                              options_for_select([ [ "Merge", "merge" ], [ "Rename", "rename" ], [ "Reparent", "reparent" ], [ "Keep", "keep" ] ], suggestion.suggested_action),
+                              class: "form-field__input" %>
 
-	                        <div class="space-y-2">
-	                          <div class="grid grid-cols-1 lg:grid-cols-3 gap-2">
-	                            <%= select_tag :target_category_id,
-	                                  options_for_select([ [ "Merge target", "" ] ] + @categories.map { |category| [ category.name_with_parent, category.id ] }, suggestion.target_category_id),
-	                                  class: "form-field__input" %>
-	                            <%= text_field_tag :new_name, suggestion.new_name, placeholder: "New name", class: "form-field__input" %>
-	                            <%= select_tag :parent_category_id,
-	                                  options_for_select([ [ "Root category", "" ] ] + @root_categories.map { |category| [ category.name, category.id ] }, suggestion.parent_category_id),
-	                                  class: "form-field__input" %>
-	                          </div>
-	                          <% if suggestion.review_error.present? %>
-	                            <p class="text-xs text-warning"><%= suggestion.review_error %></p>
-	                          <% end %>
-	                        </div>
+                        <div class="space-y-2">
+                          <div class="grid grid-cols-1 lg:grid-cols-3 gap-2">
+                            <%= select_tag :target_category_id,
+                                  options_for_select([ [ "Merge target", "" ] ] + @categories.map { |category| [ category.name_with_parent, category.id ] }, suggestion.target_category_id),
+                                  class: "form-field__input" %>
+                            <%= text_field_tag :new_name, suggestion.new_name, placeholder: "New name", class: "form-field__input", autocomplete: "off" %>
+                            <%= select_tag :parent_category_id,
+                                  options_for_select([ [ "Root category", "" ] ] + @root_categories.map { |category| [ category.name, category.id ] }, suggestion.parent_category_id),
+                                  class: "form-field__input" %>
+                          </div>
+                          <% if suggestion.review_error.present? %>
+                            <p class="text-xs text-warning"><%= suggestion.review_error %></p>
+                          <% end %>
+                        </div>
 
-	                        <div class="pt-2 whitespace-nowrap">
-	                          <%= hidden_field_tag :suggestion_selected, "false" %>
-	                          <label class="inline-flex items-center gap-2">
-	                            <%= check_box_tag :suggestion_selected, "true", suggestion.selected?, class: "checkbox checkbox--light" %>
-	                            <span>Use</span>
-	                          </label>
-	                        </div>
-	                        <div class="pt-2 text-secondary"><%= suggestion.status.humanize %></div>
-	                        <button class="button button--secondary" type="submit">Save</button>
-	                      <% end %>
-	                    </td>
-	                  <% else %>
+                        <div class="pt-2 whitespace-nowrap">
+                          <%= hidden_field_tag :suggestion_selected, "false" %>
+                          <label class="inline-flex items-center gap-2">
+                            <%= check_box_tag :suggestion_selected, "true", suggestion.selected?, class: "checkbox checkbox--light" %>
+                            <span>Use</span>
+                          </label>
+                        </div>
+                        <div class="pt-2 text-secondary"><%= suggestion.status.humanize %></div>
+                        <button class="button button--secondary" type="submit">Save</button>
+                      <% end %>
+                    </td>
+                  <% else %>
                     <td class="p-3"><%= suggestion.suggested_action.humanize %></td>
                     <td class="p-3">
                       <% if suggestion.action_merge? %>

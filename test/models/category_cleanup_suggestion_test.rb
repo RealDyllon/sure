@@ -3,6 +3,7 @@ require "test_helper"
 class CategoryCleanupSuggestionTest < ActiveSupport::TestCase
   setup do
     @family = families(:empty)
+    @family.budgets.destroy_all
     @family.categories.destroy_all
     @user = users(:empty)
     @source = category!("Example Root A")
@@ -47,6 +48,28 @@ class CategoryCleanupSuggestionTest < ActiveSupport::TestCase
     assert_equal @source, @child.reload.parent
     assert suggestion.reload.skipped?
     assert_equal "cannot merge a parent category into a subcategory", suggestion.error
+  end
+
+  test "merge preserves and deduplicates budget category allocations" do
+    budget = @family.budgets.create!(
+      start_date: Date.current.beginning_of_month,
+      end_date: Date.current.end_of_month,
+      currency: @family.currency
+    )
+    budget.budget_categories.create!(category: @source, budgeted_spending: 100, currency: @family.currency)
+    budget.budget_categories.create!(category: @target, budgeted_spending: 50, currency: @family.currency)
+    suggestion = @run.suggestions.create!(
+      source_category: @source,
+      target_category: @target,
+      suggested_action: :merge,
+      selected: true
+    )
+
+    assert suggestion.apply!
+
+    target_budget_category = budget.budget_categories.find_by!(category: @target)
+    assert_equal 150, target_budget_category.budgeted_spending
+    assert_not budget.budget_categories.exists?(category: @source)
   end
 
   test "reparent skips moving parent category under another parent" do

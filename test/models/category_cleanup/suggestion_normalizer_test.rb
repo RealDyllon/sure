@@ -60,6 +60,28 @@ class CategoryCleanup::SuggestionNormalizerTest < ActiveSupport::TestCase
     assert_equal "cannot move a parent category under another parent", rows.first[:error]
   end
 
+  test "defaults missing confidence to low confidence" do
+    rows = CategoryCleanup::SuggestionNormalizer.call(
+      run: @run,
+      suggestions: [
+        {
+          action: "merge",
+          source_category_id: @child.id,
+          target_category_id: @target.id,
+          new_name: nil,
+          parent_category_id: nil,
+          rationale: "The examples overlap",
+          confidence: nil
+        }
+      ]
+    )
+
+    assert_equal 1, rows.size
+    assert_equal 0.0, rows.first[:confidence]
+    assert_not rows.first[:selected]
+    assert_equal "suggested", rows.first[:status]
+  end
+
   private
     def category!(name, parent: nil)
       @family.categories.create!(
