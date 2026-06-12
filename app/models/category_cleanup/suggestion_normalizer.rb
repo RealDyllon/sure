@@ -96,6 +96,8 @@ module CategoryCleanup
       end
 
       def normalized_confidence(value)
+        return 0.0 if value.blank?
+
         number = value.to_f
         return 0.0 if number.nan? || number.infinite?
 

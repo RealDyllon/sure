@@ -16,7 +16,7 @@ module CategoryCleanup
 
       return unless mark_unselected_unchanged!
 
-      selected_scope.find_each do |suggestion|
+      selected_scope.each do |suggestion|
         return unless run.reload.processing_progress_job_matches?(job_id)
 
         run.with_lock do

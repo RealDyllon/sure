@@ -75,10 +75,30 @@ class CategoryCleanupSuggestion < ApplicationRecord
         now = Time.current
         source_category.transactions.update_all(category_id: target_category.id, updated_at: now)
         source_category.subcategories.update_all(parent_id: target_category.id, updated_at: now) if target_category.parent_id.nil?
+        reassign_budget_categories!(now: now)
         source_category.destroy!
       end
 
       mark_applied!
+    end
+
+    def reassign_budget_categories!(now:)
+      source_category.budget_categories.lock.find_each do |source_budget_category|
+        target_budget_category = BudgetCategory.lock.find_by(
+          budget_id: source_budget_category.budget_id,
+          category_id: target_category.id
+        )
+
+        if target_budget_category
+          target_budget_category.update!(
+            budgeted_spending: target_budget_category.budgeted_spending + source_budget_category.budgeted_spending,
+            updated_at: now
+          )
+          source_budget_category.destroy!
+        else
+          source_budget_category.update!(category: target_category, updated_at: now)
+        end
+      end
     end
 
     def apply_rename!
