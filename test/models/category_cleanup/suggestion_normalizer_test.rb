@@ -82,6 +82,50 @@ class CategoryCleanup::SuggestionNormalizerTest < ActiveSupport::TestCase
     assert_equal "suggested", rows.first[:status]
   end
 
+  test "allows explicit root reparent suggestions" do
+    rows = CategoryCleanup::SuggestionNormalizer.call(
+      run: @run,
+      suggestions: [
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "reparent",
+          source_category_id: @child.id,
+          target_category_id: nil,
+          new_name: nil,
+          parent_category_id: nil,
+          rationale: "Make this a root category",
+          confidence: 0.9
+        )
+      ]
+    )
+
+    assert_equal 1, rows.size
+    assert rows.first[:selected]
+    assert_equal "suggested", rows.first[:status]
+    assert_nil rows.first[:error]
+  end
+
+  test "marks reparent suggestions missing their intended parent for review" do
+    rows = CategoryCleanup::SuggestionNormalizer.call(
+      run: @run,
+      suggestions: [
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "reparent",
+          source_category_id: @child.id,
+          target_category_id: nil,
+          new_name: nil,
+          parent_category_id: "missing-category-id",
+          rationale: "Move under a now-deleted category",
+          confidence: 0.9
+        )
+      ]
+    )
+
+    assert_equal 1, rows.size
+    assert_not rows.first[:selected]
+    assert_equal "needs_review", rows.first[:status]
+    assert_equal "parent category missing", rows.first[:error]
+  end
+
   private
     def category!(name, parent: nil)
       @family.categories.create!(
