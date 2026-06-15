@@ -46,6 +46,61 @@ class CategoryCleanup::ApplySuggestionsTest < ActiveSupport::TestCase
     assert @run.reload.complete?
   end
 
+  test "orders chained merges so sources merging into a deleted target run first" do
+    category_a = category!("Example A")
+    category_b = category!("Example B")
+    category_c = category!("Example C")
+
+    # B -> C created first, but A -> B must run before B is destroyed
+    first_suggestion = @run.suggestions.create!(
+      id: "00000000-0000-4000-8000-000000000001",
+      source_category: category_b,
+      target_category: category_c,
+      suggested_action: :merge,
+      selected: true,
+      created_at: 2.minutes.ago
+    )
+    second_suggestion = @run.suggestions.create!(
+      id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      source_category: category_a,
+      target_category: category_b,
+      suggested_action: :merge,
+      selected: true,
+      created_at: 1.minute.ago
+    )
+
+    CategoryCleanup::ApplySuggestions.call(run: @run)
+
+    assert_not Category.exists?(category_a.id)
+    assert_not Category.exists?(category_b.id)
+    assert Category.exists?(category_c.id)
+    assert first_suggestion.reload.applied?
+    assert second_suggestion.reload.applied?
+    assert @run.reload.complete?
+  end
+
+  test "raises when selected merges form a cycle" do
+    category_a = category!("Example A")
+    category_b = category!("Example B")
+
+    @run.suggestions.create!(
+      source_category: category_a,
+      target_category: category_b,
+      suggested_action: :merge,
+      selected: true
+    )
+    @run.suggestions.create!(
+      source_category: category_b,
+      target_category: category_a,
+      suggested_action: :merge,
+      selected: true
+    )
+
+    assert_raises(CategoryCleanup::MergeCycleError) do
+      CategoryCleanup::ApplySuggestions.call(run: @run)
+    end
+  end
+
   private
     def category!(name)
       @family.categories.create!(

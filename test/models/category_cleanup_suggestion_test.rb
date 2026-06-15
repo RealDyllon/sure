@@ -154,6 +154,34 @@ class CategoryCleanupSuggestionTest < ActiveSupport::TestCase
     assert_equal "parent category missing", suggestion.error
   end
 
+  test "reparent resyncs subcategory budgets across old and new parents" do
+    budget = @family.budgets.create!(
+      start_date: Date.current.beginning_of_month,
+      end_date: Date.current.end_of_month,
+      currency: @family.currency
+    )
+    budget.budget_categories.create!(category: @source, budgeted_spending: 100, currency: @family.currency)
+    budget.budget_categories.create!(category: @child, budgeted_spending: 50, currency: @family.currency)
+    budget.budget_categories.create!(category: @target, budgeted_spending: 30, currency: @family.currency)
+
+    suggestion = @run.suggestions.create!(
+      source_category: @child,
+      parent_category: @target,
+      suggested_action: :reparent,
+      selected: true
+    )
+
+    assert suggestion.apply!
+
+    assert_equal @target, @child.reload.parent
+    source_budget = budget.budget_categories.find_by!(category: @source)
+    target_budget = budget.budget_categories.find_by!(category: @target)
+    child_budget = budget.budget_categories.find_by!(category: @child)
+    assert_equal 50, source_budget.budgeted_spending
+    assert_equal 80, target_budget.budgeted_spending
+    assert_equal 50, child_budget.budgeted_spending
+  end
+
   private
     def category!(name, parent: nil)
       @family.categories.create!(
