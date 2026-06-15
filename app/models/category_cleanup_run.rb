@@ -30,36 +30,20 @@ class CategoryCleanupRun < ApplicationRecord
 
   def queue_generation!(allow_retry: false)
     job = CategoryCleanupGenerateJob.new(self)
-    queued = false
 
     with_lock do
       reload
       return false if applying? || complete?
 
-      update!(
-        status: :generating,
-        error: nil,
-        started_at: started_at || Time.current,
-        finished_at: nil
-      )
-      update_processing_progress!(
-        phase: :generating,
-        message: "Generating category cleanup suggestions",
-        current: 0,
-        total: category_snapshot.size,
-        job_id: job.job_id,
-        retry_count: allow_retry ? processing_progress.to_h["retry_count"].to_i : 0
-      )
-      queued = true
+      enqueue_generation_job!(job, allow_retry: allow_retry)
     end
 
-    job.enqueue if queued
-    queued
+    job.enqueue
+    true
   end
 
   def queue_apply!(allow_retry: false)
     job = CategoryCleanupApplyJob.new(self)
-    queued = false
 
     with_lock do
       reload
@@ -68,20 +52,11 @@ class CategoryCleanupRun < ApplicationRecord
       (allow_retry && applying?)
       return false unless suggestions.selected.actionable.exists?
 
-      update!(status: :applying, error: nil)
-      update_processing_progress!(
-        phase: :applying,
-        message: "Applying reviewed category cleanup",
-        current: 0,
-        total: suggestions.selected.actionable.count,
-        job_id: job.job_id,
-        retry_count: allow_retry ? processing_progress.to_h["retry_count"].to_i : 0
-      )
-      queued = true
+      enqueue_apply_job!(job, allow_retry: allow_retry)
     end
 
-    job.enqueue if queued
-    queued
+    job.enqueue
+    true
   end
 
   def update_processing_progress!(phase:, message:, current: nil, total: nil, job_id: nil, retry_count: nil, guard_job_id: nil)
@@ -182,22 +157,34 @@ class CategoryCleanupRun < ApplicationRecord
   def queue_retry!(message: "Retry queued")
     return false unless retryable_processing?
 
-    progress = processing_progress.to_h.deep_stringify_keys
-    retry_count = progress["retry_count"].to_i + 1
-    update!(
-      processing_progress: progress.merge(
-        "retry_count" => retry_count,
-        "message" => message,
-        "job_id" => nil,
-        "last_updated_at" => Time.current.iso8601
-      )
-    )
+    job = nil
 
-    if progress["phase"] == "applying" || metadata.to_h["failed_phase"] == "applying"
-      queue_apply!(allow_retry: true)
-    else
-      queue_generation!(allow_retry: true)
+    with_lock do
+      reload
+      return false unless retryable_processing?
+
+      progress = processing_progress.to_h.deep_stringify_keys
+      retry_count = progress["retry_count"].to_i + 1
+      update!(
+        processing_progress: progress.merge(
+          "retry_count" => retry_count,
+          "message" => message,
+          "job_id" => nil,
+          "last_updated_at" => Time.current.iso8601
+        )
+      )
+
+      if progress["phase"] == "applying" || metadata.to_h["failed_phase"] == "applying"
+        job = CategoryCleanupApplyJob.new(self)
+        enqueue_apply_job!(job, allow_retry: true)
+      else
+        job = CategoryCleanupGenerateJob.new(self)
+        enqueue_generation_job!(job, allow_retry: true)
+      end
     end
+
+    job.enqueue
+    true
   end
 
   def refresh_counts!
@@ -211,6 +198,35 @@ class CategoryCleanupRun < ApplicationRecord
   end
 
   private
+    def enqueue_generation_job!(job, allow_retry:)
+      update!(
+        status: :generating,
+        error: nil,
+        started_at: started_at || Time.current,
+        finished_at: nil
+      )
+      update_processing_progress!(
+        phase: :generating,
+        message: "Generating category cleanup suggestions",
+        current: 0,
+        total: category_snapshot.size,
+        job_id: job.job_id,
+        retry_count: allow_retry ? processing_progress.to_h["retry_count"].to_i : 0
+      )
+    end
+
+    def enqueue_apply_job!(job, allow_retry:)
+      update!(status: :applying, error: nil)
+      update_processing_progress!(
+        phase: :applying,
+        message: "Applying reviewed category cleanup",
+        current: 0,
+        total: suggestions.selected.actionable.count,
+        job_id: job.job_id,
+        retry_count: allow_retry ? processing_progress.to_h["retry_count"].to_i : 0
+      )
+    end
+
     def processing_progress_percent_for(current, total)
       return unless current && total
 
