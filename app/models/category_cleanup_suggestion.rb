@@ -47,6 +47,7 @@ class CategoryCleanupSuggestion < ApplicationRecord
       skip!("unsupported action")
     end
   rescue => error
+    Rails.logger.error("CategoryCleanupSuggestion(#{id}) apply failed: #{error.class}: #{error.message}\n#{error.backtrace&.first(10)&.join("\n")}")
     update!(status: :skipped, error: AutoCategorization::ErrorSanitizer.call(error))
     false
   end
