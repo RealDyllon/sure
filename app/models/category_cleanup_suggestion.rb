@@ -84,19 +84,37 @@ class CategoryCleanupSuggestion < ApplicationRecord
 
     def reassign_budget_categories!(now:)
       source_category.budget_categories.lock.find_each do |source_budget_category|
+        source_amount = source_budget_category.budgeted_spending || 0
+
+        # Detach source amount from its old parent first so parent budgets don't double-count
+        # when a subcategory is merged elsewhere.
+        if source_budget_category.subcategory? && source_amount.nonzero?
+          source_budget_category.update_budgeted_spending!(0)
+        end
+
         target_budget_category = BudgetCategory.lock.find_by(
           budget_id: source_budget_category.budget_id,
           category_id: target_category.id
         )
 
         if target_budget_category
-          target_budget_category.update!(
-            budgeted_spending: target_budget_category.budgeted_spending + source_budget_category.budgeted_spending,
-            updated_at: now
-          )
+          target_amount = (target_budget_category.budgeted_spending || 0) + source_amount
+
+          if target_budget_category.subcategory?
+            target_budget_category.update_budgeted_spending!(target_amount)
+          else
+            target_budget_category.update!(budgeted_spending: target_amount, updated_at: now)
+          end
+
           source_budget_category.destroy!
         else
           source_budget_category.update!(category: target_category, updated_at: now)
+
+          if target_category.subcategory?
+            source_budget_category.update_budgeted_spending!(source_amount)
+          elsif source_amount.nonzero?
+            source_budget_category.update!(budgeted_spending: source_amount, updated_at: now)
+          end
         end
       end
     end
@@ -116,6 +134,7 @@ class CategoryCleanupSuggestion < ApplicationRecord
       return skip!("cannot parent a category to itself") if parent_category&.id == source_category.id
       return skip!("cannot parent under a subcategory") if parent_category&.subcategory?
       return skip!("cannot move a parent category under another parent") if parent_category.present? && source_category.subcategories.exists?
+      return skip!("parent category missing") if parent_category.blank? && intended_parent_category_id_for_reparent.present?
       return mark_unchanged! if source_category.parent_id == parent_category&.id
 
       source_category.update!(parent: parent_category)
@@ -162,12 +181,19 @@ class CategoryCleanupSuggestion < ApplicationRecord
       return "cannot parent a category to itself" if parent_category&.id == source_category.id
       return "cannot parent under a subcategory" if parent_category&.subcategory?
       return "cannot move a parent category under another parent" if parent_category.present? && source_category.subcategories.exists?
+      return "parent category missing" if parent_category.blank? && intended_parent_category_id_for_reparent.present?
 
       nil
     end
 
     def duplicate_name?(name)
       run.family.categories.where.not(id: source_category.id).exists?(name: name)
+    end
+
+    def intended_parent_category_id_for_reparent
+      return nil unless action_reparent?
+
+      metadata.to_h["reparent_intended_parent_category_id"].presence
     end
 
     def mark_applied!

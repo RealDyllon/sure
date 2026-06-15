@@ -63,7 +63,9 @@ class CategoryCleanupRun < ApplicationRecord
 
     with_lock do
       reload
-      return false unless reviewing? || (failed? && metadata.to_h["failed_phase"] == "applying")
+      return false unless reviewing? ||
+      (failed? && metadata.to_h["failed_phase"] == "applying") ||
+      (allow_retry && applying?)
       return false unless suggestions.selected.actionable.exists?
 
       update!(status: :applying, error: nil)

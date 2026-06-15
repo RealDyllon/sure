@@ -101,6 +101,59 @@ class CategoryCleanupSuggestionTest < ActiveSupport::TestCase
     assert_equal "category name already exists", suggestion.reload.error
   end
 
+  test "merge does not double-count budget when child merges into parent" do
+    budget = @family.budgets.create!(
+      start_date: Date.current.beginning_of_month,
+      end_date: Date.current.end_of_month,
+      currency: @family.currency
+    )
+    budget.budget_categories.create!(category: @source, budgeted_spending: 100, currency: @family.currency)
+    budget.budget_categories.create!(category: @child, budgeted_spending: 50, currency: @family.currency)
+
+    suggestion = @run.suggestions.create!(
+      source_category: @child,
+      target_category: @source,
+      suggested_action: :merge,
+      selected: true
+    )
+
+    assert suggestion.apply!
+
+    parent_budget_category = budget.budget_categories.find_by!(category: @source)
+    assert_equal 100, parent_budget_category.budgeted_spending
+    assert_not budget.budget_categories.exists?(category: @child)
+  end
+
+  test "reparent applies explicit move to root" do
+    @child.update!(parent: @source)
+    suggestion = @run.suggestions.create!(
+      source_category: @child,
+      suggested_action: :reparent,
+      metadata: { "reparent_intended_root" => true, "reparent_intended_parent_category_id" => nil },
+      selected: true
+    )
+
+    assert suggestion.apply!
+
+    assert_nil @child.reload.parent
+    assert suggestion.reload.applied?
+  end
+
+  test "reparent skips when intended parent is missing" do
+    suggestion = @run.suggestions.create!(
+      source_category: @source,
+      suggested_action: :reparent,
+      metadata: { "reparent_intended_root" => false, "reparent_intended_parent_category_id" => "missing-id" },
+      selected: true
+    )
+
+    assert_not suggestion.apply!
+
+    assert_nil @source.reload.parent
+    assert suggestion.reload.skipped?
+    assert_equal "parent category missing", suggestion.error
+  end
+
   private
     def category!(name, parent: nil)
       @family.categories.create!(

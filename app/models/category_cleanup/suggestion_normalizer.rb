@@ -42,6 +42,9 @@ module CategoryCleanup
         parent_category = categories_by_id[raw[:parent_category_id].to_s]
         confidence = normalized_confidence(raw[:confidence])
 
+        reparent_intended_root = action == "reparent" && raw[:parent_category_id].blank?
+        reparent_intended_parent_id = action == "reparent" ? raw[:parent_category_id].to_s.presence : nil
+
         attrs = {
           source_category: source_category,
           target_category: target_category,
@@ -53,7 +56,11 @@ module CategoryCleanup
           new_name: raw[:new_name].to_s.squish.presence,
           rationale: raw[:rationale].to_s.squish.presence,
           confidence: confidence,
-          metadata: { "provider_suggestion" => raw.compact }
+          metadata: {
+            "provider_suggestion" => raw.compact,
+            "reparent_intended_root" => reparent_intended_root,
+            "reparent_intended_parent_category_id" => reparent_intended_parent_id
+          }
         }
 
         review_error = review_error_for(attrs)
@@ -85,6 +92,7 @@ module CategoryCleanup
           return "new name missing" if new_name.blank?
           return "category name already exists" if new_name != source.name && run.family.categories.where.not(id: source.id).exists?(name: new_name)
         when "reparent"
+          return "parent category missing" if parent.blank? && attrs.dig(:metadata, "reparent_intended_parent_category_id").present?
           return nil if parent.blank?
           return "parent category outside family" if parent.family_id != run.family_id
           return "cannot parent a category to itself" if parent.id == source.id
