@@ -60,6 +60,57 @@ class CategoryCleanupRunsControllerTest < ActionDispatch::IntegrationTest
     assert suggestion.selected?
   end
 
+  test "updates reparent review suggestion metadata for selected parent" do
+    run = create_category_cleanup_run(status: :reviewing)
+    suggestion = run.suggestions.create!(
+      source_category: @source,
+      suggested_action: :rename,
+      new_name: "Example Root C",
+      selected: true
+    )
+
+    patch suggestion_category_cleanup_run_url(run, suggestion),
+      params: {
+        suggested_action: "reparent",
+        parent_category_id: @target.id,
+        suggestion_selected: "true"
+      }
+
+    assert_redirected_to category_cleanup_run_url(run)
+    suggestion.reload
+    assert_equal "reparent", suggestion.suggested_action
+    assert_equal @target, suggestion.parent_category
+    assert_not suggestion.metadata["reparent_intended_root"]
+    assert_equal @target.id, suggestion.metadata["reparent_intended_parent_category_id"]
+  end
+
+  test "updates reparent review suggestion metadata for root move" do
+    run = create_category_cleanup_run(status: :reviewing)
+    suggestion = run.suggestions.create!(
+      source_category: @source,
+      parent_category: @target,
+      suggested_action: :reparent,
+      metadata: {
+        "reparent_intended_root" => false,
+        "reparent_intended_parent_category_id" => @target.id
+      },
+      selected: true
+    )
+
+    patch suggestion_category_cleanup_run_url(run, suggestion),
+      params: {
+        suggested_action: "reparent",
+        parent_category_id: "",
+        suggestion_selected: "true"
+      }
+
+    assert_redirected_to category_cleanup_run_url(run)
+    suggestion.reload
+    assert_nil suggestion.parent_category
+    assert suggestion.metadata["reparent_intended_root"]
+    assert_nil suggestion.metadata["reparent_intended_parent_category_id"]
+  end
+
   test "does not update suggestion after review phase" do
     run = create_category_cleanup_run(status: :applying)
     suggestion = run.suggestions.create!(

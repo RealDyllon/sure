@@ -67,7 +67,7 @@ redisSimple:
 
 rails:
   extraEnv:
-    DATABASE_URL: postgresql://user:pass@db.example.com:5432/sure
+    DATABASE_URL: "<postgresql connection string>"
     REDIS_URL: redis://:pass@redis.example.com:6379/0
 ```
 
