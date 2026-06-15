@@ -74,7 +74,7 @@ class CategoryCleanupSuggestion < ApplicationRecord
       Category.transaction do
         now = Time.current
         source_category.transactions.update_all(category_id: target_category.id, updated_at: now)
-        source_category.subcategories.update_all(parent_id: target_category.id, updated_at: now) if target_category.parent_id.nil?
+        source_category.subcategories.update_all(parent_id: target_category.id, color: target_category.color, updated_at: now) if target_category.parent_id.nil?
         reassign_budget_categories!(now: now)
         source_category.destroy!
       end
@@ -137,7 +137,11 @@ class CategoryCleanupSuggestion < ApplicationRecord
       return skip!("parent category missing") if parent_category.blank? && intended_parent_category_id_for_reparent.present?
       return mark_unchanged! if source_category.parent_id == parent_category&.id
 
+      reparent_budget_snapshots = snapshot_reparent_budgets!
+
       source_category.update!(parent: parent_category)
+
+      restore_reparent_budgets!(reparent_budget_snapshots)
       mark_applied!
     end
 
@@ -194,6 +198,37 @@ class CategoryCleanupSuggestion < ApplicationRecord
       return nil unless action_reparent?
 
       metadata.to_h["reparent_intended_parent_category_id"].presence
+    end
+
+    def snapshot_reparent_budgets!
+      source_category.budget_categories.lock.map do |budget_category|
+        amount = budget_category.budgeted_spending || 0
+        was_subcategory = budget_category.subcategory?
+
+        budget_category.update_budgeted_spending!(0) if was_subcategory && amount.nonzero?
+
+        {
+          budget_category: budget_category,
+          amount: amount,
+          was_subcategory: was_subcategory
+        }
+      end
+    end
+
+    def restore_reparent_budgets!(snapshots)
+      snapshots.each do |snapshot|
+        budget_category = snapshot[:budget_category]
+        amount = snapshot[:amount]
+        next if amount.zero?
+
+        budget_category.reload
+
+        if budget_category.subcategory?
+          budget_category.update_budgeted_spending!(amount)
+        else
+          budget_category.update!(budgeted_spending: amount)
+        end
+      end
     end
 
     def mark_applied!
