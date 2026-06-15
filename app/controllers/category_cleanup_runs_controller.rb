@@ -35,7 +35,7 @@ class CategoryCleanupRunsController < ApplicationController
     end
 
     suggestion = @run.suggestions.find(params[:suggestion_id])
-    suggestion.assign_attributes(suggestion_params_for_update)
+    suggestion.assign_attributes(suggestion_params_for_update(suggestion))
     suggestion.error = suggestion.current_review_error
     suggestion.status = suggestion.error.present? ? :needs_review : :suggested
     suggestion.selected = false if suggestion.error.present? || suggestion.action_keep?
@@ -87,7 +87,7 @@ class CategoryCleanupRunsController < ApplicationController
       scope
     end
 
-    def suggestion_params_for_update
+    def suggestion_params_for_update(suggestion)
       action = params[:suggested_action].presence || params.dig(:category_cleanup_suggestion, :suggested_action)
       action = "keep" unless CategoryCleanupSuggestion.suggested_actions.key?(action)
 
@@ -101,25 +101,30 @@ class CategoryCleanupRunsController < ApplicationController
         attrs.merge!(
           target_category: category_from_param(:target_category_id),
           parent_category: nil,
-          new_name: nil
+          new_name: nil,
+          metadata: reparent_intent_metadata(suggestion, nil, reparent: false)
         )
       when "rename"
         attrs.merge!(
           target_category: nil,
           parent_category: nil,
-          new_name: params[:new_name].to_s.squish.presence
+          new_name: params[:new_name].to_s.squish.presence,
+          metadata: reparent_intent_metadata(suggestion, nil, reparent: false)
         )
       when "reparent"
+        parent_category_id = category_id_from_param(:parent_category_id)
         attrs.merge!(
           target_category: nil,
-          parent_category: category_from_param(:parent_category_id),
-          new_name: nil
+          parent_category: category_from_id(parent_category_id),
+          new_name: nil,
+          metadata: reparent_intent_metadata(suggestion, parent_category_id, reparent: true)
         )
       else
         attrs.merge!(
           target_category: nil,
           parent_category: nil,
           new_name: nil,
+          metadata: reparent_intent_metadata(suggestion, nil, reparent: false),
           selected: false
         )
       end
@@ -128,10 +133,27 @@ class CategoryCleanupRunsController < ApplicationController
     end
 
     def category_from_param(key)
-      id = params[key].presence || params.dig(:category_cleanup_suggestion, key)
+      id = category_id_from_param(key)
+      return if id.blank?
+
+      category_from_id(id)
+    end
+
+    def category_from_id(id)
       return if id.blank?
 
       Current.family.categories.find(id)
+    end
+
+    def category_id_from_param(key)
+      params[key].presence || params.dig(:category_cleanup_suggestion, key)
+    end
+
+    def reparent_intent_metadata(suggestion, parent_category_id, reparent:)
+      suggestion.metadata.to_h.merge(
+        "reparent_intended_root" => reparent && parent_category_id.blank?,
+        "reparent_intended_parent_category_id" => parent_category_id.presence
+      )
     end
 
     def review_query_params
