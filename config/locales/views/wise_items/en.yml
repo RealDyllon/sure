@@ -1,0 +1,126 @@
+---
+en:
+  wise_items:
+    create:
+      default_name: Wise Connection
+      success: "Wise connected. Set up your Wise balances to finish."
+    update:
+      success: "Wise configuration saved."
+    destroy:
+      success: "Wise connection was unlinked."
+    setup_accounts:
+      title: Set Up Wise Balances
+      header: Set up Wise balances
+      intro: Create one Sure account for each Wise currency balance.
+      empty_title: All Wise balances are set up
+      empty_subtitle: There are no unlinked STANDARD Wise balances.
+      api_error_title: Could not fetch Wise balances
+      info: "Only Wise STANDARD balances are shown. Cards stay inside the Wise provider item and are not created as Sure accounts."
+      action_label: Action
+      existing_account_label: Existing account
+      actions:
+        create: Create depository account
+        link: Link existing depository account
+        skip: Skip
+      existing_account_prompt: Choose only when linking
+      apply: Apply setup
+      cancel: Cancel
+    complete_account_setup:
+      success:
+        one: "1 Wise balance set up."
+        other: "%{count} Wise balances set up."
+      skipped: Wise balances skipped.
+      no_changes: No Wise balances were changed.
+      errors:
+        missing_target: Pick an existing account to link this balance to.
+        already_linked: That account is already linked to another provider.
+    reauth:
+      not_configured: "Wise OAuth is not configured. Set WISE_CLIENT_ID and WISE_CLIENT_SECRET."
+      state_mismatch: "Wise re-authorization state did not match. Please try again."
+      not_found: Wise connection not found.
+      success: "Wise re-authorized. Syncing your balances now."
+      failure_prefix: "Wise re-authorization failed:"
+    oauth:
+      not_configured: "Wise OAuth is not configured. Set WISE_CLIENT_ID and WISE_CLIENT_SECRET."
+      state_mismatch: "Wise authorization state did not match. Please try again."
+      failure_prefix: "Wise authorization failed:"
+    link_existing_account:
+      success: "%{account_name} linked to Wise."
+      already_linked: This account is already linked.
+      wrong_family: Wise balance does not belong to this family.
+      only_depository: Wise only supports depository account links.
+      balance_already_linked: This Wise balance is already linked.
+    select_existing_account:
+      title: "Link %{account_name} to Wise"
+      intro: Choose an unlinked Wise balance for this depository account.
+      link: Link account
+      cancel: Cancel
+    wise_item:
+      provider_name: Wise
+      syncing: Syncing
+      error: Error
+      deletion_in_progress: Deletion in progress
+      never_synced: Never synced
+      sync_status:
+        no_balances: No balances found
+        all_synced:
+          one: "1 balance synced"
+          other: "%{count} balances synced"
+        partial_sync: "%{linked_count} synced, %{unlinked_count} need setup"
+      status: "Synced %{timestamp} ago"
+      status_with_summary: "Synced %{timestamp} ago • %{summary}"
+      balances_need_setup_title: Wise balances need setup
+      balances_need_setup:
+        one: "1 Wise balance can be created, linked, or skipped."
+        other: "%{count} Wise balances can be created, linked, or skipped."
+      set_up_balances: Set up balances
+      ask_admin: "Ask the family admin to finish setting up Wise balances."
+      delete: Delete
+      reconnect: Reconnect
+    wise_balance:
+      type:
+        standard: Standard
+        savings: Savings
+    wise_card:
+      section_title: Wise cards
+      default_name: Wise card
+      no_card_number: "No card number details stored"
+      expires: "Expires %{month}/%{year}"
+    conversion_plans:
+      section_title: Conversion plans
+      none: No conversion plans yet.
+      from_to: "%{source} to %{target}"
+      rate: "Rate %{rate}"
+      percentile_90d: "90d percentile %{percentile}%"
+      refresh: Refresh
+      delete: Delete
+      status:
+        target_met: Target met
+        near_target: Near target
+        below_target: Below target
+        tracking: Tracking
+      new:
+        source_account_placeholder: Source account
+        from_placeholder: From
+        to_placeholder: To
+        amount_placeholder: Amount
+        target_rate_placeholder: Target rate
+        deadline_label: Deadline
+        notes_placeholder: Notes
+        submit: Save plan
+  settings:
+    providers:
+      wise:
+        panel_title: "Wise (beta)"
+        connect: Connect with Wise
+        connect_another: Connect another Wise profile
+        not_configured: "Set WISE_CLIENT_ID and WISE_CLIENT_SECRET to enable OAuth full sync."
+        oauth_description: "OAuth is required for full Wise sync, including balances, cards, and balance-statement transactions."
+        limited_token_title: Limited personal-token fallback
+        limited_token_description: "Wise personal API tokens are for Wise business accounts and have limited endpoint access. Balance statements are not available for all regions, so this is not equivalent to OAuth full sync."
+        limited_token_label: Personal API token
+        limited_token_placeholder: Paste limited personal token
+        base_url_label: "Base URL (optional)"
+        save_limited: Save Limited Token
+        configured: "Configured. Visit Accounts to set up balances and conversion plans."
+        not_configured_short: Not configured

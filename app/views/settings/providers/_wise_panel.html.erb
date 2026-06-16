@@ -7,14 +7,14 @@
   <% end %>
 
   <div class="prose prose-sm text-secondary">
-    <p class="text-primary font-medium">Connection</p>
-    <p>OAuth is required for full Wise sync, including balances, cards, and balance-statement transactions.</p>
+    <p class="text-primary font-medium"><%= t("settings.providers.wise.connection_title", default: "Connection") %></p>
+    <p><%= t("settings.providers.wise.oauth_description") %></p>
   </div>
 
   <div class="flex items-center gap-3">
     <% if Provider::Wise.oauth_configured? %>
       <%= render DS::Link.new(
-        text: items&.any? ? "Connect another Wise profile" : "Connect with Wise",
+        text: t("settings.providers.wise.#{items&.any? ? 'connect_another' : 'connect'}"),
         icon: "link",
         variant: "primary",
         href: oauth_start_wise_items_path,
@@ -22,15 +22,15 @@
       ) %>
     <% else %>
       <div class="p-3 rounded-lg border border-primary bg-surface text-sm text-secondary">
-        Set <code>WISE_CLIENT_ID</code> and <code>WISE_CLIENT_SECRET</code> to enable OAuth full sync.
+        <%= t("settings.providers.wise.not_configured").html_safe %>
       </div>
     <% end %>
   </div>
 
   <div class="border border-primary rounded-lg p-3 space-y-3">
     <div class="text-sm">
-      <p class="font-medium text-primary">Limited personal-token fallback</p>
-      <p class="text-secondary">Wise personal API tokens are for Wise business accounts and have limited endpoint access. Balance statements are not available for all regions, so this is not equivalent to OAuth full sync.</p>
+      <p class="font-medium text-primary"><%= t("settings.providers.wise.limited_token_title") %></p>
+      <p class="text-secondary"><%= t("settings.providers.wise.limited_token_description") %></p>
     </div>
 
     <%= styled_form_with model: WiseItem.new,
@@ -40,14 +40,14 @@
                          data: { turbo: true },
                          class: "space-y-3" do |form| %>
       <%= form.text_field :personal_token,
-                          label: "Personal API token",
-                          placeholder: "Paste limited personal token",
+                          label: t("settings.providers.wise.limited_token_label"),
+                          placeholder: t("settings.providers.wise.limited_token_placeholder"),
                           type: :password %>
       <%= form.text_field :base_url,
-                          label: "Base URL (optional)",
+                          label: t("settings.providers.wise.base_url_label"),
                           placeholder: Provider::Wise::DEFAULT_BASE_URL %>
       <div class="flex justify-end">
-        <%= form.submit "Save Limited Token",
+        <%= form.submit t("settings.providers.wise.save_limited"),
                         class: "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-inverse button-bg-primary hover:button-bg-primary-hover focus:outline-none focus:ring-2 focus:ring-gray-900 theme-dark:focus:ring-white focus:ring-offset-2 transition-colors" %>
       </div>
     <% end %>
@@ -58,10 +58,10 @@
     <div class="flex items-center gap-2">
       <% if items&.any? %>
         <div class="w-2 h-2 bg-success rounded-full"></div>
-        <p class="text-sm text-secondary">Configured. Visit <a href="<%= accounts_path %>" class="link">Accounts</a> to set up balances and conversion plans.</p>
+        <p class="text-sm text-secondary"><%= t("settings.providers.wise.configured").html_safe %></p>
       <% else %>
         <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
-        <p class="text-sm text-secondary">Not configured</p>
+        <p class="text-sm text-secondary"><%= t("settings.providers.wise.not_configured_short") %></p>
       <% end %>
     </div>
   </div>

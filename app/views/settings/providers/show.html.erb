@@ -31,7 +31,7 @@
     <%# They require custom UI for connection management, status display, and sync actions.         %>
     <%# The controller excludes them from @provider_configurations (see prepare_show_context).      %>
 
-    <%= settings_section title: "Wise (beta)", collapsible: true, open: false do %>
+    <%= settings_section title: t("settings.providers.wise.panel_title", default: "Wise (beta)"), collapsible: true, open: false do %>
       <turbo-frame id="wise-providers-panel">
         <%= render "settings/providers/wise_panel" %>
       </turbo-frame>

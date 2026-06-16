@@ -19,7 +19,7 @@ class WiseItemsController < ApplicationController
 
   def create
     @wise_item = Current.family.wise_items.build(wise_item_params)
-    @wise_item.name ||= "Wise Connection"
+    @wise_item.name ||= t("wise_items.create.default_name")
     @wise_item.auth_mode = "personal_token"
 
     if @wise_item.save
@@ -43,7 +43,7 @@ class WiseItemsController < ApplicationController
 
   def oauth_start
     unless Provider::Wise.oauth_configured?
-      redirect_to settings_providers_path, alert: "Wise OAuth is not configured. Set WISE_CLIENT_ID and WISE_CLIENT_SECRET."
+      redirect_to settings_providers_path, alert: t("wise_items.oauth.not_configured")
       return
     end
 
@@ -56,13 +56,13 @@ class WiseItemsController < ApplicationController
 
   def oauth_callback
     if params[:error].present?
-      redirect_to settings_providers_path, alert: "Wise authorization failed: #{params[:error_description].presence || params[:error]}"
+      redirect_to settings_providers_path, alert: "#{t('wise_items.oauth.failure_prefix')} #{params[:error_description].presence || params[:error]}"
       return
     end
 
     expected_state = session.delete(:wise_oauth_state)
     unless expected_state.present? && params[:state].present? && ActiveSupport::SecurityUtils.secure_compare(expected_state.to_s, params[:state].to_s)
-      redirect_to settings_providers_path, alert: "Wise authorization state did not match. Please try again."
+      redirect_to settings_providers_path, alert: t("wise_items.oauth.state_mismatch")
       return
     end
 
@@ -79,7 +79,7 @@ class WiseItemsController < ApplicationController
     token_payload = provider.exchange_code_for_token(code: params.require(:code), redirect_uri: redirect_uri).with_indifferent_access
 
     wise_item = Current.family.wise_items.create!(
-      name: "Wise Connection",
+      name: t("wise_items.create.default_name"),
       auth_mode: "oauth",
       # Wise's standard OAuth callback only returns `code` + `state`. The
       # `profileId` fallback is for self-hosters running a custom proxy that
@@ -93,15 +93,15 @@ class WiseItemsController < ApplicationController
     )
     wise_item.sync_later
 
-    redirect_to accounts_path, notice: "Wise connected. Set up your Wise balances to finish."
+    redirect_to accounts_path, notice: t("wise_items.create.success")
   rescue Provider::Wise::WiseError => e
-    redirect_to settings_providers_path, alert: "Wise authorization failed: #{e.message}"
+    redirect_to settings_providers_path, alert: "#{t('wise_items.oauth.failure_prefix')} #{e.message}"
   end
 
   def destroy
     @wise_item.unlink_all!(dry_run: false)
     @wise_item.destroy_later
-    redirect_to accounts_path, notice: "Wise connection was unlinked."
+    redirect_to accounts_path, notice: t("wise_items.destroy.success")
   end
 
   def sync
@@ -154,12 +154,12 @@ class WiseItemsController < ApplicationController
           target_id = existing_account_ids[wise_balance_id]
           account = Current.family.accounts.visible_manual.where(accountable_type: "Depository").find_by(id: target_id)
           if account.nil?
-            setup_errors[wise_balance_id] = "Pick an existing account to link this balance to."
+            setup_errors[wise_balance_id] = t("wise_items.complete_account_setup.errors.missing_target")
             next
           end
 
           if provider_linked_account?(account)
-            setup_errors[wise_balance_id] = "That account is already linked to another provider."
+            setup_errors[wise_balance_id] = t("wise_items.complete_account_setup.errors.already_linked")
             next
           end
 
@@ -189,11 +189,11 @@ class WiseItemsController < ApplicationController
     @wise_item.sync_later if created_or_linked.positive?
 
     flash[:notice] = if created_or_linked.positive?
-      "#{created_or_linked} Wise #{'balance'.pluralize(created_or_linked)} set up."
+      t("wise_items.complete_account_setup.success", count: created_or_linked)
     elsif skipped.positive?
-      "Wise balances skipped."
+      t("wise_items.complete_account_setup.skipped")
     else
-      "No Wise balances were changed."
+      t("wise_items.complete_account_setup.no_changes")
     end
 
     redirect_to accounts_path, status: :see_other
@@ -202,7 +202,7 @@ class WiseItemsController < ApplicationController
   def select_existing_account
     @account = Current.family.accounts.find(params[:account_id])
     if provider_linked_account?(@account)
-      redirect_to accounts_path, alert: "This account is already linked to a provider."
+      redirect_to accounts_path, alert: t("wise_items.link_existing_account.already_linked")
       return
     end
 
@@ -217,21 +217,21 @@ class WiseItemsController < ApplicationController
   def link_existing_account
     account = Current.family.accounts.find(params[:account_id])
     wise_balance = WiseBalance.find(params[:wise_balance_id])
-    return redirect_to accounts_path, alert: "This account is already linked." if provider_linked_account?(account)
-    return redirect_to accounts_path, alert: "Wise balance does not belong to this family." unless wise_balance.wise_item.family_id == Current.family.id
-    return redirect_to accounts_path, alert: "Wise only supports depository account links." unless account.accountable_type == "Depository"
-    return redirect_to accounts_path, alert: "This Wise balance is already linked." if wise_balance.account_provider.present?
+    return redirect_to accounts_path, alert: t("wise_items.link_existing_account.already_linked") if provider_linked_account?(account)
+    return redirect_to accounts_path, alert: t("wise_items.link_existing_account.wrong_family") unless wise_balance.wise_item.family_id == Current.family.id
+    return redirect_to accounts_path, alert: t("wise_items.link_existing_account.only_depository") unless account.accountable_type == "Depository"
+    return redirect_to accounts_path, alert: t("wise_items.link_existing_account.balance_already_linked") if wise_balance.account_provider.present?
 
     AccountProvider.create!(account: account, provider: wise_balance)
     wise_balance.clear_skipped!
     wise_balance.wise_item.sync_later
 
-    redirect_to safe_return_to_path || accounts_path, notice: "#{account.name} linked to Wise."
+    redirect_to safe_return_to_path || accounts_path, notice: t("wise_items.link_existing_account.success", account_name: account.name)
   end
 
   def reauth
     unless Provider::Wise.oauth_configured?
-      redirect_to settings_providers_path, alert: "Wise OAuth is not configured. Set WISE_CLIENT_ID and WISE_CLIENT_SECRET."
+      redirect_to settings_providers_path, alert: t("wise_items.reauth.not_configured")
       return
     end
 
@@ -244,20 +244,20 @@ class WiseItemsController < ApplicationController
 
   def reauth_callback
     if params[:error].present?
-      redirect_to accounts_path, alert: "Wise re-authorization failed: #{params[:error_description].presence || params[:error]}"
+      redirect_to accounts_path, alert: "#{t('wise_items.reauth.failure_prefix')} #{params[:error_description].presence || params[:error]}"
       return
     end
 
     expected_state = session.delete(:wise_oauth_state)
     reauth_id = session.delete(:wise_oauth_reauth_id)
     unless expected_state.present? && params[:state].present? && ActiveSupport::SecurityUtils.secure_compare(expected_state.to_s, params[:state].to_s)
-      redirect_to accounts_path, alert: "Wise re-authorization state did not match. Please try again."
+      redirect_to accounts_path, alert: t("wise_items.reauth.state_mismatch")
       return
     end
 
     wise_item = Current.family.wise_items.find_by(id: reauth_id) if reauth_id
     unless wise_item
-      redirect_to accounts_path, alert: "Wise connection not found."
+      redirect_to accounts_path, alert: t("wise_items.reauth.not_found")
       return
     end
 
@@ -279,9 +279,9 @@ class WiseItemsController < ApplicationController
     )
     wise_item.sync_later
 
-    redirect_to accounts_path, notice: "Wise re-authorized. Syncing your balances now."
+    redirect_to accounts_path, notice: t("wise_items.reauth.success")
   rescue Provider::Wise::WiseError => e
-    redirect_to accounts_path, alert: "Wise re-authorization failed: #{e.message}"
+    redirect_to accounts_path, alert: "#{t('wise_items.reauth.failure_prefix')} #{e.message}"
   end
 
   private
@@ -317,22 +317,22 @@ class WiseItemsController < ApplicationController
       end
     end
 
-    def respond_to_panel_success
-      if turbo_frame_request?
-        flash.now[:notice] = "Wise configuration saved."
-        @wise_items = Current.family.wise_items.ordered
-        render turbo_stream: [
-          turbo_stream.replace(
-            "wise-providers-panel",
-            partial: "settings/providers/wise_panel",
-            locals: { wise_items: @wise_items }
-          ),
-          *flash_notification_stream_items
-        ]
-      else
-        redirect_to accounts_path, notice: "Wise configuration saved.", status: :see_other
-      end
+  def respond_to_panel_success
+    if turbo_frame_request?
+      flash.now[:notice] = t("wise_items.update.success")
+      @wise_items = Current.family.wise_items.ordered
+      render turbo_stream: [
+        turbo_stream.replace(
+          "wise-providers-panel",
+          partial: "settings/providers/wise_panel",
+          locals: { wise_items: @wise_items }
+        ),
+        *flash_notification_stream_items
+      ]
+    else
+      redirect_to accounts_path, notice: t("wise_items.update.success"), status: :see_other
     end
+  end
 
     def respond_to_panel_error(message)
       @error_message = message
