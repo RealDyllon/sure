@@ -79,6 +79,9 @@ class WiseConversionIntention < ApplicationRecord
         date: observed_on,
         cache: true
       )&.rate
+    rescue => e
+      Rails.logger.warn("WiseConversionIntention: exchange rate lookup failed for #{source_currency}->#{target_currency} on #{observed_on}: #{e.class} - #{e.message}")
+      nil
     end
 
     def percentile_for(current_rate, observed_on, days)

@@ -72,4 +72,21 @@ class WiseConversionIntentionTest < ActiveSupport::TestCase
     assert_nil snapshot.rate_90d_percentile
     assert_nil snapshot.rate_365d_percentile
   end
+
+  test "returns nil provider rate when exchange-rate lookup raises" do
+    intention = WiseConversionIntention.create!(
+      family: @family,
+      source_currency: "USD",
+      target_currency: "JPY",
+      desired_rate: 150
+    )
+
+    ExchangeRate.stubs(:find_or_fetch_rate).raises(StandardError, "rate service down")
+
+    snapshot = intention.refresh_snapshot!(observed_on: Date.current)
+
+    assert_nil snapshot.provider_rate
+    assert_nil snapshot.rate_30d_percentile
+    assert_equal "tracking", intention.target_status
+  end
 end

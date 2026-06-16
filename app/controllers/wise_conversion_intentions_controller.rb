@@ -11,7 +11,14 @@ class WiseConversionIntentionsController < ApplicationController
       rescue => e
         Rails.logger.warn("Wise conversion snapshot failed: #{e.class} - #{e.message}")
       end
-      redirect_back_or_to accounts_path, notice: "Conversion plan saved."
+
+      notice = if intention.latest_snapshot&.provider_rate.blank?
+        "Conversion plan saved, but the initial exchange rate could not be fetched. Click Refresh to try again."
+      else
+        "Conversion plan saved."
+      end
+
+      redirect_back_or_to accounts_path, notice: notice
     else
       redirect_back_or_to accounts_path, alert: intention.errors.full_messages.to_sentence
     end
