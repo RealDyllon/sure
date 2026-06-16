@@ -19,7 +19,7 @@ class CategoryCleanupRunsController < ApplicationController
   end
 
   def retry
-    unless provider_configured?
+    if retry_requires_provider? && !provider_configured?
       redirect_to category_cleanup_run_path(@run), alert: "AI configuration is required before retrying."
       return
     end
@@ -64,6 +64,13 @@ class CategoryCleanupRunsController < ApplicationController
 
     def provider_configured?
       Provider::Registry.default_llm_provider.present?
+    end
+
+    def retry_requires_provider?
+      progress_phase = @run.processing_progress.to_h["phase"]
+      failed_phase = @run.metadata.to_h["failed_phase"]
+
+      progress_phase != "applying" && failed_phase != "applying"
     end
 
     def filtered_suggestions_scope

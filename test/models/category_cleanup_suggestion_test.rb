@@ -182,6 +182,52 @@ class CategoryCleanupSuggestionTest < ActiveSupport::TestCase
     assert_equal 50, child_budget.budgeted_spending
   end
 
+  test "reparent preserves target reserve when moving a budgeted root under a parent" do
+    standalone_root = category!("Standalone Root")
+    budget = @family.budgets.create!(
+      start_date: Date.current.beginning_of_month,
+      end_date: Date.current.end_of_month,
+      currency: @family.currency
+    )
+    budget.budget_categories.create!(category: standalone_root, budgeted_spending: 100, currency: @family.currency)
+    budget.budget_categories.create!(category: @target, budgeted_spending: 30, currency: @family.currency)
+
+    suggestion = @run.suggestions.create!(
+      source_category: standalone_root,
+      parent_category: @target,
+      suggested_action: :reparent,
+      selected: true
+    )
+
+    assert suggestion.apply!
+
+    assert_equal @target, standalone_root.reload.parent
+    target_budget = budget.budget_categories.find_by!(category: @target)
+    source_budget = budget.budget_categories.find_by!(category: standalone_root)
+    assert_equal 130, target_budget.budgeted_spending
+    assert_equal 100, source_budget.budgeted_spending
+  end
+
+  test "changing a suggestion action clears stale snapshot names" do
+    suggestion = @run.suggestions.create!(
+      source_category: @source,
+      target_category: @target,
+      suggested_action: :merge,
+      selected: true
+    )
+
+    suggestion.update!(
+      suggested_action: :rename,
+      new_name: "Renamed Source",
+      target_category: nil,
+      parent_category: nil
+    )
+
+    assert_nil suggestion.target_category_name
+    assert_nil suggestion.parent_category_name
+    assert_equal "Renamed Source", suggestion.new_name
+  end
+
   private
     def category!(name, parent: nil)
       @family.categories.create!(

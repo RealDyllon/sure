@@ -149,6 +149,62 @@ class CategoryCleanupRunsControllerTest < ActionDispatch::IntegrationTest
     assert run.reload.applying?
   end
 
+  test "retrying a failed apply phase does not require a provider" do
+    Provider::Registry.stubs(:default_llm_provider).returns(nil)
+
+    run = create_category_cleanup_run(status: :failed)
+    run.update!(
+      metadata: { "failed_phase" => "applying" },
+      processing_progress: { "phase" => "failed" }
+    )
+
+    assert_enqueued_with(job: CategoryCleanupApplyJob) do
+      post retry_category_cleanup_run_url(run)
+    end
+
+    assert_redirected_to category_cleanup_run_url(run)
+    assert_equal "Retry queued.", flash[:notice]
+  end
+
+  test "retrying a failed generation phase still requires a provider" do
+    Provider::Registry.stubs(:default_llm_provider).returns(nil)
+
+    run = create_category_cleanup_run(status: :failed)
+    run.update!(
+      metadata: { "failed_phase" => "generating" },
+      processing_progress: { "phase" => "failed" }
+    )
+
+    assert_no_enqueued_jobs do
+      post retry_category_cleanup_run_url(run)
+    end
+
+    assert_redirected_to category_cleanup_run_url(run)
+    assert_equal "AI configuration is required before retrying.", flash[:alert]
+  end
+
+  test "updating a suggestion clears stale snapshot names" do
+    run = create_category_cleanup_run(status: :reviewing)
+    suggestion = run.suggestions.create!(
+      source_category: @source,
+      target_category: @target,
+      suggested_action: :merge,
+      selected: true
+    )
+
+    patch suggestion_category_cleanup_run_url(run, suggestion),
+      params: {
+        suggested_action: "rename",
+        new_name: "Example Root C",
+        suggestion_selected: "true"
+      }
+
+    assert_redirected_to category_cleanup_run_url(run)
+    suggestion.reload
+    assert_nil suggestion.target_category
+    assert_nil suggestion.target_category_name
+  end
+
   private
     FakeProvider = Struct.new(:provider_name)
 
