@@ -54,12 +54,21 @@
 
       <% if Current.user&.admin? %>
         <div class="flex items-center gap-2">
-          <%= button_to sync_wise_item_path(wise_item),
-                method: :post,
-                class: "button button--icon",
-                disabled: wise_item.syncing?,
-                title: "Sync Wise" do %>
-            <%= icon "refresh-cw" %>
+          <% if wise_item.requires_update? && wise_item.oauth? %>
+            <%= button_to reconnect_wise_item_path(wise_item),
+                  method: :post,
+                  class: "rounded-lg px-3 py-2 text-sm font-medium text-inverse button-bg-primary inline-flex items-center gap-2" do %>
+              <%= icon "refresh-cw", size: "sm" %>
+              Reconnect Wise
+            <% end %>
+          <% else %>
+            <%= button_to sync_wise_item_path(wise_item),
+                  method: :post,
+                  class: "button button--icon",
+                  disabled: wise_item.syncing?,
+                  title: "Sync Wise" do %>
+              <%= icon "refresh-cw" %>
+            <% end %>
           <% end %>
 
           <%= render DS::Menu.new do |menu| %>
@@ -179,25 +188,50 @@
           <% end %>
 
           <% if Current.user&.admin? %>
-            <%= form_with model: WiseConversionIntention.new,
-                          url: wise_conversion_intentions_path,
-                          method: :post,
-                          data: { turbo_frame: "_top" },
-                          class: "grid gap-2 md:grid-cols-6" do |form| %>
-              <%= form.collection_select :source_account_id,
-                    wise_item.accounts,
-                    :id,
-                    :name,
-                    { include_blank: "Source account" },
-                    class: "appearance-none bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary md:col-span-2" %>
-              <%= form.text_field :source_currency, placeholder: "From", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
-              <%= form.text_field :target_currency, placeholder: "To", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
-              <%= form.number_field :target_amount, step: "0.01", placeholder: "Amount", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
-              <%= form.number_field :desired_rate, step: "0.0001", placeholder: "Target rate", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
-              <%= form.date_field :deadline_on, class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary md:col-span-2" %>
-              <%= form.text_field :notes, placeholder: "Notes", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary md:col-span-3" %>
-              <%= form.submit "Save plan", class: "rounded-lg px-3 py-2 text-sm font-medium text-inverse button-bg-primary" %>
-            <% end %>
+            <details class="mt-3 border border-primary rounded-lg p-3">
+              <summary class="text-sm font-medium text-primary cursor-pointer">Add conversion plan</summary>
+              <%= form_with model: WiseConversionIntention.new,
+                            url: wise_conversion_intentions_path,
+                            method: :post,
+                            data: { turbo_frame: "_top" },
+                            class: "grid gap-2 md:grid-cols-6 mt-3" do |form| %>
+                <%= form.label :source_account_id, "Source account", class: "sr-only" %>
+                <%= form.collection_select :source_account_id,
+                      wise_item.accounts,
+                      :id,
+                      :name,
+                      { include_blank: "Source account" },
+                      class: "appearance-none bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary md:col-span-2" %>
+                <div>
+                  <%= form.label :source_currency, "From currency", class: "sr-only" %>
+                  <%= form.text_field :source_currency, placeholder: "From currency", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary w-full" %>
+                </div>
+                <div>
+                  <%= form.label :target_currency, "To currency", class: "sr-only" %>
+                  <%= form.text_field :target_currency, placeholder: "To currency", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary w-full" %>
+                </div>
+                <div>
+                  <%= form.label :target_amount, "Target amount", class: "sr-only" %>
+                  <%= form.number_field :target_amount, step: "0.01", placeholder: "Target amount", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary w-full" %>
+                </div>
+                <div>
+                  <%= form.label :desired_rate, "Target rate", class: "sr-only" %>
+                  <%= form.number_field :desired_rate, step: "0.0001", placeholder: "Target rate", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary w-full" %>
+                  <p class="text-xs text-secondary mt-1">Compared to the past 30/90/365-day percentiles.</p>
+                </div>
+                <div class="md:col-span-2">
+                  <%= form.label :deadline_on, "Deadline", class: "sr-only" %>
+                  <%= form.date_field :deadline_on, class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary w-full" %>
+                </div>
+                <div class="md:col-span-3">
+                  <%= form.label :notes, "Notes", class: "sr-only" %>
+                  <%= form.text_field :notes, placeholder: "Notes", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary w-full" %>
+                </div>
+                <div>
+                  <%= form.submit "Save plan", class: "rounded-lg px-3 py-2 text-sm font-medium text-inverse button-bg-primary" %>
+                </div>
+              <% end %>
+            </details>
           <% end %>
         </div>
       </div>

@@ -1,23 +1,21 @@
 class WiseItemsController < ApplicationController
-  before_action :set_wise_item, only: %i[show edit update destroy sync setup_accounts complete_account_setup]
+  before_action :set_wise_item, only: %i[update destroy sync setup_accounts complete_account_setup reconnect]
   before_action :require_admin!, only: %i[
-    new create oauth_start oauth_callback select_existing_account link_existing_account
-    edit update destroy sync setup_accounts complete_account_setup
+    create oauth_start oauth_callback select_existing_account update destroy sync setup_accounts complete_account_setup reconnect
   ]
 
-  def index
-    @wise_items = Current.family.wise_items.active.ordered
-    render layout: "settings"
-  end
-
-  def show
-  end
-
-  def new
-    @wise_item = Current.family.wise_items.build(name: "Wise Connection")
-  end
-
   def create
+    existing = Current.family.wise_items.find_by(auth_mode: "personal_token")
+    if existing
+      @wise_item = existing
+      if @wise_item.update(wise_item_params.permit(:name, :personal_token, :sync_start_date, :base_url, :auth_url))
+        respond_to_panel_success
+      else
+        respond_to_panel_error(@wise_item.errors.full_messages.join(", "))
+      end
+      return
+    end
+
     @wise_item = Current.family.wise_items.build(wise_item_params)
     @wise_item.name ||= "Wise Connection"
     @wise_item.auth_mode = "personal_token"
@@ -30,15 +28,22 @@ class WiseItemsController < ApplicationController
     end
   end
 
-  def edit
-  end
-
   def update
     if @wise_item.update(wise_item_params)
       respond_to_panel_success
     else
       respond_to_panel_error(@wise_item.errors.full_messages.join(", "))
     end
+  end
+
+  def reconnect
+    unless @wise_item.oauth? && @wise_item.requires_update?
+      redirect_to accounts_path, alert: "Reconnect is only available for Wise connections that need re-authorization."
+      return
+    end
+
+    session[:wise_reconnect_item_id] = @wise_item.id
+    redirect_to oauth_start_wise_items_path, notice: "Reconnect Wise to continue syncing."
   end
 
   def oauth_start
@@ -77,6 +82,27 @@ class WiseItemsController < ApplicationController
       client_secret: Provider::Wise.oauth_client_secret
     )
     token_payload = provider.exchange_code_for_token(code: params.require(:code), redirect_uri: redirect_uri).with_indifferent_access
+
+    reconnect_item_id = session.delete(:wise_reconnect_item_id)
+    if reconnect_item_id
+      wise_item = Current.family.wise_items.find_by(id: reconnect_item_id)
+      if wise_item.nil?
+        redirect_to settings_providers_path, alert: "Wise connection not found for reconnection."
+        return
+      end
+      wise_item.update!(
+        access_token: token_payload[:access_token],
+        refresh_token: token_payload[:refresh_token],
+        token_expires_at: token_payload[:expires_in].present? ? Time.current + token_payload[:expires_in].to_i.seconds : nil,
+        base_url: oauth_base_url,
+        auth_url: oauth_auth_url,
+        status: :good
+      )
+      wise_item.sync_later
+
+      redirect_to accounts_path, notice: "Wise reconnected."
+      return
+    end
 
     wise_item = Current.family.wise_items.create!(
       name: "Wise Connection",

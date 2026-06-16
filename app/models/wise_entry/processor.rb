@@ -114,7 +114,6 @@ class WiseEntry::Processor
     def extra_metadata
       {
         wise: {
-          balance_id: wise_balance.balance_id,
           statement_reference: data[:referenceNumber] || data[:reference],
           transaction_type: data[:type],
           card_id: details[:cardId] || details[:card_id],

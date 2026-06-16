@@ -82,6 +82,15 @@
                   data: { turbo_frame: :modal }
                 ) %>
               <% end %>
+              <% if account.linked_to?("WiseBalance") %>
+                <% menu.with_item(
+                  variant: "link",
+                  text: t("accounts.account.change_wise_balance"),
+                  href: select_existing_account_wise_items_path(account_id: account.id),
+                  icon: "arrow-left-right",
+                  data: { turbo_frame: :modal }
+                ) %>
+              <% end %>
               <% menu.with_item(variant: "link", text: t("accounts.account.unlink_provider"), href: confirm_unlink_account_path(account), icon: "unlink", data: { turbo_frame: :modal }) %>
             <% end %>
           <% end %>

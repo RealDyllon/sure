@@ -59,7 +59,6 @@ class WiseItem::ImporterTest < ActiveSupport::TestCase
     assert_equal "STANDARD", @wise_item.wise_balances.sole.balance_type
     assert_equal "card-token-1", @wise_item.wise_cards.sole.wise_card_id
     assert_equal "4242", @wise_item.wise_cards.sole.last_four
-    assert @wise_item.reload.pending_account_setup?
   end
 
   test "chunks linked balance statements to at most 469 days" do

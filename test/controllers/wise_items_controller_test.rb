@@ -79,6 +79,8 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "creates limited personal token item" do
+    @family.wise_items.where(auth_mode: "personal_token").destroy_all
+
     assert_difference -> { @family.wise_items.count }, 1 do
       post wise_items_url, params: {
         wise_item: {
@@ -91,6 +93,29 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     item = @family.wise_items.order(:created_at).last
     assert item.personal_token?
     assert_equal "example-personal-token", item.personal_token
+    assert_redirected_to accounts_url
+  end
+
+  test "create personal token updates existing item when one exists" do
+    @family.wise_items.where(auth_mode: "personal_token").destroy_all
+
+    existing = @family.wise_items.create!(
+      name: "Existing Personal Token",
+      auth_mode: "personal_token",
+      personal_token: "old-token"
+    )
+
+    assert_no_difference -> { @family.wise_items.count } do
+      post wise_items_url, params: {
+        wise_item: {
+          personal_token: "new-token",
+          base_url: "https://api.sandbox.transferwise.tech"
+        }
+      }
+    end
+
+    existing.reload
+    assert_equal "new-token", existing.personal_token
     assert_redirected_to accounts_url
   end
 
@@ -209,7 +234,72 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to accounts_url
   end
 
-  private
+  test "reconnect stores item id in session and redirects to oauth start" do
+    item = create_wise_item
+    item.update!(status: :requires_update)
+
+    post reconnect_wise_item_url(item)
+
+    assert_redirected_to oauth_start_wise_items_url
+    assert_equal "Reconnect Wise to continue syncing.", flash[:notice]
+    assert_equal item.id, session[:wise_reconnect_item_id]
+  end
+
+  test "reconnect rejects non-oauth items" do
+    item = @family.wise_items.create!(
+      name: "Personal Token",
+      auth_mode: "personal_token",
+      personal_token: "token",
+      status: :requires_update
+    )
+
+    post reconnect_wise_item_url(item)
+
+    assert_redirected_to accounts_url
+    assert_equal "Reconnect is only available for Wise connections that need re-authorization.", flash[:alert]
+    assert_nil session[:wise_reconnect_item_id]
+    assert_equal "token", item.reload.personal_token
+  end
+
+  test "reconnect rejects good-status items" do
+    item = create_wise_item
+
+    post reconnect_wise_item_url(item)
+
+    assert_redirected_to accounts_url
+    assert_equal "Reconnect is only available for Wise connections that need re-authorization.", flash[:alert]
+    assert_nil session[:wise_reconnect_item_id]
+  end
+
+  test "oauth callback updates existing item when session reconnect id present" do
+    with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret") do
+      item = create_wise_item
+      item.update!(status: :requires_update, access_token: "old-token", refresh_token: "old-refresh")
+
+      # Call reconnect to set session[:wise_reconnect_item_id]
+      post reconnect_wise_item_url(item)
+      # Then call oauth_start to set session[:wise_oauth_state]
+      get oauth_start_wise_items_url
+      state = Rack::Utils.parse_query(URI.parse(response.location).query).fetch("state")
+
+      stub_request(:post, "https://api.wise.com/oauth/token")
+        .with(basic_auth: [ "client-id", "client-secret" ])
+        .to_return(status: 200, body: { access_token: "new-token", refresh_token: "new-refresh", expires_in: 43_199 }.to_json)
+
+      assert_no_difference -> { @family.wise_items.count } do
+        get oauth_callback_wise_items_url, params: { code: "auth-code", state: state }
+      end
+
+      assert_redirected_to accounts_url
+      assert_equal "Wise reconnected.", flash[:notice]
+      assert_nil session[:wise_reconnect_item_id]
+
+      item.reload
+      assert_equal "new-token", item.access_token
+      assert_equal "new-refresh", item.refresh_token
+      assert_equal "good", item.status
+    end
+  end
 
     def create_wise_item
       @family.wise_items.create!(

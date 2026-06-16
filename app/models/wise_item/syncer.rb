@@ -31,6 +31,7 @@ class WiseItem::Syncer
       collect_transaction_stats(sync, account_ids: account_ids, source: "wise")
     end
 
+    wise_item.update!(pending_account_setup: wise_item.wise_balances.requires_setup.exists?)
     collect_health_stats(sync, errors: nil)
   rescue => e
     collect_health_stats(sync, errors: [ { message: e.message, category: "sync_error" } ])
@@ -38,6 +39,6 @@ class WiseItem::Syncer
   end
 
   def perform_post_sync
-    # no-op
+    WiseItem::SyncCompleteEvent.new(wise_item).broadcast
   end
 end

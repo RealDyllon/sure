@@ -20,7 +20,8 @@ module TransactionsHelper
     transaction_search_filters[0]
   end
 
-  # ---- Transaction extra details helpers ----
+  WISE_ALLOWED_KEYS = %w[transaction_type card_last_four exchange_rate source_amount target_amount statement_reference].freeze
+
   # Returns a structured hash describing extra details for a transaction.
   # Input can be a Transaction or an Entry (responds_to :transaction).
   # Structure:
@@ -38,7 +39,8 @@ module TransactionsHelper
 
     if extra.is_a?(Hash) && extra["wise"].present?
       wise = extra["wise"].is_a?(Hash) ? extra["wise"] : {}
-      extras = wise.each_with_object([]) do |(key, value), result|
+      safe_wise = wise.slice(*WISE_ALLOWED_KEYS)
+      extras = safe_wise.each_with_object([]) do |(key, value), result|
         next if value.blank?
 
         display = (value.is_a?(Hash) || value.is_a?(Array)) ? value.to_json : value
@@ -52,7 +54,7 @@ module TransactionsHelper
       {
         kind: :wise,
         simplefin: {},
-        wise: wise,
+        wise: safe_wise,
         provider_extras: extras,
         raw: nil
       }

@@ -4,7 +4,6 @@ class WiseBalance < ApplicationRecord
   if encryption_ready?
     encrypts :raw_payload
     encrypts :raw_transactions_payload
-    encrypts :extra
   end
 
   belongs_to :wise_item

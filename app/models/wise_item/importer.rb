@@ -89,10 +89,7 @@ class WiseItem::Importer
     end
 
     def update_setup_state
-      wise_item.update!(
-        pending_account_setup: wise_item.wise_balances.requires_setup.exists?,
-        status: :good
-      )
+      wise_item.update!(status: :good)
     end
 
     def sync_start_date

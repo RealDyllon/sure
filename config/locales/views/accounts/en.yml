@@ -8,6 +8,7 @@ en:
       link_provider: Link with provider
       unlink_provider: Unlink from provider
       change_simplefin_account: Change SimpleFIN account
+      change_wise_balance: Change Wise balance
       troubleshoot: Troubleshoot
       enable: Enable account
       disable: Disable account

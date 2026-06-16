@@ -2,7 +2,7 @@ require "sidekiq/web"
 require "sidekiq/cron/web"
 
 Rails.application.routes.draw do
-  resources :wise_items, only: %i[index new create show edit update destroy] do
+  resources :wise_items, only: %i[create update destroy] do
     collection do
       get :oauth_start
       get :oauth_callback
@@ -14,6 +14,7 @@ Rails.application.routes.draw do
       post :sync
       get :setup_accounts
       post :complete_account_setup
+      post :reconnect
     end
   end
 
