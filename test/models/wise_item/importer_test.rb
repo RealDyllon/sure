@@ -117,4 +117,20 @@ class WiseItem::ImporterTest < ActiveSupport::TestCase
     assert_requested :get, "https://api.wise.com/v1/profiles",
       headers: { "Authorization" => "Bearer fresh-token" }
   end
+
+  test "derives connected_institutions from per-balance metadata" do
+    @wise_item.wise_balances.create!(
+      balance_id: "balance-sgd",
+      profile_id: "profile-1",
+      name: "Wise SGD",
+      currency: "SGD",
+      balance_type: "STANDARD",
+      current_balance: 100,
+      institution_metadata: { "name" => "Wise", "domain" => "wise.com", "color" => "#00B9FF" }
+    )
+
+    institutions = @wise_item.connected_institutions
+    assert_equal 1, institutions.size
+    assert_equal "Wise", institutions.first["name"]
+  end
 end

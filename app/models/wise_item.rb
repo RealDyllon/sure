@@ -118,14 +118,20 @@ class WiseItem < ApplicationRecord
   end
 
   def connected_institutions
-    [ { "name" => "Wise", "domain" => "wise.com", "color" => "#00B9FF" } ]
+    institutions = wise_balances
+      .where.not(institution_metadata: nil)
+      .map { |balance| balance.institution_metadata }
+      .compact
+      .uniq
+    institutions = [ { "name" => "Wise", "domain" => "wise.com", "color" => "#00B9FF" } ] if institutions.empty?
+    institutions
   end
 
   def institution_summary
     if wise_balances.any?
       "#{linked_accounts_count} of #{total_accounts_count} #{'balance'.pluralize(total_accounts_count)} linked"
     else
-      "Wise"
+      connected_institutions.first&.dig("name") || "Wise"
     end
   end
 

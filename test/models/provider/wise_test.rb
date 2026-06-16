@@ -78,4 +78,49 @@ class Provider::WiseTest < ActiveSupport::TestCase
 
     assert_equal :unauthorized, error.error_type
   end
+
+  test "surfaces Wise's error message in WiseError" do
+    stub_request(:get, "https://api.wise.com/v1/profiles")
+      .to_return(status: 401, body: { error: "Token has expired" }.to_json)
+
+    error = assert_raises Provider::Wise::WiseError do
+      Provider::Wise.new(access_token: "stale-token").get_profiles
+    end
+
+    assert_equal "Token has expired", error.message
+    assert_equal :unauthorized, error.error_type
+  end
+
+  test "connection_configs returns a setup config for families with no Wise item" do
+    with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret") do
+      family = families(:empty)
+
+      configs = Provider::WiseAdapter.connection_configs(family: family)
+
+      assert_equal 1, configs.size
+      assert_equal "wise", configs.first[:key]
+      assert_match(/OAuth/i, configs.first[:description])
+    end
+  end
+
+  test "connection_configs returns a balance-setup config when an item exists" do
+    with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret") do
+      family = families(:dylan_family)
+      wise_items(:dylan_wise_oauth)
+
+      configs = Provider::WiseAdapter.connection_configs(family: family)
+
+      assert_equal 1, configs.size
+      assert_equal "wise", configs.first[:key]
+      assert_match(/currency balance/i, configs.first[:description])
+    end
+  end
+
+  test "connection_configs returns [] when OAuth is not configured" do
+    with_env_overrides("WISE_CLIENT_ID" => nil, "WISE_CLIENT_SECRET" => nil) do
+      family = families(:empty)
+
+      assert_empty Provider::WiseAdapter.connection_configs(family: family)
+    end
+  end
 end

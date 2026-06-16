@@ -159,20 +159,39 @@ class Provider::Wise
       when 200, 201
         JSON.parse(response.body.presence || "{}", symbolize_names: true)
       when 400
-        raise WiseError.new("Bad request to Wise API: #{response.body}", :bad_request)
+        raise WiseError.new(parse_error_message(response.body, default: "Bad request to Wise API"), :bad_request)
       when 401
-        raise WiseError.new("Wise authorization failed", :unauthorized)
+        raise WiseError.new(parse_error_message(response.body, default: "Wise authorization failed. The token may be expired or revoked."), :unauthorized)
       when 403
-        raise WiseError.new("Wise access forbidden", :access_forbidden)
+        raise WiseError.new(parse_error_message(response.body, default: "Wise access forbidden. The token may lack the required scopes."), :access_forbidden)
       when 404
         raise WiseError.new("Wise resource not found", :not_found)
       when 429
-        raise WiseError.new("Wise rate limit exceeded", :rate_limited)
+        raise WiseError.new("Wise rate limit exceeded. Please try again later.", :rate_limited)
       else
         raise WiseError.new("Wise API error: #{response.code} #{response.body}", :api_error)
       end
     rescue JSON::ParserError => e
       raise WiseError.new("Invalid Wise response: #{e.message}", :invalid_response)
+    end
+
+    # Best-effort: pull a human-readable error message out of the response
+    # body. Wise's error format is not strongly typed, so we look for a
+    # handful of known keys before falling back to the raw body.
+    def parse_error_message(body, default:)
+      parsed = JSON.parse(body.to_s, symbolize_names: true)
+      message = parsed[:error] || parsed[:message] || parsed[:error_description]
+      return message if message.is_a?(String) && message.present?
+
+      # Wise occasionally returns errors as a list under `errors`.
+      first = Array(parsed[:errors]).first
+      if first.is_a?(Hash) && first[:message].present?
+        return first[:message]
+      end
+
+      default
+    rescue JSON::ParserError
+      default
     end
 
     def url_escape(value)
