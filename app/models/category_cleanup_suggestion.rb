@@ -78,9 +78,8 @@ class CategoryCleanupSuggestion < ApplicationRecord
         source_category.subcategories.update_all(parent_id: target_category.id, color: target_category.color, updated_at: now) if target_category.parent_id.nil?
         reassign_budget_categories!(now: now)
         source_category.destroy!
+        mark_applied!
       end
-
-      mark_applied!
     end
 
     def reassign_budget_categories!(now:)
@@ -206,7 +205,7 @@ class CategoryCleanupSuggestion < ApplicationRecord
         amount = budget_category.budgeted_spending || 0
         was_subcategory = budget_category.subcategory?
 
-        budget_category.update_budgeted_spending!(0) if was_subcategory && amount.nonzero?
+        budget_category.update_budgeted_spending!(0) if amount.nonzero?
 
         {
           budget_category: budget_category,
@@ -248,8 +247,8 @@ class CategoryCleanupSuggestion < ApplicationRecord
     end
 
     def sync_snapshot_names
-      self.source_category_name = source_category.name if source_category.present?
-      self.target_category_name = target_category.name if target_category.present?
-      self.parent_category_name = parent_category.name if parent_category.present?
+      self.source_category_name = source_category&.name
+      self.target_category_name = target_category&.name
+      self.parent_category_name = parent_category&.name
     end
 end
