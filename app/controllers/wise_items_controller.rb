@@ -70,7 +70,7 @@ class WiseItemsController < ApplicationController
     oauth_base_url = Provider::Wise.oauth_base_url
     oauth_auth_url = Provider::Wise.oauth_auth_url
     provider = Provider::Wise.new(
-      access_token: "",
+      access_token: nil,
       base_url: oauth_base_url,
       auth_url: oauth_auth_url,
       client_id: Provider::Wise.oauth_client_id,
@@ -81,6 +81,9 @@ class WiseItemsController < ApplicationController
     wise_item = Current.family.wise_items.create!(
       name: "Wise Connection",
       auth_mode: "oauth",
+      # Wise's standard OAuth callback only returns `code` + `state`. The
+      # `profileId` fallback is for self-hosters running a custom proxy that
+      # pre-selects a profile before the redirect.
       profile_id: params[:profileId].presence || params[:profile_id].presence,
       base_url: oauth_base_url,
       auth_url: oauth_auth_url,

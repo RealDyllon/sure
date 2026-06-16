@@ -1,0 +1,27 @@
+dylan_wise_oauth:
+  family: dylan_family
+  name: Wise Connection
+  auth_mode: "oauth"
+  status: "good"
+  access_token: example-access-token
+  refresh_token: example-refresh-token
+  token_expires_at: <%= 1.hour.from_now %>
+  profile_id: "100"
+  profile_type: "personal"
+  sync_start_date: <%= 90.days.ago.to_date %>
+
+dylan_wise_personal:
+  family: dylan_family
+  name: Wise Personal Token
+  auth_mode: "personal_token"
+  status: "good"
+  personal_token: example-personal-token
+
+dylan_wise_deletion:
+  family: dylan_family
+  name: Wise Deleting
+  auth_mode: "oauth"
+  status: "good"
+  scheduled_for_deletion: true
+  access_token: example-access-token
+  refresh_token: example-refresh-token

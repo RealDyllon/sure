@@ -1,6 +1,9 @@
 require "digest/md5"
 
 class WiseItem::Importer
+  # Wise's balance-statements endpoint caps each request at roughly one year
+  # of data. 469 days keeps each chunk under that limit while still aligning
+  # with Wise's expected `intervalStart`/`intervalEnd` semantics.
   MAX_STATEMENT_DAYS = 469
 
   attr_reader :wise_item, :wise_provider

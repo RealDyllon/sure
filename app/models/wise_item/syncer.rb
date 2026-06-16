@@ -38,6 +38,6 @@ class WiseItem::Syncer
   end
 
   def perform_post_sync
-    # no-op
+    WiseItem::SyncCompleteEvent.new(wise_item).broadcast
   end
 end
