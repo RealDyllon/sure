@@ -317,22 +317,22 @@ class WiseItemsController < ApplicationController
       end
     end
 
-  def respond_to_panel_success
-    if turbo_frame_request?
-      flash.now[:notice] = t("wise_items.update.success")
-      @wise_items = Current.family.wise_items.ordered
-      render turbo_stream: [
-        turbo_stream.replace(
-          "wise-providers-panel",
-          partial: "settings/providers/wise_panel",
-          locals: { wise_items: @wise_items }
-        ),
-        *flash_notification_stream_items
-      ]
-    else
-      redirect_to accounts_path, notice: t("wise_items.update.success"), status: :see_other
+    def respond_to_panel_success
+      if turbo_frame_request?
+        flash.now[:notice] = t("wise_items.update.success")
+        @wise_items = Current.family.wise_items.ordered
+        render turbo_stream: [
+          turbo_stream.replace(
+            "wise-providers-panel",
+            partial: "settings/providers/wise_panel",
+            locals: { wise_items: @wise_items }
+          ),
+          *flash_notification_stream_items
+        ]
+      else
+        redirect_to accounts_path, notice: t("wise_items.update.success"), status: :see_other
+      end
     end
-  end
 
     def respond_to_panel_error(message)
       @error_message = message
