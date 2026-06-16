@@ -140,7 +140,7 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     refute item.reload.pending_account_setup?
   end
 
-  test "setup account does not link legacy provider account" do
+  test "setup account rejects linking an already-linked account" do
     item = create_wise_item
     balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")
     account = accounts(:connected)
@@ -153,6 +153,36 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_nil balance.reload.current_account
+    assert_response :unprocessable_entity
+  end
+
+  test "setup account surfaces per-row error when link has no target" do
+    item = create_wise_item
+    balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")
+
+    assert_no_difference -> { AccountProvider.where(provider_type: "WiseBalance").count } do
+      post complete_account_setup_wise_item_url(item), params: {
+        balance_actions: { balance.id => "link" }
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_match(/Pick an existing account/i, response.body)
+  end
+
+  test "setup account surfaces per-row error when target is already provider-linked" do
+    item = create_wise_item
+    balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")
+    account = accounts(:connected)  # already linked to a Plaid account
+
+    assert_no_difference -> { AccountProvider.where(provider_type: "WiseBalance").count } do
+      post complete_account_setup_wise_item_url(item), params: {
+        balance_actions: { balance.id => "link" },
+        existing_account_ids: { balance.id => account.id }
+      }
+    end
+
+    assert_response :unprocessable_entity
   end
 
   test "direct Wise link rejects legacy provider account" do

@@ -72,6 +72,14 @@
                 frame: :modal
               ) %>
             <% end %>
+            <% if wise_item.requires_update? %>
+              <% menu.with_item(
+                variant: "link",
+                text: "Reconnect",
+                icon: "refresh-cw",
+                href: reauth_wise_item_path(wise_item)
+              ) %>
+            <% end %>
             <% menu.with_item(
               variant: "button",
               text: "Delete",
@@ -131,13 +139,17 @@
           <div class="p-4 flex flex-col gap-3 items-center justify-center">
             <p class="text-primary font-medium text-sm">Wise balances need setup</p>
             <p class="text-secondary text-sm"><%= unlinked_count %> Wise <%= "balance".pluralize(unlinked_count) %> can be created, linked, or skipped.</p>
-            <%= render DS::Link.new(
-              text: "Set up balances",
-              icon: "settings",
-              variant: "primary",
-              href: setup_accounts_wise_item_path(wise_item),
-              frame: :modal
-            ) %>
+            <% if Current.user&.admin? %>
+              <%= render DS::Link.new(
+                text: "Set up balances",
+                icon: "settings",
+                variant: "primary",
+                href: setup_accounts_wise_item_path(wise_item),
+                frame: :modal
+              ) %>
+            <% else %>
+              <p class="text-xs text-secondary italic">Ask the family admin to finish setting up Wise balances.</p>
+            <% end %>
           </div>
         <% end %>
 

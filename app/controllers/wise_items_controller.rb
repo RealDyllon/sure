@@ -117,6 +117,8 @@ class WiseItemsController < ApplicationController
     fetch_wise_balances_if_needed
     @wise_balances = @wise_item.wise_balances.requires_setup.order(:currency)
     @existing_accounts = Current.family.accounts.visible_manual.where(accountable_type: "Depository").alphabetically
+    @default_actions = compute_default_setup_actions(@wise_balances, @existing_accounts)
+    @setup_errors = {}
   end
 
   def complete_account_setup
@@ -124,6 +126,7 @@ class WiseItemsController < ApplicationController
     existing_account_ids = params[:existing_account_ids] || {}
     created_or_linked = 0
     skipped = 0
+    setup_errors = {}
 
     ActiveRecord::Base.transaction do
       balance_actions.each do |wise_balance_id, action|
@@ -148,9 +151,17 @@ class WiseItemsController < ApplicationController
           wise_balance.clear_skipped!
           created_or_linked += 1
         when "link"
-          account = Current.family.accounts.visible_manual.where(accountable_type: "Depository").find_by(id: existing_account_ids[wise_balance_id])
-          next unless account
-          next if provider_linked_account?(account)
+          target_id = existing_account_ids[wise_balance_id]
+          account = Current.family.accounts.visible_manual.where(accountable_type: "Depository").find_by(id: target_id)
+          if account.nil?
+            setup_errors[wise_balance_id] = "Pick an existing account to link this balance to."
+            next
+          end
+
+          if provider_linked_account?(account)
+            setup_errors[wise_balance_id] = "That account is already linked to another provider."
+            next
+          end
 
           AccountProvider.create!(account: account, provider: wise_balance)
           wise_balance.clear_skipped!
@@ -160,6 +171,18 @@ class WiseItemsController < ApplicationController
           skipped += 1
         end
       end
+    end
+
+    if setup_errors.any?
+      fetch_wise_balances_if_needed
+      @wise_balances = @wise_item.wise_balances.requires_setup.order(:currency)
+      @existing_accounts = Current.family.accounts.visible_manual.where(accountable_type: "Depository").alphabetically
+      @default_actions = compute_default_setup_actions(@wise_balances, @existing_accounts)
+      @setup_errors = setup_errors
+      @action_selections = balance_actions
+      @existing_account_selections = existing_account_ids
+      render :setup_accounts, status: :unprocessable_entity
+      return
     end
 
     @wise_item.update!(pending_account_setup: @wise_item.unlinked_accounts_count.positive?)
@@ -206,6 +229,61 @@ class WiseItemsController < ApplicationController
     redirect_to safe_return_to_path || accounts_path, notice: "#{account.name} linked to Wise."
   end
 
+  def reauth
+    unless Provider::Wise.oauth_configured?
+      redirect_to settings_providers_path, alert: "Wise OAuth is not configured. Set WISE_CLIENT_ID and WISE_CLIENT_SECRET."
+      return
+    end
+
+    state = SecureRandom.hex(24)
+    session[:wise_oauth_state] = state
+    session[:wise_oauth_reauth_id] = @wise_item.id
+    redirect_uri = Provider::Wise.oauth_redirect_uri.presence || reauth_callback_wise_items_url
+    redirect_to Provider::Wise.oauth_authorize_url(redirect_uri: redirect_uri, state: state), allow_other_host: true
+  end
+
+  def reauth_callback
+    if params[:error].present?
+      redirect_to accounts_path, alert: "Wise re-authorization failed: #{params[:error_description].presence || params[:error]}"
+      return
+    end
+
+    expected_state = session.delete(:wise_oauth_state)
+    reauth_id = session.delete(:wise_oauth_reauth_id)
+    unless expected_state.present? && params[:state].present? && ActiveSupport::SecurityUtils.secure_compare(expected_state.to_s, params[:state].to_s)
+      redirect_to accounts_path, alert: "Wise re-authorization state did not match. Please try again."
+      return
+    end
+
+    wise_item = Current.family.wise_items.find_by(id: reauth_id) if reauth_id
+    unless wise_item
+      redirect_to accounts_path, alert: "Wise connection not found."
+      return
+    end
+
+    redirect_uri = Provider::Wise.oauth_redirect_uri.presence || reauth_callback_wise_items_url
+    provider = Provider::Wise.new(
+      access_token: nil,
+      base_url: Provider::Wise.oauth_base_url,
+      auth_url: Provider::Wise.oauth_auth_url,
+      client_id: Provider::Wise.oauth_client_id,
+      client_secret: Provider::Wise.oauth_client_secret
+    )
+    token_payload = provider.exchange_code_for_token(code: params.require(:code), redirect_uri: redirect_uri).with_indifferent_access
+
+    wise_item.update!(
+      access_token: token_payload[:access_token],
+      refresh_token: token_payload[:refresh_token].presence || wise_item.refresh_token,
+      token_expires_at: token_payload[:expires_in].present? ? Time.current + token_payload[:expires_in].to_i.seconds : wise_item.token_expires_at,
+      status: :good
+    )
+    wise_item.sync_later
+
+    redirect_to accounts_path, notice: "Wise re-authorized. Syncing your balances now."
+  rescue Provider::Wise::WiseError => e
+    redirect_to accounts_path, alert: "Wise re-authorization failed: #{e.message}"
+  end
+
   private
 
     def set_wise_item
@@ -227,6 +305,16 @@ class WiseItemsController < ApplicationController
 
     def provider_linked_account?(account)
       account.account_providers.exists? || account.plaid_account_id.present? || account.simplefin_account_id.present?
+    end
+
+    # Picks a per-balance default action: "link" if a same-currency depository
+    # account exists, otherwise "create". Falls back to "skip" if neither
+    # makes sense (e.g., zero existing accounts).
+    def compute_default_setup_actions(wise_balances, existing_accounts)
+      wise_balances.each_with_object({}) do |balance, defaults|
+        match = existing_accounts.find { |acct| acct.currency == balance.currency }
+        defaults[balance.id] = match ? "link" : "create"
+      end
     end
 
     def respond_to_panel_success

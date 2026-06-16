@@ -8,12 +8,14 @@ Rails.application.routes.draw do
       get :oauth_callback
       get :select_existing_account
       post :link_existing_account
+      get :reauth_callback
     end
 
     member do
       post :sync
       get :setup_accounts
       post :complete_account_setup
+      get :reauth
     end
   end
 

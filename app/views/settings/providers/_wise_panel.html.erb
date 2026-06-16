@@ -14,7 +14,7 @@
   <div class="flex items-center gap-3">
     <% if Provider::Wise.oauth_configured? %>
       <%= render DS::Link.new(
-        text: "Connect with Wise",
+        text: items&.any? ? "Connect another Wise profile" : "Connect with Wise",
         icon: "link",
         variant: "primary",
         href: oauth_start_wise_items_path,
