@@ -19,6 +19,7 @@ class GoalProfile < ApplicationRecord
 
   before_validation :normalize_blank_planning_region
   before_validation :normalize_percentage_fields
+  before_validation :normalize_blank_numeric_fields
 
   class << self
     def find_or_create_for!(user)
@@ -166,5 +167,23 @@ class GoalProfile < ApplicationRecord
 
     def normalize_blank_planning_region
       self.planning_region = nil if self[:planning_region].blank?
+    end
+
+    # Centralizes the "blank form field maps to a sensible default" rule for
+    # numeric columns. We can't just rely on `allow_blank: true` because the
+    # columns are NOT NULL: a blank value passes validation (the validator
+    # short-circuits on blank) but crashes the DB write. Without this callback,
+    # every controller that persists these fields has to repeat the coercion
+    # — and a future third write path (console, import, API) could silently
+    # regress. Scoped to only the columns whose DB default matches the
+    # desired blank-target.
+    def normalize_blank_numeric_fields
+      # ActiveRecord coerces an empty string to nil when assigning to a
+      # numeric column, so we have to check both nil and the original blank
+      # form. `assign_attributes(annual_contribution: "")` leaves the
+      # in-memory attribute as nil before validation runs.
+      if annual_contribution.nil?
+        self.annual_contribution = 0
+      end
     end
 end

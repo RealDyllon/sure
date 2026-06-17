@@ -76,12 +76,21 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
   end
 
   test "debt payoff flags unavailable FX for foreign liabilities" do
-    create_account(name: "Example Foreign Loan", balance: 12_000, accountable: Loan.new(subtype: "other"), currency: "USD")
+    create_account(
+      name: "Example Foreign Loan",
+      balance: 12_000,
+      accountable: Loan.new(subtype: "other", term_months: 24, interest_rate: 0, rate_type: "fixed"),
+      currency: "USD"
+    )
 
     result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
 
     assert_equal 0, result.total_debt_money.amount
     assert_includes result.review_prompts, :fx_unavailable
+    # The loan has a fixed-rate payment schedule, so the per-account reason is
+    # :fx_unavailable (not :payment_missing — the user did supply a payment,
+    # FX is the blocker).
+    assert_equal :fx_unavailable, result.reason_for(result.debt_accounts.first)
   end
 
   test "debt payoff clamps credit-balance liabilities to zero" do
@@ -172,6 +181,37 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     # independent of whether we could total their payments.
     assert_includes result.debt_accounts, missing_payment_card
     assert_includes result.debt_accounts, foreign_card
+    # Per-account reasons are tracked independently: a card with a payment in
+    # an unconvertible currency is :fx_unavailable, NOT :payment_missing —
+    # the user did supply a payment; FX is the real blocker.
+    assert_equal :payment_missing, result.reason_for(missing_payment_card)
+    assert_equal :fx_unavailable, result.reason_for(foreign_card)
+  end
+
+  test "debt payoff tags per-account reason as :ok when payment and conversion both succeed" do
+    card = create_account(
+      name: "Example Good Card",
+      balance: 4_000,
+      accountable: CreditCard.new(minimum_payment: 100)
+    )
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert_equal :ok, result.reason_for(card)
+  end
+
+  test "debt payoff tags per-account reason as :payment_missing only for accounts that lack a payment" do
+    card_with_min = create_account(
+      name: "Example With Min",
+      balance: 2_000,
+      accountable: CreditCard.new(minimum_payment: 50)
+    )
+    card_without_min = create_account(name: "Example Without Min", balance: 1_500, accountable: CreditCard.new)
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert_equal :ok, result.reason_for(card_with_min)
+    assert_equal :payment_missing, result.reason_for(card_without_min)
   end
 
   test "savings rate calculates from recent income and expenses when history exists" do

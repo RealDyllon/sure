@@ -51,7 +51,9 @@ module Goals
         # Only include keys the form actually submitted, so absent fields don't
         # accidentally clear existing values. Blank values are intentional clears:
         #   annual_spending:  "" -> nil  (revert to inferred spending)
-        #   annual_contribution: "" -> 0   (the column default)
+        #   annual_contribution: "" -> ""  (passed through; the model's
+        #                                   before_validation normalizes to 0,
+        #                                   the column default)
         #   withdrawal_rate:  "" -> ""   (passed through; numericality validator
         #                                 surfaces a 422, matching the "no blank
         #                                 withdrawal rate" spec scenario)
@@ -59,7 +61,7 @@ module Goals
           update[:annual_spending_override] = raw[:annual_spending].presence
         end
         if raw.key?(:annual_contribution)
-          update[:annual_contribution] = raw[:annual_contribution].presence || 0
+          update[:annual_contribution] = raw[:annual_contribution]
         end
         if raw.key?(:withdrawal_rate)
           update[:withdrawal_rate] = raw[:withdrawal_rate]

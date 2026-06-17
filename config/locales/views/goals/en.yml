@@ -77,7 +77,12 @@ en:
         other: "Review %{count} accounts"
       fx_unavailable: Some debt balances need exchange rates before they can be included.
       estimated_months: "Estimated payoff: %{months} months"
+      # The duration is current_balance / original-terms payment, which can
+      # overstate for partially-paid loans (a paid-down balance still gets
+      # divided by the original amortization payment). Set expectations.
+      loan_terms_note: Based on original loan terms.
       payment_info_missing: Add a minimum payment or loan term to estimate payoff months.
+      payment_fx_unavailable: "Can't convert payment currency: %{name}."
       balance_only: Balance only
     savings_rate:
       title: Savings rate

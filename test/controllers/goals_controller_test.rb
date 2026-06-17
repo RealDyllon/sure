@@ -41,6 +41,8 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
       "goals.debt_payoff.title" => "Debt payoff",
       "goals.debt_payoff.subtitle" => "Reliable debt balances only; available-credit style values are flagged for review.",
       "goals.debt_payoff.estimated_months" => "Estimated payoff: %{months} months",
+      "goals.debt_payoff.loan_terms_note" => "Based on original loan terms.",
+      "goals.debt_payoff.payment_fx_unavailable" => "Can't convert payment currency: %{name}.",
       "goals.debt_payoff.balance_only" => "Balance only",
       "goals.debt_payoff.review_accounts.one" => "Review %{count} account",
       "goals.debt_payoff.review_accounts.other" => "Review %{count} accounts",
@@ -81,6 +83,44 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     # Uses the _html variant of the key, so the span is rendered as HTML
     # (not as escaped text). SGD formats as "$S24,000.00".
     assert_select "span.privacy-sensitive", text: /\$S24,000\.00/
+  end
+
+  test "dashboard renders the loan-terms caveat under the debt payoff estimate when loans are present" do
+    @family.update!(currency: "SGD")
+    @family.accounts.update_all(status: "disabled")
+    @family.accounts.create!(
+      owner: @user,
+      name: "Example Fixed Loan",
+      balance: 12_000,
+      cash_balance: 12_000,
+      currency: "SGD",
+      accountable: Loan.new(subtype: "other", term_months: 12, interest_rate: 0, rate_type: "fixed")
+    )
+
+    get goals_path
+
+    assert_response :ok
+    assert_match(/Estimated payoff: \d+ months/, response.body)
+    assert_match(/Based on original loan terms/, response.body)
+  end
+
+  test "dashboard does not render the loan-terms caveat when the debt is credit-card only" do
+    @family.update!(currency: "SGD")
+    @family.accounts.update_all(status: "disabled")
+    @family.accounts.create!(
+      owner: @user,
+      name: "Example Card With Minimum",
+      balance: 4_000,
+      cash_balance: 4_000,
+      currency: "SGD",
+      accountable: CreditCard.new(minimum_payment: 200)
+    )
+
+    get goals_path
+
+    assert_response :ok
+    assert_match(/Estimated payoff: \d+ months/, response.body)
+    assert_no_match(/Based on original loan terms/, response.body)
   end
 
   test "dashboard renders an edit form for saved custom goals" do
@@ -390,5 +430,23 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_select "h1", text: "Financial Independence"
     assert_equal BigDecimal("0.04"), profile.reload.withdrawal_rate
+  end
+
+  test "scenario save with blank annual contribution falls back to zero" do
+    profile = GoalProfile.find_or_create_for!(@user)
+    profile.update!(annual_spending_override: 48_000, withdrawal_rate: 0.04, annual_contribution: 12_000)
+
+    post save_scenario_goals_fire_path, params: {
+      scenario: {
+        annual_spending: 60_000,
+        withdrawal_rate: 4,
+        annual_contribution: ""
+      }
+    }
+
+    assert_redirected_to goals_fire_path
+    assert_equal BigDecimal("60000"), profile.reload.annual_spending_override
+    assert_equal BigDecimal("0.04"), profile.withdrawal_rate
+    assert_equal 0, profile.annual_contribution
   end
 end

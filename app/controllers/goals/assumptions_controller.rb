@@ -32,7 +32,7 @@ module Goals
       end
 
       def goal_profile_params
-        raw = params.require(:goal_profile).permit(
+        params.require(:goal_profile).permit(
           :planning_region,
           :current_age,
           :birth_year,
@@ -47,14 +47,6 @@ module Goals
           :srs_access_age,
           :emergency_fund_months
         )
-        # annual_contribution is null: false with a DB default of 0, but a blank
-        # form submission arrives as "" and would crash the NOT NULL constraint.
-        # Coerce a present-but-blank value to 0; only normalize when the key was
-        # actually submitted so partial updates don't clobber the existing value.
-        if raw.key?(:annual_contribution) && raw[:annual_contribution].blank?
-          raw[:annual_contribution] = 0
-        end
-        raw
       end
   end
 end

@@ -2,6 +2,7 @@ module Goals
   class DebtPayoffCalculator
     Result = Data.define(
       :debt_accounts,
+      :debt_account_reasons,
       :unsupported_accounts,
       :total_debt_money,
       :monthly_payment_money,
@@ -10,6 +11,15 @@ module Goals
       :review_prompts
     ) do
       def has_payment_info? = has_payment_info
+
+      # Per-account reason. The view can render a tailored message per card
+      # (e.g., "this card has no minimum payment" vs. "this card is in an
+      # unconvertible currency") rather than collapsing all reasons into a
+      # single card-level prompt that misleads when one account has a payment
+      # and another doesn't.
+      def reason_for(account)
+        debt_account_reasons[account.id]
+      end
     end
 
     def initialize(user:, profile:)
@@ -21,8 +31,7 @@ module Goals
     def call
       reliable, unsupported = liability_accounts.partition { |account| reliable_debt_account?(account) }
       total_debt, debt_fx_unavailable = sum_balances(reliable)
-      monthly_payments, payment_fx_unavailable, payments_missing = aggregate_payments(reliable)
-      fx_unavailable = debt_fx_unavailable || payment_fx_unavailable
+      reasons, monthly_payments, fx_unavailable, payments_missing = aggregate_payments(reliable)
       has_payment_info = !fx_unavailable && !payments_missing && reliable.any?
 
       # When we can't compute a complete payment total, expose a zero rather than a
@@ -36,17 +45,12 @@ module Goals
 
       prompts = []
       prompts << :unsupported_debt if unsupported.any?
-      # :payment_info_missing means "this account has no payment at all" — distinct
-      # from an FX conversion failure on a payment that does exist. The two flags
-      # are tracked independently because they're raised by *different* accounts:
-      # one card may lack a minimum payment, another may be in an unconvertible
-      # currency. We surface both prompts so the user knows there are two
-      # separate things to fix.
-      prompts << :payment_info_missing if reliable.any? && payments_missing
+      prompts << :payment_info_missing if reasons.value?(:payment_missing)
       prompts << :fx_unavailable if fx_unavailable
 
       Result.new(
         debt_accounts: reliable,
+        debt_account_reasons: reasons,
         unsupported_accounts: unsupported,
         total_debt_money: money(total_debt),
         monthly_payment_money: money(monthly_payment_total),
@@ -82,12 +86,15 @@ module Goals
         [ total, fx_unavailable ]
       end
 
-      # Returns [total_in_family_currency, fx_unavailable, any_missing_payment].
-      # A "missing payment" is a reliable liability that does not expose a positive
-      # minimum/scheduled payment in its own currency. FX failures during payment
-      # conversion are reported as fx_unavailable (not missing): the payment exists,
-      # we just can't sum it into the family currency.
+      # Returns a 4-tuple:
+      #   [reasons, total_payments, fx_unavailable, any_payment_missing].
+      # `reasons` is a { account_id => :ok | :payment_missing | :fx_unavailable }
+      # hash keyed by account id so the view can render per-account messages.
+      # A payment that exists but can't be FX-converted is tagged :fx_unavailable
+      # (not :payment_missing): the user already supplied the payment; FX is the
+      # blocker.
       def aggregate_payments(accounts)
+        reasons = {}
         total = 0.to_d
         fx_unavailable = false
         missing = false
@@ -95,6 +102,7 @@ module Goals
         accounts.each do |account|
           payment = payment_for(account)
           if payment.nil? || payment.amount.to_d <= 0
+            reasons[account.id] = :payment_missing
             missing = true
             next
           end
@@ -107,13 +115,15 @@ module Goals
             end
           rescue Money::ConversionError
             fx_unavailable = true
+            reasons[account.id] = :fx_unavailable
             0.to_d
           end
 
+          reasons[account.id] ||= :ok
           total += converted
         end
 
-        [ total, fx_unavailable, missing ]
+        [ reasons, total, fx_unavailable, missing ]
       end
 
       def payment_for(account)

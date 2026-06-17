@@ -64,19 +64,22 @@
       <p class="text-2xl font-medium text-primary privacy-sensitive"><%= @dashboard.debt_payoff.total_debt_money.format %></p>
       <% if @dashboard.debt_payoff.estimated_months %>
         <p class="text-sm text-secondary"><%= t("goals.debt_payoff.estimated_months", months: @dashboard.debt_payoff.estimated_months) %></p>
+        <% if @dashboard.debt_payoff.debt_accounts.any? { |a| a.accountable_type == "Loan" } %>
+          <p class="text-xs text-secondary"><%= t("goals.debt_payoff.loan_terms_note") %></p>
+        <% end %>
       <% elsif @dashboard.debt_payoff.debt_accounts.any? %>
-        <p class="text-sm text-secondary">
-          <%= t("goals.debt_payoff.balance_only") %>
-          <% if @dashboard.debt_payoff.review_prompts.include?(:payment_info_missing) %>
-            &mdash; <%= t("goals.debt_payoff.payment_info_missing") %>
-          <% end %>
-        </p>
+        <p class="text-sm text-secondary"><%= t("goals.debt_payoff.balance_only") %></p>
+        <% missing_payment_names = @dashboard.debt_payoff.debt_accounts.select { |a| @dashboard.debt_payoff.reason_for(a) == :payment_missing }.map(&:name) %>
+        <% fx_unavailable_names = @dashboard.debt_payoff.debt_accounts.select { |a| @dashboard.debt_payoff.reason_for(a) == :fx_unavailable }.map(&:name) %>
+        <% if missing_payment_names.any? %>
+          <p class="text-sm text-secondary"><%= t("goals.debt_payoff.payment_info_missing") %></p>
+        <% end %>
+        <% fx_unavailable_names.each do |name| %>
+          <p class="text-sm text-warning"><%= t("goals.debt_payoff.payment_fx_unavailable", name: name) %></p>
+        <% end %>
       <% end %>
       <% if @dashboard.debt_payoff.unsupported_accounts.any? %>
         <p class="text-sm text-warning"><%= t("goals.debt_payoff.review_accounts", count: @dashboard.debt_payoff.unsupported_accounts.count) %></p>
-      <% end %>
-      <% if @dashboard.debt_payoff.review_prompts.include?(:fx_unavailable) %>
-        <p class="text-sm text-warning"><%= t("goals.debt_payoff.fx_unavailable") %></p>
       <% end %>
     </article>
 
