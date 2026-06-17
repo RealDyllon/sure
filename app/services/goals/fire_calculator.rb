@@ -17,15 +17,16 @@ module Goals
       :later_accounts
     )
 
-    def initialize(user:, profile:, scenario: {})
+    def initialize(user:, profile:, scenario: {}, classifier: nil)
       @user = user
       @profile = profile
       @family = user.family
       @scenario = scenario.to_h.symbolize_keys
+      @classifier = classifier
     end
 
     def call
-      classifier = Goals::AccountClassifier.new(user: user, profile: profile).call
+      classifier = self.classifier
       estimated_years = estimate_years_to_fi(classifier)
       estimated_age = current_age && estimated_years ? current_age + estimated_years : nil
       bridge_target = bridge_target_for_age(estimated_age || current_age, classifier, estimated_years || 0)
@@ -53,6 +54,10 @@ module Goals
 
     private
       attr_reader :user, :profile, :family, :scenario
+
+      def classifier
+        @classifier ||= Goals::AccountClassifier.new(user: user, profile: profile).call
+      end
 
       def annual_spending
         @annual_spending ||= begin
@@ -159,7 +164,10 @@ module Goals
       def inferred_annual_spending
         monthly = IncomeStatement.new(family, user: user).avg_expense(interval: "month")
         monthly.to_d * 12
-      rescue
+      rescue StandardError
+        # IncomeStatement#avg_expense returns 0 when there is no data, so this only guards
+        # against unexpected errors (e.g., a future refactor that raises). Narrow rescue
+        # avoids masking real bugs as "no spending data".
         0.to_d
       end
 
@@ -170,6 +178,9 @@ module Goals
       end
 
       def milestones
+        # cpf_life_age is surfaced as an informational milestone only. A CPF LIFE payout
+        # simulator is intentionally out of scope for v1 (see the goals change design.md
+        # non-goal), so this value is not used in any formula yet.
         {
           cpf_access_age: profile.cpf_access_age,
           cpf_life_age: profile.cpf_life_age,

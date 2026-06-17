@@ -23,7 +23,18 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     assert_equal BigDecimal("24000"), result.target_money.amount
     assert_equal BigDecimal("18000"), result.available_money.amount
     assert_equal BigDecimal("0.75"), result.progress
+    # 18_000 / (48_000 / 12) = 18_000 / 4_000 = 4.5 months
+    assert_equal 4.5, result.current_months
     assert_includes classifier_result.fire_bridge_accounts, cash
+  end
+
+  test "emergency fund current_months is nil when there is no inferred spending" do
+    @profile.update!(annual_spending_override: nil)
+    create_account(name: "Example Cash Account", balance: 5_000, accountable: Depository.new)
+
+    result = Goals::EmergencyFundCalculator.new(user: @user, profile: @profile.reload).call
+
+    assert_nil result.current_months
   end
 
   test "emergency fund infers spending when no manual spending override is set" do
@@ -65,12 +76,21 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
   end
 
   test "debt payoff flags unavailable FX for foreign liabilities" do
-    create_account(name: "Example Foreign Loan", balance: 12_000, accountable: Loan.new(subtype: "other"), currency: "USD")
+    create_account(
+      name: "Example Foreign Loan",
+      balance: 12_000,
+      accountable: Loan.new(subtype: "other", term_months: 24, interest_rate: 0, rate_type: "fixed"),
+      currency: "USD"
+    )
 
     result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
 
     assert_equal 0, result.total_debt_money.amount
     assert_includes result.review_prompts, :fx_unavailable
+    # The loan has a fixed-rate payment schedule, so the per-account reason is
+    # :fx_unavailable (not :payment_missing — the user did supply a payment,
+    # FX is the blocker).
+    assert_equal :fx_unavailable, result.reason_for(result.debt_accounts.first)
   end
 
   test "debt payoff clamps credit-balance liabilities to zero" do
@@ -80,6 +100,118 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
 
     assert_equal BigDecimal("12000"), result.total_debt_money.amount
+  end
+
+  test "debt payoff estimates months from a credit card minimum payment" do
+    create_account(
+      name: "Example Card With Minimum",
+      balance: 6_000,
+      accountable: CreditCard.new(minimum_payment: 200)
+    )
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert result.has_payment_info?
+    assert_equal 30, result.estimated_months
+    assert_equal BigDecimal("200"), result.monthly_payment_money.amount
+    assert_not_includes result.review_prompts, :payment_info_missing
+  end
+
+  test "debt payoff estimates months from a fixed-rate loan scheduled payment" do
+    create_account(
+      name: "Example Fixed Loan",
+      balance: 12_000,
+      accountable: Loan.new(subtype: "other", term_months: 12, interest_rate: 0, rate_type: "fixed")
+    )
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert result.has_payment_info?
+    assert_equal 12, result.estimated_months
+  end
+
+  test "debt payoff falls back to balance only when a credit card has no minimum payment" do
+    create_account(name: "Example Card No Min", balance: 5_000, accountable: CreditCard.new)
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert_not result.has_payment_info?
+    assert_nil result.estimated_months
+    assert_equal 0, result.monthly_payment_money.amount
+    assert_includes result.review_prompts, :payment_info_missing
+  end
+
+  test "debt payoff flags FX unavailable when a payment currency cannot be converted" do
+    create_account(
+      name: "Example USD Card",
+      balance: 4_000,
+      currency: "USD",
+      accountable: CreditCard.new(minimum_payment: 100)
+    )
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert_not result.has_payment_info?
+    assert_nil result.estimated_months
+    assert_includes result.review_prompts, :fx_unavailable
+    # The payment exists, so we don't also flag payment_info_missing (the two
+    # prompts are semantically distinct).
+    assert_not_includes result.review_prompts, :payment_info_missing
+    # monthly_payment_money must be zero when the total is untrustworthy, not a
+    # misleading partial sum.
+    assert_equal 0, result.monthly_payment_money.amount
+  end
+
+  test "debt payoff surfaces both fx_unavailable and payment_info_missing when both apply" do
+    missing_payment_card = create_account(name: "Example Missing Min", balance: 2_000, accountable: CreditCard.new)
+    foreign_card = create_account(
+      name: "Example USD Card",
+      balance: 4_000,
+      currency: "USD",
+      accountable: CreditCard.new(minimum_payment: 100)
+    )
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert_not result.has_payment_info?
+    assert_includes result.review_prompts, :fx_unavailable
+    assert_includes result.review_prompts, :payment_info_missing
+    assert_equal 0, result.monthly_payment_money.amount
+    # The reliable accounts still include both — visibility of the accounts is
+    # independent of whether we could total their payments.
+    assert_includes result.debt_accounts, missing_payment_card
+    assert_includes result.debt_accounts, foreign_card
+    # Per-account reasons are tracked independently: a card with a payment in
+    # an unconvertible currency is :fx_unavailable, NOT :payment_missing —
+    # the user did supply a payment; FX is the real blocker.
+    assert_equal :payment_missing, result.reason_for(missing_payment_card)
+    assert_equal :fx_unavailable, result.reason_for(foreign_card)
+  end
+
+  test "debt payoff tags per-account reason as :ok when payment and conversion both succeed" do
+    card = create_account(
+      name: "Example Good Card",
+      balance: 4_000,
+      accountable: CreditCard.new(minimum_payment: 100)
+    )
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert_equal :ok, result.reason_for(card)
+  end
+
+  test "debt payoff tags per-account reason as :payment_missing only for accounts that lack a payment" do
+    card_with_min = create_account(
+      name: "Example With Min",
+      balance: 2_000,
+      accountable: CreditCard.new(minimum_payment: 50)
+    )
+    card_without_min = create_account(name: "Example Without Min", balance: 1_500, accountable: CreditCard.new)
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert_equal :ok, result.reason_for(card_with_min)
+    assert_equal :payment_missing, result.reason_for(card_without_min)
   end
 
   test "savings rate calculates from recent income and expenses when history exists" do

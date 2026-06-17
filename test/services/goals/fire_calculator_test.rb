@@ -137,6 +137,28 @@ class GoalsFireCalculatorTest < ActiveSupport::TestCase
     assert_equal 0, @profile.annual_contribution
   end
 
+  test "reuses an injected AccountClassifier result instead of computing one" do
+    bridge = create_account(name: "Example Injected Bridge", balance: 500_000, accountable: Depository.new)
+    later = create_account(name: "Example Injected Later", balance: 500_000, accountable: Investment.new(subtype: "cpf_ordinary"))
+
+    injected = Goals::AccountClassifier::Result.new(
+      fire_bridge_accounts: [ bridge ],
+      fire_later_accounts: [ later ],
+      fire_excluded_accounts: [],
+      emergency_accounts: [ bridge ],
+      fire_bridge_balance: Money.new(500_000, @family.currency),
+      fire_later_balance: Money.new(500_000, @family.currency),
+      review_prompts: [],
+      fx_unavailable: false
+    )
+
+    result = Goals::FireCalculator.new(user: @user, profile: @profile, classifier: injected).call
+
+    assert_includes result.bridge_accounts, bridge
+    assert_includes result.later_accounts, later
+    refute_includes result.bridge_accounts, later, "Calculator should not have computed a new classifier that moved the CPF account"
+  end
+
   private
     def create_account(name:, balance:, accountable:, currency: @family.currency)
       @family.accounts.create!(

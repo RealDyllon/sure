@@ -116,6 +116,47 @@ class GoalProfileTest < ActiveSupport::TestCase
     assert_includes profile.errors[:birth_year], "must be less than or equal to #{Date.current.year}"
   end
 
+  test "rejects impossible current ages" do
+    profile = GoalProfile.find_or_create_for!(@user)
+
+    profile.current_age = 200
+
+    assert_not profile.valid?
+    assert_includes profile.errors[:current_age], "must be less than 150"
+  end
+
+  test "accepts blank annual contribution" do
+    profile = GoalProfile.find_or_create_for!(@user)
+    profile.annual_contribution = ""
+
+    assert profile.valid?, profile.errors.full_messages.inspect
+  end
+
+  test "normalizes a blank-string annual contribution to zero on save" do
+    profile = GoalProfile.find_or_create_for!(@user)
+
+    profile.update!(annual_contribution: "")
+
+    assert_equal 0, profile.reload.annual_contribution
+  end
+
+  test "preserves an existing non-zero annual contribution when the field is absent" do
+    profile = GoalProfile.find_or_create_for!(@user)
+    profile.update!(annual_contribution: 12_000)
+
+    profile.update!(withdrawal_rate: 0.05)  # no annual_contribution in the update
+
+    assert_equal 12_000, profile.reload.annual_contribution
+  end
+
+  test "does not coerce a present, non-blank annual contribution" do
+    profile = GoalProfile.find_or_create_for!(@user)
+
+    profile.update!(annual_contribution: 18_000)
+
+    assert_equal BigDecimal("18000"), profile.reload.annual_contribution
+  end
+
   test "rejects impossible percentage assumptions after normalization" do
     profile = GoalProfile.find_or_create_for!(@user)
 
