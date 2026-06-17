@@ -77,6 +77,8 @@ class CategoryCleanupSuggestion < ApplicationRecord
         source_category.transactions.update_all(category_id: target_category.id, updated_at: now)
         source_category.subcategories.update_all(parent_id: target_category.id, color: target_category.color, updated_at: now) if target_category.parent_id.nil?
         reassign_budget_categories!(now: now)
+        repoint_rule_categories!(source_category: source_category, target_category: target_category)
+        reassign_import_mappings!(source_category: source_category, target_category: target_category)
         source_category.destroy!
         mark_applied!
       end
@@ -137,12 +139,12 @@ class CategoryCleanupSuggestion < ApplicationRecord
       return skip!("parent category missing") if parent_category.blank? && intended_parent_category_id_for_reparent.present?
       return mark_unchanged! if source_category.parent_id == parent_category&.id
 
-      reparent_budget_snapshots = snapshot_reparent_budgets!
-
-      source_category.update!(parent: parent_category)
-
-      restore_reparent_budgets!(reparent_budget_snapshots)
-      mark_applied!
+      Category.transaction do
+        reparent_budget_snapshots = snapshot_reparent_budgets!
+        source_category.update!(parent: parent_category)
+        restore_reparent_budgets!(reparent_budget_snapshots)
+        mark_applied!
+      end
     end
 
     def validation_error
@@ -227,6 +229,32 @@ class CategoryCleanupSuggestion < ApplicationRecord
           budget_category.update_budgeted_spending!(amount)
         else
           budget_category.update!(budgeted_spending: amount)
+        end
+      end
+    end
+
+    def repoint_rule_categories!(source_category:, target_category:)
+      rule_ids = run.family.rule_ids
+
+      Rule::Action.where(rule_id: rule_ids, action_type: "set_transaction_category", value: source_category.id)
+                  .update_all(value: target_category.id)
+      Rule::Condition.where(rule_id: rule_ids, condition_type: "transaction_category", value: source_category.id)
+                     .update_all(value: target_category.id)
+    end
+
+    def reassign_import_mappings!(source_category:, target_category:)
+      Import::Mapping.where(mappable: source_category).find_each do |mapping|
+        existing_target_mapping = Import::Mapping.find_by(
+          import: mapping.import,
+          type: mapping.type,
+          key: mapping.key,
+          mappable: target_category
+        )
+
+        if existing_target_mapping
+          mapping.destroy!
+        else
+          mapping.update!(mappable: target_category)
         end
       end
     end

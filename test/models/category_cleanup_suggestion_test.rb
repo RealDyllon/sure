@@ -228,6 +228,69 @@ class CategoryCleanupSuggestionTest < ActiveSupport::TestCase
     assert_equal "Renamed Source", suggestion.new_name
   end
 
+  test "reparent rolls back budget and parent changes when restore fails" do
+    leaf = category!("Leaf A")
+    budget = @family.budgets.create!(
+      start_date: Date.current.beginning_of_month,
+      end_date: Date.current.end_of_month,
+      currency: @family.currency
+    )
+    source_budget = budget.budget_categories.create!(category: leaf, budgeted_spending: 100, currency: @family.currency)
+
+    suggestion = @run.suggestions.create!(
+      source_category: leaf,
+      parent_category: @target,
+      suggested_action: :reparent,
+      selected: true
+    )
+
+    CategoryCleanupSuggestion.any_instance.stubs(:restore_reparent_budgets!).raises(StandardError, "boom")
+
+    assert_not suggestion.apply!
+
+    assert_nil leaf.reload.parent
+    assert_equal 100, source_budget.reload.budgeted_spending
+    assert suggestion.reload.skipped?
+    assert_equal "boom", suggestion.error
+  end
+
+  test "merge repoints rule actions and conditions from source to target" do
+    rule = @family.rules.build(resource_type: "transaction")
+    rule.actions.build(action_type: "set_transaction_category", value: @source.id)
+    rule.conditions.build(condition_type: "transaction_category", operator: "=", value: @source.id)
+    rule.save!
+
+    suggestion = @run.suggestions.create!(
+      source_category: @source,
+      target_category: @target,
+      suggested_action: :merge,
+      selected: true
+    )
+
+    assert suggestion.apply!
+
+    assert_equal @target.id, rule.reload.actions.first.value
+    assert_equal @target.id, rule.reload.conditions.first.value
+    assert_not Category.exists?(@source.id)
+  end
+
+  test "merge reassigns import category mappings from source to target" do
+    import = @family.imports.create!(type: "TransactionImport", status: "pending")
+    mapping = Import::CategoryMapping.create!(import: import, key: "Example Source", mappable: @source)
+
+    suggestion = @run.suggestions.create!(
+      source_category: @source,
+      target_category: @target,
+      suggested_action: :merge,
+      selected: true
+    )
+
+    assert suggestion.apply!
+
+    assert_equal @target, mapping.reload.mappable
+    assert_not Category.exists?(@source.id)
+  end
+
   private
     def category!(name, parent: nil)
       @family.categories.create!(

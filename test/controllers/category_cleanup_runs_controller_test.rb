@@ -205,6 +205,28 @@ class CategoryCleanupRunsControllerTest < ActionDispatch::IntegrationTest
     assert_nil suggestion.target_category_name
   end
 
+  test "apply alerts cycle error when selected merges form a cycle" do
+    run = create_category_cleanup_run(status: :reviewing)
+    run.suggestions.create!(
+      source_category: @source,
+      target_category: @target,
+      suggested_action: :merge,
+      selected: true
+    )
+    run.suggestions.create!(
+      source_category: @target,
+      target_category: @source,
+      suggested_action: :merge,
+      selected: true
+    )
+
+    post apply_category_cleanup_run_url(run)
+
+    assert_redirected_to category_cleanup_run_url(run)
+    assert_match(/cycle/i, flash[:alert])
+    assert run.reload.reviewing?
+  end
+
   private
     FakeProvider = Struct.new(:provider_name)
 

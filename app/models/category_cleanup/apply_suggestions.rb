@@ -57,6 +57,16 @@ module CategoryCleanup
       raise
     end
 
+    def self.merge_cycle_error(suggestions)
+      merge_suggestions = suggestions.select(&:action_merge?)
+      return nil if merge_suggestions.size < 2
+
+      topologically_sorted_merges(merge_suggestions)
+      nil
+    rescue CategoryCleanup::MergeCycleError => error
+      error.message
+    end
+
     private
       attr_reader :run, :job_id
 
@@ -68,6 +78,10 @@ module CategoryCleanup
         return non_merge_suggestions if merge_suggestions.none?
         return merge_suggestions + non_merge_suggestions if merge_suggestions.one?
 
+        self.class.topologically_sorted_merges(merge_suggestions) + non_merge_suggestions
+      end
+
+      def self.topologically_sorted_merges(merge_suggestions)
         merge_by_source = merge_suggestions.index_by { |suggestion| suggestion.source_category_id.to_s }
         merge_by_target = merge_suggestions.group_by { |suggestion| suggestion.target_category_id.to_s }
 
@@ -93,7 +107,7 @@ module CategoryCleanup
           raise CategoryCleanup::MergeCycleError, "Selected cleanup merges form a cycle"
         end
 
-        sorted + non_merge_suggestions
+        sorted
       end
 
       def mark_unselected_unchanged!

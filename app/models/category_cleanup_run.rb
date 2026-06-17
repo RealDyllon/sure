@@ -52,6 +52,12 @@ class CategoryCleanupRun < ApplicationRecord
       (allow_retry && applying?)
       return false unless suggestions.selected.actionable.exists?
 
+      cycle_error = CategoryCleanup::ApplySuggestions.merge_cycle_error(suggestions.selected.actionable.to_a)
+      if cycle_error
+        update!(error: cycle_error)
+        return false
+      end
+
       enqueue_apply_job!(job, allow_retry: allow_retry)
     end
 
