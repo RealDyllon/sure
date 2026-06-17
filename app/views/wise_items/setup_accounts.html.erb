@@ -60,9 +60,17 @@
                         class: "appearance-none bg-container border border-primary rounded-md px-3 py-2 text-sm leading-6 text-primary focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none w-full" %>
                 </div>
                 <div>
+                  <%# Pre-select the claim-aware default account for this %>
+                  <%# row. The controller tracks which accounts have been %>
+                  <%# claimed by earlier link rows in the same render, %>
+                  <%# so two same-currency balances default to two %>
+                  <%# distinct accounts. Fall back to the first matching %>
+                  <%# account (and then to the user's previous selection) %>
+                  <%# for any caller that doesn't pass the default map. %>
+                  <% default_account_id = (@default_existing_account_ids && (@default_existing_account_ids[balance_key] || @default_existing_account_ids[wise_balance.id])) || (matching_account && matching_account.id) %>
                   <%= label_tag "existing_account_ids[#{wise_balance.id}]", t("wise_items.setup_accounts.existing_account_label"), class: "block text-sm font-medium text-primary mb-2" %>
                   <%= select_tag "existing_account_ids[#{wise_balance.id}]",
-                        options_from_collection_for_select(@existing_accounts, :id, :name, selected_existing_id || (matching_account && matching_account.id)),
+                        options_from_collection_for_select(@existing_accounts, :id, :name, selected_existing_id || default_account_id),
                         include_blank: t("wise_items.setup_accounts.existing_account_prompt"),
                         class: "appearance-none bg-container border border-primary rounded-md px-3 py-2 text-sm leading-6 text-primary focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none w-full" %>
                 </div>

@@ -383,6 +383,59 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/selected="selected"[^>]*value="link"[^>]*>[\s\S]*?USD[\s\S]*?selected="selected"[^>]*value="create"/m, response.body)
   end
 
+  test "setup preselects distinct existing accounts per row when balances share a currency and family has multiple matches" do
+    # Two USD balances + two USD depositories. With claim-aware
+    # account-id defaults, each row points at a distinct account so
+    # the untouched form submits cleanly.
+    item = create_wise_item
+    first_balance = create_wise_balance(item, balance_id: "balance-usd-1", currency: "USD")
+    second_balance = create_wise_balance(item, balance_id: "balance-usd-2", currency: "USD")
+    first_account = accounts(:depository)
+    first_account.update!(currency: "USD", name: "Example USD Checking 1111")
+    second_account = Account.create!(
+      family: @family,
+      name: "Example USD Savings 2222",
+      balance: 0,
+      currency: "USD",
+      accountable_type: "Depository",
+      accountable: Depository.create!(subtype: "savings")
+    )
+
+    get setup_accounts_wise_item_url(item)
+
+    assert_response :success
+    # Both rows should default to "link" since we have two accounts.
+    # The first row preselects the first account; the second row
+    # preselects the second (because the first is already claimed).
+    # We verify by parsing the rendered form: each existing_account_ids
+    # select should default to a different account id.
+    first_select_match = response.body.match(
+      /<select[^>]*name="existing_account_ids\[#{first_balance.id}\]"[^>]*>(.*?)<\/select>/m
+    )
+    second_select_match = response.body.match(
+      /<select[^>]*name="existing_account_ids\[#{second_balance.id}\]"[^>]*>(.*?)<\/select>/m
+    )
+    assert first_select_match, "expected a select for the first balance"
+    assert second_select_match, "expected a select for the second balance"
+
+    # ERB's options_from_collection_for_select can render the selected
+    # attribute as `selected="selected"` (HTML) or `selected` (XHTML);
+    # we accept either form to stay portable across Rails versions.
+    # Account ids are UUIDs in this app, so the value regex is a
+    # string-friendly variant.
+    value_pattern = '"([0-9a-f-]{36})"'
+    first_selected = first_select_match[1].match(/<option[^>]*selected[^>]*value=#{value_pattern}/) ||
+                     first_select_match[1].match(/<option[^>]*value=#{value_pattern}[^>]*selected/)
+    second_selected = second_select_match[1].match(/<option[^>]*selected[^>]*value=#{value_pattern}/) ||
+                      second_select_match[1].match(/<option[^>]*value=#{value_pattern}[^>]*selected/)
+    assert first_selected, "expected the first select to preselect an account"
+    assert second_selected, "expected the second select to preselect an account"
+    assert_not_equal first_selected[1], second_selected[1],
+      "expected each row to preselect a different account"
+    assert_includes [ first_account.id, second_account.id ], first_selected[1]
+    assert_includes [ first_account.id, second_account.id ], second_selected[1]
+  end
+
   test "direct Wise link rejects legacy provider account" do
     item = create_wise_item
     balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")

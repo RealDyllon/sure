@@ -117,7 +117,7 @@ class WiseItemsController < ApplicationController
     fetch_wise_balances_if_needed
     @wise_balances = @wise_item.wise_balances.requires_setup.order(:currency)
     @existing_accounts = Current.family.accounts.visible_manual.where(accountable_type: "Depository").alphabetically
-    @default_actions = compute_default_setup_actions(@wise_balances, @existing_accounts)
+    @default_actions, @default_existing_account_ids = compute_default_setup_actions(@wise_balances, @existing_accounts)
     @setup_errors = {}
   end
 
@@ -175,7 +175,7 @@ class WiseItemsController < ApplicationController
       fetch_wise_balances_if_needed
       @wise_balances = @wise_item.wise_balances.requires_setup.order(:currency)
       @existing_accounts = Current.family.accounts.visible_manual.where(accountable_type: "Depository").alphabetically
-      @default_actions = compute_default_setup_actions(@wise_balances, @existing_accounts)
+      @default_actions, @default_existing_account_ids = compute_default_setup_actions(@wise_balances, @existing_accounts)
       @setup_errors = setup_errors
       @action_selections = balance_actions
       @existing_account_selections = existing_account_ids
@@ -364,23 +364,33 @@ class WiseItemsController < ApplicationController
       account.account_providers.exists? || account.plaid_account_id.present? || account.simplefin_account_id.present?
     end
 
-    # Picks a per-balance default action: "link" if a same-currency
-    # depository account exists and hasn't already been claimed by a
-    # previous balance in this run, otherwise "create". If multiple
-    # balances share a currency but the family only has one matching
-    # account, the second balance defaults to "create" so the form
-    # submits cleanly without hitting the duplicate-target 422.
+    # Picks a per-balance default action and a default existing-account
+    # id, both claim-aware: if multiple balances share a currency, each
+    # row points at a distinct matching depository (when available) and
+    # rows beyond the count of matching accounts default to "create".
+    # Without the per-request claim tracker, the freshly rendered form
+    # would suggest the same account for two link rows and the user
+    # would have to fix the form before submitting.
+    #
+    # Returns [actions, account_ids] — both keyed by stringified
+    # balance id.
     def compute_default_setup_actions(wise_balances, existing_accounts)
+      actions = {}
+      account_ids = {}
       claimed = Set.new
-      wise_balances.each_with_object({}) do |balance, defaults|
+
+      wise_balances.each do |balance|
         match = existing_accounts.find { |acct| acct.currency == balance.currency && !claimed.include?(acct.id) }
         if match
           claimed << match.id
-          defaults[balance.id.to_s] = "link"
+          actions[balance.id.to_s] = "link"
+          account_ids[balance.id.to_s] = match.id
         else
-          defaults[balance.id.to_s] = "create"
+          actions[balance.id.to_s] = "create"
         end
       end
+
+      [ actions, account_ids ]
     end
 
     def respond_to_panel_success
