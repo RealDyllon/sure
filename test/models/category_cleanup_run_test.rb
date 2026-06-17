@@ -42,4 +42,33 @@ class CategoryCleanupRunTest < ActiveSupport::TestCase
     assert_equal 1, run.reload.processing_progress["retry_count"]
     assert run.applying?
   end
+
+  test "queue_apply! rejects cyclic merge selections and keeps run reviewing" do
+    run = CategoryCleanupRun.create!(
+      family: @family,
+      user: @user,
+      status: :reviewing,
+      provider_name: "Fake LLM",
+      model: "test-model"
+    )
+    run.suggestions.create!(
+      source_category: @source,
+      target_category: @target,
+      suggested_action: :merge,
+      selected: true
+    )
+    run.suggestions.create!(
+      source_category: @target,
+      target_category: @source,
+      suggested_action: :merge,
+      selected: true
+    )
+
+    assert_no_enqueued_jobs do
+      assert_not run.queue_apply!
+    end
+
+    assert run.reload.reviewing?
+    assert_match(/cycle/i, run.error)
+  end
 end

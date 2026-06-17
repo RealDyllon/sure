@@ -48,8 +48,12 @@ class CategoryCleanupRunsController < ApplicationController
   def apply
     queued = @run.queue_apply!
 
-    redirect_to category_cleanup_run_path(@run, review_query_params),
-                notice: queued ? "Apply queued." : "Select at least one valid cleanup suggestion first."
+    if queued
+      redirect_to category_cleanup_run_path(@run, review_query_params), notice: "Apply queued."
+    else
+      alert = @run.error.presence || "Select at least one valid cleanup suggestion first."
+      redirect_to category_cleanup_run_path(@run, review_query_params), alert: alert
+    end
   end
 
   private
