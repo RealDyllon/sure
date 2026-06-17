@@ -34,7 +34,7 @@ class Provider::Wise
     oauth_client_id.present? && oauth_client_secret.present?
   end
 
-  def self.oauth_authorize_url(redirect_uri:, state:)
+  def self.oauth_authorize_url(redirect_uri:, state:, auth_url: nil)
     query = {
       response_type: "code",
       client_id: oauth_client_id,
@@ -42,7 +42,7 @@ class Provider::Wise
       state: state
     }
 
-    "#{oauth_auth_url}/oauth/authorize?#{URI.encode_www_form(query)}"
+    "#{auth_url.presence || oauth_auth_url}/oauth/authorize?#{URI.encode_www_form(query)}"
   end
 
   def initialize(access_token:, refresh_token: nil, base_url: DEFAULT_BASE_URL, auth_url: DEFAULT_AUTH_URL, client_id: nil, client_secret: nil)

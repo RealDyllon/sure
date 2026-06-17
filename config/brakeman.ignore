@@ -222,25 +222,25 @@
     {
       "warning_type": "Redirect",
       "warning_code": 18,
-      "fingerprint": "4ae17b9dbfb563423c9d324505c29432655473baf779700dc61340fc916462eb",
+      "fingerprint": "8cce9c232b66628d7439bb76ef2e2f2aa33067fac519f273337bfa4c4ab44e9e",
       "check_name": "Redirect",
       "message": "Possible unprotected redirect",
       "file": "app/controllers/wise_items_controller.rb",
-      "line": 266,
+      "line": 282,
       "link": "https://brakemanscanner.org/docs/warning_types/redirect/",
-      "code": "redirect_to(Provider::Wise.oauth_authorize_url(:redirect_uri => reauth_callback_wise_items_url, :state => SecureRandom.hex(24)), :allow_other_host => true)",
+      "code": "redirect_to(Provider::Wise.oauth_authorize_url(:redirect_uri => reauth_callback_wise_items_url, :state => SecureRandom.hex(24), :auth_url => Current.family.wise_items.find(params[:id]).effective_auth_url), :allow_other_host => true)",
       "render_path": null,
       "location": {
         "type": "method",
         "class": "WiseItemsController",
         "method": "reauth"
       },
-      "user_input": "Provider::Wise.oauth_authorize_url(:redirect_uri => reauth_callback_wise_items_url, :state => SecureRandom.hex(24))",
+      "user_input": "Provider::Wise.oauth_authorize_url(:redirect_uri => reauth_callback_wise_items_url, :state => SecureRandom.hex(24), :auth_url => Current.family.wise_items.find(params[:id]).effective_auth_url)",
       "confidence": "Weak",
       "cwe_id": [
         601
       ],
-      "note": "Intentional redirect to Wise's external OAuth authorization page; URL is generated from configured Wise auth host, a hardcoded reauth callback URL, and a server-generated OAuth state."
+      "note": "Intentional redirect to Wise's external OAuth authorization page; URL is generated from the item's stored Wise auth host (so sandbox/custom-proxy items stay on their original environment), a hardcoded reauth callback URL, and a server-generated OAuth state."
     }
   ],
   "brakeman_version": "7.1.0"

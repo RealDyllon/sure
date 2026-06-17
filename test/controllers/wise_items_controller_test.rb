@@ -331,6 +331,38 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     assert_match %r{<a [^>]*data-turbo="false"[^>]*reauth}, response.body
   end
 
+  test "reauth uses the item's stored auth_url rather than the global default" do
+    with_env_overrides(
+      "WISE_CLIENT_ID" => "client-id",
+      "WISE_CLIENT_SECRET" => "client-secret",
+      "WISE_AUTH_URL" => "https://wise.com"
+    ) do
+      item = create_wise_item
+      item.update!(auth_url: "https://sandbox.wise.com", status: :requires_update)
+
+      get reauth_wise_item_url(item)
+
+      assert_match %r{\Ahttps://sandbox\.wise\.com/oauth/authorize\?}, response.location
+    end
+  end
+
+  test "reauth callback exchanges the token against the item's stored base_url" do
+    with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret") do
+      item = create_wise_item
+      item.update!(base_url: "https://api.sandbox.transferwise.tech", status: :requires_update)
+      get reauth_wise_item_url(item)
+      state = Rack::Utils.parse_query(URI.parse(response.location).query).fetch("state")
+
+      stub_request(:post, "https://api.sandbox.transferwise.tech/oauth/token")
+        .with(basic_auth: [ "client-id", "client-secret" ])
+        .to_return(status: 200, body: { access_token: "fresh-token", refresh_token: "fresh-refresh", expires_in: 43_199 }.to_json)
+
+      get reauth_callback_wise_items_url, params: { code: "auth-code", state: state }
+
+      assert_equal "fresh-token", item.reload.access_token
+    end
+  end
+
   test "direct Wise link rejects legacy provider account" do
     item = create_wise_item
     balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")

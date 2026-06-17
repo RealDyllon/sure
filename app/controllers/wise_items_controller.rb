@@ -275,7 +275,15 @@ class WiseItemsController < ApplicationController
     # WiseItem to update on return, and that bookkeeping only lives in this
     # controller's session.
     redirect_uri = reauth_callback_wise_items_url
-    redirect_to Provider::Wise.oauth_authorize_url(redirect_uri: redirect_uri, state: state), allow_other_host: true
+    # Use the item's stored OAuth hosts (sandbox, custom proxy, etc.)
+    # rather than the current global defaults, so a reauth keeps working
+    # when the item was originally connected to a different environment
+    # than the one configured globally today.
+    redirect_to Provider::Wise.oauth_authorize_url(
+      redirect_uri: redirect_uri,
+      state: state,
+      auth_url: @wise_item.effective_auth_url
+    ), allow_other_host: true
   end
 
   def reauth_callback
@@ -298,12 +306,14 @@ class WiseItemsController < ApplicationController
     end
 
     # Match the redirect_uri we used in `reauth` so Wise doesn't reject the
-    # token exchange for an unmatched callback.
+    # token exchange for an unmatched callback. The token exchange goes
+    # against the item's stored base URL so the new tokens are scoped to
+    # the same environment as the original connection.
     redirect_uri = reauth_callback_wise_items_url
     provider = Provider::Wise.new(
       access_token: nil,
-      base_url: Provider::Wise.oauth_base_url,
-      auth_url: Provider::Wise.oauth_auth_url,
+      base_url: wise_item.effective_base_url,
+      auth_url: wise_item.effective_auth_url,
       client_id: Provider::Wise.oauth_client_id,
       client_secret: Provider::Wise.oauth_client_secret
     )
