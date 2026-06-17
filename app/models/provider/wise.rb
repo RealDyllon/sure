@@ -177,9 +177,13 @@ class Provider::Wise
 
     # Best-effort: pull a human-readable error message out of the response
     # body. Wise's error format is not strongly typed, so we look for a
-    # handful of known keys before falling back to the raw body.
+    # handful of known keys before falling back to the raw body. Proxies
+    # sometimes return a top-level array or string instead of an object,
+    # in which case we cannot read symbol keys off it.
     def parse_error_message(body, default:)
       parsed = JSON.parse(body.to_s, symbolize_names: true)
+      return default unless parsed.is_a?(Hash)
+
       message = parsed[:error] || parsed[:message] || parsed[:error_description]
       return message if message.is_a?(String) && message.present?
 

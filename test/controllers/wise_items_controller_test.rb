@@ -363,6 +363,26 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "setup defaults only one row to 'link' per existing account even when balances share a currency" do
+    # Two same-currency balances + one matching depository. Without
+    # the per-request claim tracker, both rows default to "link" with
+    # the same account, the form is invalid as-is, and the user has to
+    # manually switch the second row to "create" or pick a different
+    # account before submitting. The defaults should be self-consistent.
+    item = create_wise_item
+    create_wise_balance(item, balance_id: "balance-usd-1", currency: "USD")
+    create_wise_balance(item, balance_id: "balance-usd-2", currency: "USD")
+    account = accounts(:depository)
+    account.update!(currency: "USD")
+
+    get setup_accounts_wise_item_url(item)
+
+    assert_response :success
+    # The first balance defaults to link; the second defaults to create
+    # because the matching account is already claimed.
+    assert_match(/selected="selected"[^>]*value="link"[^>]*>[\s\S]*?USD[\s\S]*?selected="selected"[^>]*value="create"/m, response.body)
+  end
+
   test "direct Wise link rejects legacy provider account" do
     item = create_wise_item
     balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")

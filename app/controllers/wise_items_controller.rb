@@ -364,13 +364,22 @@ class WiseItemsController < ApplicationController
       account.account_providers.exists? || account.plaid_account_id.present? || account.simplefin_account_id.present?
     end
 
-    # Picks a per-balance default action: "link" if a same-currency depository
-    # account exists, otherwise "create". Falls back to "skip" if neither
-    # makes sense (e.g., zero existing accounts).
+    # Picks a per-balance default action: "link" if a same-currency
+    # depository account exists and hasn't already been claimed by a
+    # previous balance in this run, otherwise "create". If multiple
+    # balances share a currency but the family only has one matching
+    # account, the second balance defaults to "create" so the form
+    # submits cleanly without hitting the duplicate-target 422.
     def compute_default_setup_actions(wise_balances, existing_accounts)
+      claimed = Set.new
       wise_balances.each_with_object({}) do |balance, defaults|
-        match = existing_accounts.find { |acct| acct.currency == balance.currency }
-        defaults[balance.id] = match ? "link" : "create"
+        match = existing_accounts.find { |acct| acct.currency == balance.currency && !claimed.include?(acct.id) }
+        if match
+          claimed << match.id
+          defaults[balance.id.to_s] = "link"
+        else
+          defaults[balance.id.to_s] = "create"
+        end
       end
     end
 

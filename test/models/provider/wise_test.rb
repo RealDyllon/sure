@@ -79,6 +79,33 @@ class Provider::WiseTest < ActiveSupport::TestCase
     assert_equal :unauthorized, error.error_type
   end
 
+  test "falls back to the default message when the error body is a top-level array" do
+    # A misbehaving proxy can return `["some error"]` or `["oops"]`
+    # instead of an object. The old parser indexed `[:error]` on the
+    # array and raised `TypeError`, which 500s the importer/reauth
+    # callback before WiseError can be built.
+    stub_request(:get, "https://api.wise.com/v1/profiles")
+      .to_return(status: 401, body: '["token rejected"]')
+
+    error = assert_raises Provider::Wise::WiseError do
+      Provider::Wise.new(access_token: "bad-token").get_profiles
+    end
+
+    assert_equal :unauthorized, error.error_type
+    assert_equal "Wise authorization failed. The token may be expired or revoked.", error.message
+  end
+
+  test "falls back to the default message when the error body is a top-level string" do
+    stub_request(:get, "https://api.wise.com/v1/profiles")
+      .to_return(status: 403, body: '"forbidden"')
+
+    error = assert_raises Provider::Wise::WiseError do
+      Provider::Wise.new(access_token: "bad-token").get_profiles
+    end
+
+    assert_equal :access_forbidden, error.error_type
+  end
+
   test "surfaces Wise's error message in WiseError" do
     stub_request(:get, "https://api.wise.com/v1/profiles")
       .to_return(status: 401, body: { error: "Token has expired" }.to_json)
