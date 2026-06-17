@@ -116,6 +116,22 @@ class GoalProfileTest < ActiveSupport::TestCase
     assert_includes profile.errors[:birth_year], "must be less than or equal to #{Date.current.year}"
   end
 
+  test "rejects impossible current ages" do
+    profile = GoalProfile.find_or_create_for!(@user)
+
+    profile.current_age = 200
+
+    assert_not profile.valid?
+    assert_includes profile.errors[:current_age], "must be less than 150"
+  end
+
+  test "accepts blank annual contribution" do
+    profile = GoalProfile.find_or_create_for!(@user)
+    profile.annual_contribution = ""
+
+    assert profile.valid?, profile.errors.full_messages.inspect
+  end
+
   test "rejects impossible percentage assumptions after normalization" do
     profile = GoalProfile.find_or_create_for!(@user)
 

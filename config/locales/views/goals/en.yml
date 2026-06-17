@@ -3,13 +3,103 @@ en:
   goals:
     index:
       title: Goals
+      subtitle: Estimated progress toward financial independence and other goals.
     fire:
       title: Financial Independence
       card:
         title: Financial Independence
+        subtitle: Estimated progress based on current accounts and assumptions.
         review_assumptions: Review assumptions
+        view_details: View details
+        headline_progress: Headline progress
+        estimated_fi_target: Estimated FIRE target
+        bridge_assets: Bridge assets
+        later_assets: Later assets
+      timeline:
+        title: Timeline
+        estimated_fi_age: "Estimated FI age: %{age}"
+        estimated_years_to_fi: "Estimated years to FI: %{value}"
+        review_assumptions: Review assumptions
+      assumptions:
+        title: Assumptions
+        bridge_progress: "Bridge progress: %{percent}"
+        later_bucket_progress: "Later bucket progress: %{percent}"
+        cpf_access_age: "CPF access age: %{age}"
+        cpf_life_age: "CPF LIFE age: %{age}"
+        srs_access_age: "SRS access age: %{age}"
+      scenario:
+        title: Scenario
+        annual_spending: Annual spending
+        withdrawal_rate: Withdrawal rate
+        annual_contribution: Annual contribution
+        preview: Preview scenario
+        save: Save scenario
     assumptions:
       title: Goal assumptions
       current_age: Current age
-      annual_spending: Annual spending
+      birth_year: Birth year
       planning_region: Planning region
+      planning_region_default: Default (auto-detect)
+      planning_region_generic: Generic
+      planning_region_singapore: Singapore
+      annual_spending: Annual spending
+      annual_contribution: Annual contribution
+      withdrawal_rate: Withdrawal rate
+      expected_return: Expected return
+      inflation: Inflation
+      cpf_access_age: CPF access age
+      cpf_life_age: CPF LIFE age
+      srs_access_age: SRS access age
+      savings_rate_target: Savings rate target
+      emergency_fund_months: Emergency fund months
+      save: Save
+      account_treatment: Account treatment
+      account_treatment_help: Emergency accounts can also count as FIRE bridge assets; they are not double-counted within a single calculation.
+      save_account_treatment: Save account treatment
+      fire_role_bridge: Bridge
+      fire_role_later: Later
+      fire_role_srs_later: Later (SRS)
+      fire_role_excluded: Excluded
+      fire_role_default: Default
+      emergency: Emergency
+    emergency_fund:
+      title: Emergency fund
+      subtitle: Estimated cash runway using selected cash-like accounts.
+      current: "Current: %{months} months"
+      target: "Target: %{amount}"
+      fx_unavailable: Some emergency cash needs exchange rates before it can be included.
+    debt_payoff:
+      title: Debt payoff
+      subtitle: Reliable debt balances only; available-credit style values are flagged for review.
+      review_accounts:
+        one: "Review %{count} account"
+        other: "Review %{count} accounts"
+      fx_unavailable: Some debt balances need exchange rates before they can be included.
+      estimated_months: "Estimated payoff: %{months} months (estimated)"
+      payment_info_missing: Add a minimum payment or loan term to estimate payoff months.
+      balance_only: Balance only
+    savings_rate:
+      title: Savings rate
+      subtitle: Estimated from recent income and expenses.
+      target: "Target: %{percent}"
+      progress: "Progress: %{percent}"
+      insufficient_history: Insufficient recent history
+      fx_unavailable: Some cashflow needs exchange rates before they can be included.
+    custom_goals:
+      title: Custom goals
+      empty: Add a target amount and choose the accounts that fund it.
+      name: Goal name
+      target_amount: Target amount
+      currency: Currency
+      target_date: Target date
+      funding_accounts: Funding accounts
+      add: Add goal
+      update: Update goal
+      archive: Archive
+      fx_unavailable: Some balances need exchange rates before they can be included.
+    review_prompts:
+      srs_mapping: SRS account detected. Review whether it should unlock at the SRS access age.
+      srs_map_link: Map SRS
+      srs_skip: Skip
+      fx_unavailable: Some cross-currency balances need exchange rates before they can be included in FIRE progress.
+      current_age_missing: Add a current age or birth year to estimate a FIRE age instead of only years to FI.

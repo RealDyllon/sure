@@ -23,7 +23,18 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     assert_equal BigDecimal("24000"), result.target_money.amount
     assert_equal BigDecimal("18000"), result.available_money.amount
     assert_equal BigDecimal("0.75"), result.progress
+    # 18_000 / (48_000 / 12) = 18_000 / 4_000 = 4.5 months
+    assert_equal 4.5, result.current_months
     assert_includes classifier_result.fire_bridge_accounts, cash
+  end
+
+  test "emergency fund current_months is nil when there is no inferred spending" do
+    @profile.update!(annual_spending_override: nil)
+    create_account(name: "Example Cash Account", balance: 5_000, accountable: Depository.new)
+
+    result = Goals::EmergencyFundCalculator.new(user: @user, profile: @profile.reload).call
+
+    assert_nil result.current_months
   end
 
   test "emergency fund infers spending when no manual spending override is set" do
@@ -80,6 +91,59 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
 
     assert_equal BigDecimal("12000"), result.total_debt_money.amount
+  end
+
+  test "debt payoff estimates months from a credit card minimum payment" do
+    create_account(
+      name: "Example Card With Minimum",
+      balance: 6_000,
+      accountable: CreditCard.new(minimum_payment: 200)
+    )
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert result.has_payment_info?
+    assert_equal 30, result.estimated_months
+    assert_equal BigDecimal("200"), result.monthly_payment_money.amount
+    assert_not_includes result.review_prompts, :payment_info_missing
+  end
+
+  test "debt payoff estimates months from a fixed-rate loan scheduled payment" do
+    create_account(
+      name: "Example Fixed Loan",
+      balance: 12_000,
+      accountable: Loan.new(subtype: "other", term_months: 12, interest_rate: 0, rate_type: "fixed")
+    )
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert result.has_payment_info?
+    assert_equal 12, result.estimated_months
+  end
+
+  test "debt payoff falls back to balance only when a credit card has no minimum payment" do
+    create_account(name: "Example Card No Min", balance: 5_000, accountable: CreditCard.new)
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert_not result.has_payment_info?
+    assert_nil result.estimated_months
+    assert_includes result.review_prompts, :payment_info_missing
+  end
+
+  test "debt payoff flags FX unavailable when a payment currency cannot be converted" do
+    create_account(
+      name: "Example USD Card",
+      balance: 4_000,
+      currency: "USD",
+      accountable: CreditCard.new(minimum_payment: 100)
+    )
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert_not result.has_payment_info?
+    assert_nil result.estimated_months
+    assert_includes result.review_prompts, :fx_unavailable
   end
 
   test "savings rate calculates from recent income and expenses when history exists" do

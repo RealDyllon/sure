@@ -11,10 +11,10 @@ class GoalProfile < ApplicationRecord
   validates :expected_return, :inflation_rate, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 1 }
   validates :savings_rate_target, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 1 }, allow_blank: true
   validates :annual_spending_override, numericality: { greater_than_or_equal_to: 0 }, allow_blank: true
-  validates :annual_contribution, numericality: { greater_than_or_equal_to: 0 }
+  validates :annual_contribution, numericality: { greater_than_or_equal_to: 0 }, allow_blank: true
   validates :emergency_fund_months, :cpf_access_age, :cpf_life_age, :srs_access_age,
     numericality: { only_integer: true, greater_than: 0 }
-  validates :current_age, numericality: { only_integer: true, greater_than: 0 }, allow_blank: true
+  validates :current_age, numericality: { only_integer: true, greater_than: 0, less_than: 150 }, allow_blank: true
   validates :birth_year, numericality: { only_integer: true, greater_than: 1900, less_than_or_equal_to: ->(_profile) { Date.current.year } }, allow_blank: true
 
   before_validation :normalize_blank_planning_region
@@ -149,6 +149,12 @@ class GoalProfile < ApplicationRecord
     end
 
     def normalize_percentage_fields
+      # Treat any value in the inclusive range (1, 100] as a whole-number percentage
+      # (4 -> 0.04, 100 -> 1.0). Values <= 1 are kept as decimal fractions (0.04, 0.5).
+      # Values > 100 are rejected by the numericality validator rather than silently
+      # scaled, so 150 fails rather than becoming 1.5. The "1.5 -> 0.015" mapping is
+      # intentional: a percentage-form input is the safer interpretation for rates that
+      # are economically bounded well below 1.
       %i[withdrawal_rate expected_return inflation_rate savings_rate_target].each do |field|
         value = self[field]
         next if value.blank?

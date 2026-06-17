@@ -13,11 +13,46 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     expected_translations = {
       "layouts.application.nav.goals" => "Goals",
       "goals.index.title" => "Goals",
+      "goals.index.subtitle" => "Estimated progress toward financial independence and other goals.",
       "goals.fire.title" => "Financial Independence",
       "goals.fire.card.title" => "Financial Independence",
       "goals.fire.card.review_assumptions" => "Review assumptions",
+      "goals.fire.card.view_details" => "View details",
+      "goals.fire.card.headline_progress" => "Headline progress",
+      "goals.fire.card.estimated_fi_target" => "Estimated FIRE target",
+      "goals.fire.card.bridge_assets" => "Bridge assets",
+      "goals.fire.card.later_assets" => "Later assets",
+      "goals.fire.timeline.title" => "Timeline",
+      "goals.fire.assumptions.title" => "Assumptions",
+      "goals.fire.scenario.title" => "Scenario",
+      "goals.fire.scenario.preview" => "Preview scenario",
+      "goals.fire.scenario.save" => "Save scenario",
       "goals.assumptions.title" => "Goal assumptions",
-      "goals.assumptions.current_age" => "Current age"
+      "goals.assumptions.current_age" => "Current age",
+      "goals.assumptions.planning_region_default" => "Default (auto-detect)",
+      "goals.assumptions.fire_role_srs_later" => "Later (SRS)",
+      "goals.assumptions.account_treatment" => "Account treatment",
+      "goals.assumptions.save" => "Save",
+      "goals.emergency_fund.title" => "Emergency fund",
+      "goals.emergency_fund.subtitle" => "Estimated cash runway using selected cash-like accounts.",
+      "goals.emergency_fund.current" => "Current: %{months} months",
+      "goals.emergency_fund.target" => "Target: %{amount}",
+      "goals.debt_payoff.title" => "Debt payoff",
+      "goals.debt_payoff.subtitle" => "Reliable debt balances only; available-credit style values are flagged for review.",
+      "goals.debt_payoff.estimated_months" => "Estimated payoff: %{months} months (estimated)",
+      "goals.debt_payoff.balance_only" => "Balance only",
+      "goals.debt_payoff.review_accounts.one" => "Review %{count} account",
+      "goals.debt_payoff.review_accounts.other" => "Review %{count} accounts",
+      "goals.savings_rate.title" => "Savings rate",
+      "goals.savings_rate.subtitle" => "Estimated from recent income and expenses.",
+      "goals.savings_rate.insufficient_history" => "Insufficient recent history",
+      "goals.custom_goals.title" => "Custom goals",
+      "goals.custom_goals.empty" => "Add a target amount and choose the accounts that fund it.",
+      "goals.custom_goals.name" => "Goal name",
+      "goals.custom_goals.add" => "Add goal",
+      "goals.custom_goals.update" => "Update goal",
+      "goals.custom_goals.archive" => "Archive",
+      "goals.review_prompts.srs_mapping" => "SRS account detected. Review whether it should unlock at the SRS access age."
     }
 
     expected_translations.each do |key, expected|
@@ -201,6 +236,26 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 9, profile.emergency_fund_months
   end
 
+  test "blank annual contribution in a full assumptions form falls back to zero" do
+    patch goals_assumptions_path, params: {
+      goal_profile: {
+        planning_region: "generic",
+        current_age: 40,
+        annual_spending_override: 48_000,
+        annual_contribution: "",
+        withdrawal_rate: 4,
+        cpf_access_age: 55,
+        cpf_life_age: 65,
+        srs_access_age: 63,
+        emergency_fund_months: 6
+      }
+    }
+
+    assert_redirected_to goals_path
+    profile = GoalProfile.find_by!(user: @user)
+    assert_equal 0, profile.annual_contribution
+  end
+
   test "assumption update renders validation errors" do
     patch goals_assumptions_path, params: {
       goal_profile: {
@@ -285,5 +340,40 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     assert_equal BigDecimal("60000"), profile.annual_spending_override
     assert_equal BigDecimal("0.035"), profile.withdrawal_rate
     assert_equal BigDecimal("24000"), profile.annual_contribution
+  end
+
+  test "scenario save with blank annual spending clears the override" do
+    profile = GoalProfile.find_or_create_for!(@user)
+    profile.update!(annual_spending_override: 48_000, withdrawal_rate: 0.04, annual_contribution: 12_000)
+
+    post save_scenario_goals_fire_path, params: {
+      scenario: {
+        annual_spending: "",
+        withdrawal_rate: 4,
+        annual_contribution: 12_000
+      }
+    }
+
+    assert_redirected_to goals_fire_path
+    assert_nil profile.reload.annual_spending_override
+    assert_equal BigDecimal("0.04"), profile.withdrawal_rate
+    assert_equal BigDecimal("12000"), profile.annual_contribution
+  end
+
+  test "scenario save with blank withdrawal rate surfaces a validation error" do
+    profile = GoalProfile.find_or_create_for!(@user)
+    profile.update!(withdrawal_rate: 0.04, annual_contribution: 12_000)
+
+    post save_scenario_goals_fire_path, params: {
+      scenario: {
+        annual_spending: 60_000,
+        withdrawal_rate: "",
+        annual_contribution: 24_000
+      }
+    }
+
+    assert_response :unprocessable_entity
+    assert_select "h1", text: "Financial Independence"
+    assert_equal BigDecimal("0.04"), profile.reload.withdrawal_rate
   end
 end

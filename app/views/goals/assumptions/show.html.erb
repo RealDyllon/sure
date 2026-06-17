@@ -14,66 +14,70 @@
     </div>
 
     <div>
-      <%= form.label :birth_year, "Birth year", class: "block text-sm text-secondary mb-1" %>
+      <%= form.label :birth_year, t("goals.assumptions.birth_year"), class: "block text-sm text-secondary mb-1" %>
       <%= form.number_field :birth_year, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
     </div>
 
     <div>
-      <%= form.label :planning_region, "Planning region", class: "block text-sm text-secondary mb-1" %>
+      <%= form.label :planning_region, t("goals.assumptions.planning_region"), class: "block text-sm text-secondary mb-1" %>
       <%= select_tag "goal_profile[planning_region]",
-        options_for_select([["Default (auto-detect)", ""], ["Generic", "generic"], ["Singapore", "singapore"]], @profile[:planning_region].presence || ""),
+        options_for_select([
+          [ t("goals.assumptions.planning_region_default"), "" ],
+          [ t("goals.assumptions.planning_region_generic"), "generic" ],
+          [ t("goals.assumptions.planning_region_singapore"), "singapore" ]
+        ], @profile[:planning_region].presence || ""),
         class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
     </div>
 
     <div class="grid md:grid-cols-2 gap-4">
       <div>
-        <%= form.label :annual_spending_override, "Annual spending", class: "block text-sm text-secondary mb-1" %>
+        <%= form.label :annual_spending_override, t("goals.assumptions.annual_spending"), class: "block text-sm text-secondary mb-1" %>
         <%= form.number_field :annual_spending_override, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
-        <%= form.label :annual_contribution, "Annual contribution", class: "block text-sm text-secondary mb-1" %>
+        <%= form.label :annual_contribution, t("goals.assumptions.annual_contribution"), class: "block text-sm text-secondary mb-1" %>
         <%= form.number_field :annual_contribution, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
-        <%= form.label :withdrawal_rate, "Withdrawal rate", class: "block text-sm text-secondary mb-1" %>
+        <%= form.label :withdrawal_rate, t("goals.assumptions.withdrawal_rate"), class: "block text-sm text-secondary mb-1" %>
         <%= form.number_field :withdrawal_rate, step: "0.01", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
-        <%= form.label :expected_return, "Expected return", class: "block text-sm text-secondary mb-1" %>
+        <%= form.label :expected_return, t("goals.assumptions.expected_return"), class: "block text-sm text-secondary mb-1" %>
         <%= form.number_field :expected_return, step: "0.01", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
-        <%= form.label :inflation_rate, "Inflation", class: "block text-sm text-secondary mb-1" %>
+        <%= form.label :inflation_rate, t("goals.assumptions.inflation"), class: "block text-sm text-secondary mb-1" %>
         <%= form.number_field :inflation_rate, step: "0.01", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
-        <%= form.label :cpf_access_age, "CPF access age", class: "block text-sm text-secondary mb-1" %>
+        <%= form.label :cpf_access_age, t("goals.assumptions.cpf_access_age"), class: "block text-sm text-secondary mb-1" %>
         <%= form.number_field :cpf_access_age, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
-        <%= form.label :cpf_life_age, "CPF LIFE age", class: "block text-sm text-secondary mb-1" %>
+        <%= form.label :cpf_life_age, t("goals.assumptions.cpf_life_age"), class: "block text-sm text-secondary mb-1" %>
         <%= form.number_field :cpf_life_age, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
-        <%= form.label :srs_access_age, "SRS access age", class: "block text-sm text-secondary mb-1" %>
+        <%= form.label :srs_access_age, t("goals.assumptions.srs_access_age"), class: "block text-sm text-secondary mb-1" %>
         <%= form.number_field :srs_access_age, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
-        <%= form.label :savings_rate_target, "Savings rate target", class: "block text-sm text-secondary mb-1" %>
+        <%= form.label :savings_rate_target, t("goals.assumptions.savings_rate_target"), class: "block text-sm text-secondary mb-1" %>
         <%= form.number_field :savings_rate_target, step: "0.01", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
-        <%= form.label :emergency_fund_months, "Emergency fund months", class: "block text-sm text-secondary mb-1" %>
+        <%= form.label :emergency_fund_months, t("goals.assumptions.emergency_fund_months"), class: "block text-sm text-secondary mb-1" %>
         <%= form.number_field :emergency_fund_months, class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
     </div>
 
-    <%= form.submit "Save", class: "px-4 py-2 bg-primary text-white rounded-lg" %>
+    <%= form.submit t("goals.assumptions.save"), class: "px-4 py-2 bg-primary text-white rounded-lg" %>
   <% end %>
 
   <%= form_with url: goals_account_mappings_path, method: :patch, class: "bg-container shadow-border-xs rounded-xl p-5 space-y-4" do %>
-    <h2 class="text-lg text-primary font-medium">Account treatment</h2>
-    <p class="text-sm text-secondary">Emergency accounts can also count as FIRE bridge assets; they are not double-counted within a single calculation.</p>
+    <h2 class="text-lg text-primary font-medium"><%= t("goals.assumptions.account_treatment") %></h2>
+    <p class="text-sm text-secondary"><%= t("goals.assumptions.account_treatment_help") %></p>
 
     <div class="space-y-3">
       <% @accounts.each do |account| %>
@@ -83,17 +87,22 @@
             <p class="text-xs text-secondary"><%= account.accountable_type %></p>
           </div>
           <%= select_tag "fire_roles[#{account.id}]",
-            options_for_select([["Bridge", "bridge"], ["Later", "later"], ["Later (SRS)", "srs_later"], ["Excluded", "excluded"]], @profile.fire_role_overrides[account.id]),
-            include_blank: "Default",
+            options_for_select([
+              [ t("goals.assumptions.fire_role_bridge"), "bridge" ],
+              [ t("goals.assumptions.fire_role_later"), "later" ],
+              [ t("goals.assumptions.fire_role_srs_later"), "srs_later" ],
+              [ t("goals.assumptions.fire_role_excluded"), "excluded" ]
+            ], @profile.fire_role_overrides[account.id]),
+            include_blank: t("goals.assumptions.fire_role_default"),
             class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
           <label class="flex items-center gap-2 text-sm text-primary">
             <%= check_box_tag "emergency_account_ids[]", account.id, @emergency_account_ids.include?(account.id) %>
-            Emergency
+            <%= t("goals.assumptions.emergency") %>
           </label>
         </div>
       <% end %>
     </div>
 
-    <%= submit_tag "Save account treatment", class: "px-4 py-2 bg-primary text-white rounded-lg" %>
+    <%= submit_tag t("goals.assumptions.save_account_treatment"), class: "px-4 py-2 bg-primary text-white rounded-lg" %>
   <% end %>
 </div>
