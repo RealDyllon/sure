@@ -241,6 +241,96 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/Pick an existing account/i, response.body)
   end
 
+  test "setup account surfaces per-row error when two balance rows pick the same existing account" do
+    item = create_wise_item
+    first_balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")
+    second_balance = create_wise_balance(item, balance_id: "balance-sgd", currency: "SGD")
+    account = accounts(:depository)
+    account.update!(currency: "USD")
+
+    assert_no_difference -> { AccountProvider.where(provider_type: "WiseBalance").count } do
+      post complete_account_setup_wise_item_url(item), params: {
+        balance_actions: {
+          first_balance.id => "link",
+          second_balance.id => "link"
+        },
+        existing_account_ids: {
+          first_balance.id => account.id,
+          second_balance.id => account.id
+        }
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_match(/another row in this form already links/i, response.body)
+  end
+
+  test "setup account re-render shows the per-row error using the correct balance key" do
+    # Form params arrive with stringified keys; the view looks them up
+    # via `wise_balance.id.to_s`. Without normalization, the row error
+    # silently drops and the user sees the form cleared instead of
+    # the rejection.
+    item = create_wise_item
+    balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")
+
+    post complete_account_setup_wise_item_url(item), params: {
+      balance_actions: { balance.id => "link" },
+      existing_account_ids: { balance.id => "" }
+    }
+
+    assert_response :unprocessable_entity
+    assert_match(/Pick an existing account/i, response.body)
+  end
+
+  test "reauth callback flips a personal_token item to oauth and clears the token" do
+    with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret") do
+      item = create_wise_item
+      item.update!(auth_mode: "personal_token", personal_token: "old-personal-token", access_token: nil, refresh_token: nil, status: :requires_update)
+      get reauth_wise_item_url(item)
+      state = Rack::Utils.parse_query(URI.parse(response.location).query).fetch("state")
+
+      stub_request(:post, "https://api.wise.com/oauth/token")
+        .with(basic_auth: [ "client-id", "client-secret" ])
+        .to_return(status: 200, body: { access_token: "fresh-token", refresh_token: "fresh-refresh", expires_in: 43_199 }.to_json)
+
+      get reauth_callback_wise_items_url, params: { code: "auth-code", state: state }
+
+      item.reload
+      assert item.oauth?
+      assert_equal "fresh-token", item.access_token
+      assert_nil item.personal_token
+      assert item.good?
+    end
+  end
+
+  test "reauth callback requires admin" do
+    with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret") do
+      item = create_wise_item
+      get reauth_wise_item_url(item)
+      state = Rack::Utils.parse_query(URI.parse(response.location).query).fetch("state")
+
+      # Demote the user mid-flow: they were admin when reauth started,
+      # but are no longer admin when Wise returns. The callback should
+      # refuse to mutate the item.
+      sign_in users(:family_member)
+      get reauth_callback_wise_items_url, params: { code: "auth-code", state: state }
+
+      assert_redirected_to accounts_url
+      item.reload
+      assert_not_equal "fresh-token", item.access_token
+    end
+  end
+
+  test "reconnect menu link is rendered as a non-Turbo top-level link" do
+    item = create_wise_item
+    item.update!(status: :requires_update)
+
+    get accounts_url
+
+    assert_response :success
+    assert_match %r{<a [^>]*data-turbo="false"[^>]*reauth}, response.body
+  end
+
   test "direct Wise link rejects legacy provider account" do
     item = create_wise_item
     balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")

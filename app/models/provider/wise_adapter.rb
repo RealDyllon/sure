@@ -10,16 +10,16 @@ class Provider::WiseAdapter < Provider::Base
 
   def self.connection_configs(family:)
     return [] unless family.can_connect_wise?
-    return [] unless Provider::Wise.oauth_configured?
 
     item = family.wise_items.active.ordered.first
     return [] unless item&.credentials_configured?
 
     # Wise is only exposed on the "Connect a new account" screen once
-    # the family has a configured WiseItem. First-time OAuth starts from
-    # Settings > Providers, where the link already targets `_top`. The
-    # account modal has no concept of a top-level OAuth start, so we
-    # intentionally return no config here until the item exists.
+    # the family has a configured WiseItem (OAuth or personal token).
+    # First-time OAuth starts from Settings > Providers, where the link
+    # already targets `_top`. The account modal has no concept of a
+    # top-level OAuth start, so we intentionally return no config here
+    # until the item exists.
     [ {
       key: "wise",
       name: "Wise",

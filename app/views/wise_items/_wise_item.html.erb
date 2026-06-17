@@ -73,11 +73,17 @@
               ) %>
             <% end %>
             <% if wise_item.requires_update? %>
+              <%# External OAuth redirect — the controller immediately %>
+              <%# 302s to wise.com, so a top-level navigation is %>
+              <%# required. Without `turbo: false`, Turbo intercepts %>
+              <%# the click and handles the redirect inside a fetch %>
+              <%# visit, which can swallow the external navigation. %>
               <% menu.with_item(
                 variant: "link",
                 text: t("wise_items.wise_item.reconnect"),
                 icon: "refresh-cw",
-                href: reauth_wise_item_path(wise_item)
+                href: reauth_wise_item_path(wise_item),
+                data: { turbo: false }
               ) %>
             <% end %>
             <% menu.with_item(

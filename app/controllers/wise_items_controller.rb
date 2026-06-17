@@ -2,7 +2,7 @@ class WiseItemsController < ApplicationController
   before_action :set_wise_item, only: %i[show edit update destroy sync setup_accounts complete_account_setup reauth]
   before_action :require_admin!, only: %i[
     new create oauth_start oauth_callback select_existing_account link_existing_account
-    edit update destroy sync setup_accounts complete_account_setup reauth
+    edit update destroy sync setup_accounts complete_account_setup reauth reauth_callback
   ]
 
   def index
@@ -125,15 +125,19 @@ class WiseItemsController < ApplicationController
     balance_actions = params[:balance_actions] || {}
     existing_account_ids = params[:existing_account_ids] || {}
 
-    # First pass: collect every per-row validation error before mutating
-    # anything. If any row is invalid, we re-render the form with the
-    # original selections and 422 — the user can fix it and try again
-    # without partially-created accounts to clean up.
+    # Form params arrive with string keys, but the view looks up
+    # selections and errors by integer `wise_balance.id`. Normalize
+    # both maps so the 422 re-render can find the rows the user just
+    # submitted, and the per-row error renders against the right
+    # balance.
+    balance_actions = balance_actions.to_unsafe_h.stringify_keys if balance_actions.respond_to?(:to_unsafe_h)
+    existing_account_ids = existing_account_ids.to_unsafe_h.stringify_keys if existing_account_ids.respond_to?(:to_unsafe_h)
     setup_errors = {}
+    claimed_account_ids = Set.new
     resolved = []
 
-    balance_actions.each do |wise_balance_id, action|
-      wise_balance = @wise_item.wise_balances.find_by(id: wise_balance_id)
+    balance_actions.each do |wise_balance_id_str, action|
+      wise_balance = @wise_item.wise_balances.find_by(id: wise_balance_id_str)
       next unless wise_balance
       next if wise_balance.account_provider.present?
 
@@ -141,13 +145,21 @@ class WiseItemsController < ApplicationController
       when "create"
         resolved << { balance: wise_balance, action: "create" }
       when "link"
-        target_id = existing_account_ids[wise_balance_id]
+        target_id = existing_account_ids[wise_balance_id_str]
         account = Current.family.accounts.visible_manual.where(accountable_type: "Depository").find_by(id: target_id)
         if account.nil?
-          setup_errors[wise_balance_id] = t("wise_items.complete_account_setup.errors.missing_target")
+          setup_errors[wise_balance_id_str] = t("wise_items.complete_account_setup.errors.missing_target")
         elsif provider_linked_account?(account)
-          setup_errors[wise_balance_id] = t("wise_items.complete_account_setup.errors.already_linked")
+          setup_errors[wise_balance_id_str] = t("wise_items.complete_account_setup.errors.already_linked")
+        elsif claimed_account_ids.include?(account.id)
+          # Two balance rows chose the same existing account in this
+          # submit. `provider_linked_account?` only sees what's in the
+          # DB, so we have to track in-request claims ourselves to
+          # avoid hitting a uniqueness constraint inside the
+          # transaction and surfacing a 500.
+          setup_errors[wise_balance_id_str] = t("wise_items.complete_account_setup.errors.duplicate_target")
         else
+          claimed_account_ids << account.id
           resolved << { balance: wise_balance, action: "link", account: account }
         end
       when "skip"
@@ -301,6 +313,15 @@ class WiseItemsController < ApplicationController
       access_token: token_payload[:access_token],
       refresh_token: token_payload[:refresh_token].presence || wise_item.refresh_token,
       token_expires_at: token_payload[:expires_in].present? ? Time.current + token_payload[:expires_in].to_i.seconds : wise_item.token_expires_at,
+      # If the item was previously configured with a personal API token
+      # and an admin ran Reconnect, we now have a real OAuth grant. Flip
+      # the mode so `wise_provider` uses the access token (and
+      # `refresh_access_token_if_needed!` kicks in for future syncs)
+      # instead of the stale personal_token. The personal_token column
+      # is wiped so the encryption key isn't holding two credentials for
+      # the same item.
+      auth_mode: "oauth",
+      personal_token: nil,
       status: :good
     )
     wise_item.sync_later

@@ -33,9 +33,12 @@
           </div>
 
           <% @wise_balances.each do |wise_balance| %>
-            <% row_default = (@default_actions && @default_actions[wise_balance.id]) || "create" %>
-            <% row_selection = (@action_selections && @action_selections[wise_balance.id]) || row_default %>
-            <% selected_existing_id = @existing_account_selections && @existing_account_selections[wise_balance.id] %>
+            <%# All three lookups use stringified balance ids because     %>
+            <%# `params[:balance_actions]` and friends arrive as strings.  %>
+            <% balance_key = wise_balance.id.to_s %>
+            <% row_default = (@default_actions && (@default_actions[balance_key] || @default_actions[wise_balance.id])) || "create" %>
+            <% row_selection = (@action_selections && (@action_selections[balance_key] || @action_selections[wise_balance.id])) || row_default %>
+            <% selected_existing_id = @existing_account_selections && (@existing_account_selections[balance_key] || @existing_account_selections[wise_balance.id]) %>
             <% matching_account = @existing_accounts.find { |acct| acct.currency == wise_balance.currency } %>
             <div class="border border-primary rounded-lg p-4 space-y-3">
               <div class="flex items-center justify-between gap-3">
@@ -65,7 +68,7 @@
                 </div>
               </div>
 
-              <% row_error = @setup_errors && @setup_errors[wise_balance.id] %>
+              <% row_error = @setup_errors && (@setup_errors[balance_key] || @setup_errors[wise_balance.id]) %>
               <% if row_error %>
                 <p class="text-sm text-destructive flex items-center gap-1">
                   <%= icon "alert-circle", size: "sm" %>

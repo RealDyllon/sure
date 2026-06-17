@@ -34,6 +34,7 @@ en:
       errors:
         missing_target: Pick an existing account to link this balance to.
         already_linked: That account is already linked to another provider.
+        duplicate_target: Another row in this form already links to that account. Pick a different account.
     reauth:
       not_configured: "Wise OAuth is not configured. Set WISE_CLIENT_ID and WISE_CLIENT_SECRET."
       state_mismatch: "Wise re-authorization state did not match. Please try again."

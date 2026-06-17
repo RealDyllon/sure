@@ -112,6 +112,18 @@ class Provider::WiseTest < ActiveSupport::TestCase
     end
   end
 
+  test "connection_configs returns a balance-setup config for a personal-token-only item even when OAuth env is unset" do
+    with_env_overrides("WISE_CLIENT_ID" => nil, "WISE_CLIENT_SECRET" => nil) do
+      family = families(:dylan_family)
+      wise_items(:dylan_wise_personal)
+
+      configs = Provider::WiseAdapter.connection_configs(family: family)
+
+      assert_equal 1, configs.size
+      assert_equal "wise", configs.first[:key]
+    end
+  end
+
   test "connection_configs returns [] when OAuth is not configured" do
     with_env_overrides("WISE_CLIENT_ID" => nil, "WISE_CLIENT_SECRET" => nil) do
       family = families(:empty)
