@@ -1,4 +1,8 @@
 <div class="space-y-4">
+  <%# Resolve the active items once at the top so the "Connect another" / %>
+  <%# "Connect with Wise" copy and the "Configured" indicator stay in sync. %>
+  <% items = local_assigns[:wise_items] || @wise_items || Current.family.wise_items.active %>
+
   <% error_msg = local_assigns[:error_message] || @error_message %>
   <% if error_msg.present? %>
     <div class="p-2 rounded-md bg-destructive/10 text-destructive text-sm overflow-hidden">
@@ -53,7 +57,6 @@
     <% end %>
   </div>
 
-  <% items = local_assigns[:wise_items] || @wise_items || Current.family.wise_items.active %>
   <div class="space-y-2">
     <div class="flex items-center gap-2">
       <% if items&.any? %>

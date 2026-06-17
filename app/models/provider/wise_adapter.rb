@@ -13,36 +13,25 @@ class Provider::WiseAdapter < Provider::Base
     return [] unless Provider::Wise.oauth_configured?
 
     item = family.wise_items.active.ordered.first
-    if item&.credentials_configured?
-      [ {
-        key: "wise",
-        name: "Wise",
-        description: "Set up a Wise currency balance",
-        can_connect: true,
-        new_account_path: ->(_accountable_type, _return_to) {
-          Rails.application.routes.url_helpers.setup_accounts_wise_item_path(item)
-        },
-        existing_account_path: ->(account_id) {
-          Rails.application.routes.url_helpers.select_existing_account_wise_items_path(account_id: account_id)
-        }
-      } ]
-    else
-      # Family has no configured Wise item yet. Surface Wise on the
-      # "Connect a new account" screen so the OAuth flow is reachable
-      # from the same chooser as Plaid/Mercury/Coinbase.
-      [ {
-        key: "wise",
-        name: "Wise",
-        description: "Connect a Wise account via OAuth",
-        can_connect: true,
-        new_account_path: ->(_accountable_type, _return_to) {
-          Rails.application.routes.url_helpers.oauth_start_wise_items_path
-        },
-        existing_account_path: ->(_account_id) {
-          Rails.application.routes.url_helpers.oauth_start_wise_items_path
-        }
-      } ]
-    end
+    return [] unless item&.credentials_configured?
+
+    # Wise is only exposed on the "Connect a new account" screen once
+    # the family has a configured WiseItem. First-time OAuth starts from
+    # Settings > Providers, where the link already targets `_top`. The
+    # account modal has no concept of a top-level OAuth start, so we
+    # intentionally return no config here until the item exists.
+    [ {
+      key: "wise",
+      name: "Wise",
+      description: "Set up a Wise currency balance",
+      can_connect: true,
+      new_account_path: ->(_accountable_type, _return_to) {
+        Rails.application.routes.url_helpers.setup_accounts_wise_item_path(item)
+      },
+      existing_account_path: ->(account_id) {
+        Rails.application.routes.url_helpers.select_existing_account_wise_items_path(account_id: account_id)
+      }
+    } ]
   end
 
   def self.build_provider(family: nil)

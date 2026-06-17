@@ -91,19 +91,15 @@ class Provider::WiseTest < ActiveSupport::TestCase
     assert_equal :unauthorized, error.error_type
   end
 
-  test "connection_configs returns a setup config for families with no Wise item" do
+  test "connection_configs returns [] when no configured Wise item exists" do
     with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret") do
       family = families(:empty)
 
-      configs = Provider::WiseAdapter.connection_configs(family: family)
-
-      assert_equal 1, configs.size
-      assert_equal "wise", configs.first[:key]
-      assert_match(/OAuth/i, configs.first[:description])
+      assert_empty Provider::WiseAdapter.connection_configs(family: family)
     end
   end
 
-  test "connection_configs returns a balance-setup config when an item exists" do
+  test "connection_configs returns a balance-setup config when a configured item exists" do
     with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret") do
       family = families(:dylan_family)
       wise_items(:dylan_wise_oauth)

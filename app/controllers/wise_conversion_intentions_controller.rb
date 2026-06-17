@@ -6,6 +6,9 @@ class WiseConversionIntentionsController < ApplicationController
     intention = Current.family.wise_conversion_intentions.build(intention_params)
 
     if intention.save
+      # Initial snapshot is a best-effort convenience: a row without a
+      # provider_rate is still useful state for the user, and the form
+      # surfaces a follow-up notice if the rate came back blank.
       begin
         intention.refresh_snapshot!
       rescue => e
@@ -25,10 +28,18 @@ class WiseConversionIntentionsController < ApplicationController
   end
 
   def refresh
-    @intention.refresh_snapshot!
+    # Manual refresh is the user's explicit "try again". If the rate
+    # provider is down, surface that to the user and leave any existing
+    # snapshots untouched — never insert a blank-rate row that would
+    # look like a fresh successful sync.
+    rate = @intention.current_exchange_rate_or_nil
+    if rate.nil?
+      redirect_back_or_to accounts_path, alert: "Could not refresh conversion plan: exchange rate lookup failed. Please try again later."
+      return
+    end
+
+    @intention.create_snapshot_with_rate(rate)
     redirect_back_or_to accounts_path, notice: "Conversion plan refreshed."
-  rescue => e
-    redirect_back_or_to accounts_path, alert: "Could not refresh conversion plan: #{e.message}"
   end
 
   def destroy

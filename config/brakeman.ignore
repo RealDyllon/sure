@@ -222,25 +222,25 @@
     {
       "warning_type": "Redirect",
       "warning_code": 18,
-      "fingerprint": "77613ae27f42197099c80d8d0317ec67f883b39309b95fe78112bff7685fa4ff",
+      "fingerprint": "4ae17b9dbfb563423c9d324505c29432655473baf779700dc61340fc916462eb",
       "check_name": "Redirect",
       "message": "Possible unprotected redirect",
       "file": "app/controllers/wise_items_controller.rb",
-      "line": 242,
+      "line": 266,
       "link": "https://brakemanscanner.org/docs/warning_types/redirect/",
-      "code": "redirect_to(Provider::Wise.oauth_authorize_url(:redirect_uri => ((Provider::Wise.oauth_redirect_uri or reauth_callback_wise_items_url)), :state => SecureRandom.hex(24)), :allow_other_host => true)",
+      "code": "redirect_to(Provider::Wise.oauth_authorize_url(:redirect_uri => reauth_callback_wise_items_url, :state => SecureRandom.hex(24)), :allow_other_host => true)",
       "render_path": null,
       "location": {
         "type": "method",
         "class": "WiseItemsController",
         "method": "reauth"
       },
-      "user_input": "Provider::Wise.oauth_authorize_url(:redirect_uri => ((Provider::Wise.oauth_redirect_uri or reauth_callback_wise_items_url)), :state => SecureRandom.hex(24))",
+      "user_input": "Provider::Wise.oauth_authorize_url(:redirect_uri => reauth_callback_wise_items_url, :state => SecureRandom.hex(24))",
       "confidence": "Weak",
       "cwe_id": [
         601
       ],
-      "note": "Intentional redirect to Wise's external OAuth authorization page; URL is generated from configured Wise auth host and a server-generated OAuth state."
+      "note": "Intentional redirect to Wise's external OAuth authorization page; URL is generated from configured Wise auth host, a hardcoded reauth callback URL, and a server-generated OAuth state."
     }
   ],
   "brakeman_version": "7.1.0"

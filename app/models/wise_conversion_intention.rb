@@ -17,16 +17,29 @@ class WiseConversionIntention < ApplicationRecord
 
   def refresh_snapshot!(observed_on: Date.current, quote_payload: nil)
     current_rate = current_exchange_rate(observed_on)
+    create_snapshot_with_rate(current_rate, observed_on: observed_on, quote_payload: quote_payload)
+  end
 
+  # Returns the current exchange rate, or nil if the rate provider is
+  # unavailable. Callers can use this to decide whether to insert a new
+  # snapshot row or surface an error to the user.
+  def current_exchange_rate_or_nil(observed_on: Date.current)
+    current_exchange_rate(observed_on)
+  end
+
+  # Inserts a snapshot row when the caller has already resolved a rate
+  # (e.g. from `current_exchange_rate_or_nil`). Centralizes the field list
+  # so the `create` and `refresh` controllers stay thin and consistent.
+  def create_snapshot_with_rate(rate, observed_on: Date.current, quote_payload: nil)
     wise_conversion_snapshots.create!(
       quote_rate: quote_rate_from(quote_payload),
       quote_fee_amount: quote_fee_amount_from(quote_payload),
       quote_fee_currency: quote_fee_currency_from(quote_payload),
-      provider_rate: current_rate,
+      provider_rate: rate,
       provider_name: "exchange_rate",
-      rate_30d_percentile: percentile_for(current_rate, observed_on, 30),
-      rate_90d_percentile: percentile_for(current_rate, observed_on, 90),
-      rate_365d_percentile: percentile_for(current_rate, observed_on, 365),
+      rate_30d_percentile: percentile_for(rate, observed_on, 30),
+      rate_90d_percentile: percentile_for(rate, observed_on, 90),
+      rate_365d_percentile: percentile_for(rate, observed_on, 365),
       observed_on: observed_on,
       raw_quote_payload: quote_payload
     )

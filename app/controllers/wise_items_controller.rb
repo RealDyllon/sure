@@ -1,8 +1,8 @@
 class WiseItemsController < ApplicationController
-  before_action :set_wise_item, only: %i[show edit update destroy sync setup_accounts complete_account_setup]
+  before_action :set_wise_item, only: %i[show edit update destroy sync setup_accounts complete_account_setup reauth]
   before_action :require_admin!, only: %i[
     new create oauth_start oauth_callback select_existing_account link_existing_account
-    edit update destroy sync setup_accounts complete_account_setup
+    edit update destroy sync setup_accounts complete_account_setup reauth
   ]
 
   def index
@@ -124,52 +124,38 @@ class WiseItemsController < ApplicationController
   def complete_account_setup
     balance_actions = params[:balance_actions] || {}
     existing_account_ids = params[:existing_account_ids] || {}
-    created_or_linked = 0
-    skipped = 0
+
+    # First pass: collect every per-row validation error before mutating
+    # anything. If any row is invalid, we re-render the form with the
+    # original selections and 422 — the user can fix it and try again
+    # without partially-created accounts to clean up.
     setup_errors = {}
+    resolved = []
 
-    ActiveRecord::Base.transaction do
-      balance_actions.each do |wise_balance_id, action|
-        wise_balance = @wise_item.wise_balances.find_by(id: wise_balance_id)
-        next unless wise_balance
-        next if wise_balance.account_provider.present?
+    balance_actions.each do |wise_balance_id, action|
+      wise_balance = @wise_item.wise_balances.find_by(id: wise_balance_id)
+      next unless wise_balance
+      next if wise_balance.account_provider.present?
 
-        case action
-        when "create"
-          account = Account.create_and_sync(
-            {
-              family: Current.family,
-              name: wise_balance.name.presence || "Wise #{wise_balance.currency}",
-              balance: wise_balance.current_balance || 0,
-              currency: wise_balance.currency,
-              accountable_type: "Depository",
-              accountable_attributes: {}
-            },
-            skip_initial_sync: true
-          )
-          AccountProvider.create!(account: account, provider: wise_balance)
-          wise_balance.clear_skipped!
-          created_or_linked += 1
-        when "link"
-          target_id = existing_account_ids[wise_balance_id]
-          account = Current.family.accounts.visible_manual.where(accountable_type: "Depository").find_by(id: target_id)
-          if account.nil?
-            setup_errors[wise_balance_id] = t("wise_items.complete_account_setup.errors.missing_target")
-            next
-          end
-
-          if provider_linked_account?(account)
-            setup_errors[wise_balance_id] = t("wise_items.complete_account_setup.errors.already_linked")
-            next
-          end
-
-          AccountProvider.create!(account: account, provider: wise_balance)
-          wise_balance.clear_skipped!
-          created_or_linked += 1
+      case action
+      when "create"
+        resolved << { balance: wise_balance, action: "create" }
+      when "link"
+        target_id = existing_account_ids[wise_balance_id]
+        account = Current.family.accounts.visible_manual.where(accountable_type: "Depository").find_by(id: target_id)
+        if account.nil?
+          setup_errors[wise_balance_id] = t("wise_items.complete_account_setup.errors.missing_target")
+        elsif provider_linked_account?(account)
+          setup_errors[wise_balance_id] = t("wise_items.complete_account_setup.errors.already_linked")
         else
-          wise_balance.mark_skipped!
-          skipped += 1
+          resolved << { balance: wise_balance, action: "link", account: account }
         end
+      when "skip"
+        resolved << { balance: wise_balance, action: "skip" }
+      else
+        # Unknown action values fall back to skip rather than silently
+        # creating a row with no clear intent.
+        resolved << { balance: wise_balance, action: "skip" }
       end
     end
 
@@ -183,6 +169,40 @@ class WiseItemsController < ApplicationController
       @existing_account_selections = existing_account_ids
       render :setup_accounts, status: :unprocessable_entity
       return
+    end
+
+    created_or_linked = 0
+    skipped = 0
+
+    # Second pass: only after we know all rows are valid do we enter the
+    # transaction. Any DB error mid-transaction rolls the whole batch back.
+    ActiveRecord::Base.transaction do
+      resolved.each do |row|
+        case row[:action]
+        when "create"
+          account = Account.create_and_sync(
+            {
+              family: Current.family,
+              name: row[:balance].name.presence || "Wise #{row[:balance].currency}",
+              balance: row[:balance].current_balance || 0,
+              currency: row[:balance].currency,
+              accountable_type: "Depository",
+              accountable_attributes: {}
+            },
+            skip_initial_sync: true
+          )
+          AccountProvider.create!(account: account, provider: row[:balance])
+          row[:balance].clear_skipped!
+          created_or_linked += 1
+        when "link"
+          AccountProvider.create!(account: row[:account], provider: row[:balance])
+          row[:balance].clear_skipped!
+          created_or_linked += 1
+        when "skip"
+          row[:balance].mark_skipped!
+          skipped += 1
+        end
+      end
     end
 
     @wise_item.update!(pending_account_setup: @wise_item.unlinked_accounts_count.positive?)
@@ -238,7 +258,11 @@ class WiseItemsController < ApplicationController
     state = SecureRandom.hex(24)
     session[:wise_oauth_state] = state
     session[:wise_oauth_reauth_id] = @wise_item.id
-    redirect_uri = Provider::Wise.oauth_redirect_uri.presence || reauth_callback_wise_items_url
+    # Reauth always uses the dedicated reauth callback URL even if a global
+    # WISE_REDIRECT_URI is configured. The reauth flow needs to know which
+    # WiseItem to update on return, and that bookkeeping only lives in this
+    # controller's session.
+    redirect_uri = reauth_callback_wise_items_url
     redirect_to Provider::Wise.oauth_authorize_url(redirect_uri: redirect_uri, state: state), allow_other_host: true
   end
 
@@ -261,7 +285,9 @@ class WiseItemsController < ApplicationController
       return
     end
 
-    redirect_uri = Provider::Wise.oauth_redirect_uri.presence || reauth_callback_wise_items_url
+    # Match the redirect_uri we used in `reauth` so Wise doesn't reject the
+    # token exchange for an unmatched callback.
+    redirect_uri = reauth_callback_wise_items_url
     provider = Provider::Wise.new(
       access_token: nil,
       base_url: Provider::Wise.oauth_base_url,

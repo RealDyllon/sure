@@ -15,6 +15,21 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "limited endpoint access"
   end
 
+  test "settings panel renders even when no wise_items local is passed and OAuth is configured" do
+    # Wipe the family's pre-existing wise items so the panel takes the
+    # "no items" branch — this is the path that used to crash because
+    # `items` was undefined when the partial was rendered directly
+    # without a `wise_items` local.
+    @family.wise_items.destroy_all
+
+    with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret") do
+      get settings_providers_url
+
+      assert_response :success
+      assert_includes response.body, "Connect with Wise"
+    end
+  end
+
   test "oauth callback error redirects with alert" do
     get oauth_callback_wise_items_url, params: { error: "access_denied", error_description: "Denied" }
 
@@ -185,6 +200,47 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
+  test "setup account with mixed valid and invalid rows rolls back everything and renders 422" do
+    item = create_wise_item
+    valid_balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")
+    invalid_balance = create_wise_balance(item, balance_id: "balance-eur", currency: "EUR")
+    account = accounts(:depository)
+    account.update!(currency: "USD")
+
+    assert_no_difference -> { Account.where(currency: "USD").count + Account.where(currency: "EUR").count } do
+      assert_no_difference -> { AccountProvider.where(provider_type: "WiseBalance").count } do
+        assert_no_difference -> { WiseBalance.where(skipped: true).count } do
+          post complete_account_setup_wise_item_url(item), params: {
+            balance_actions: {
+              valid_balance.id => "create",
+              invalid_balance.id => "link"
+            },
+            existing_account_ids: {
+              invalid_balance.id => ""
+            }
+          }
+        end
+      end
+    end
+
+    assert_response :unprocessable_entity
+    refute valid_balance.reload.skipped?
+    refute invalid_balance.reload.skipped?
+  end
+
+  test "setup account preserves user selections when rendering 422" do
+    item = create_wise_item
+    balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")
+
+    post complete_account_setup_wise_item_url(item), params: {
+      balance_actions: { balance.id => "link" },
+      existing_account_ids: { balance.id => "999" }
+    }
+
+    assert_response :unprocessable_entity
+    assert_match(/Pick an existing account/i, response.body)
+  end
+
   test "direct Wise link rejects legacy provider account" do
     item = create_wise_item
     balance = create_wise_balance(item, balance_id: "balance-usd", currency: "USD")
@@ -237,6 +293,85 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
 
     assert item.reload.scheduled_for_deletion?
     assert_redirected_to accounts_url
+  end
+
+  test "reauth loads the item and redirects to Wise using the dedicated reauth callback" do
+    with_env_overrides(
+      "WISE_CLIENT_ID" => "client-id",
+      "WISE_CLIENT_SECRET" => "client-secret",
+      "WISE_REDIRECT_URI" => "https://configured.example/wise/callback"
+    ) do
+      item = create_wise_item
+
+      get reauth_wise_item_url(item)
+
+      assert_response :redirect
+      assert_match %r{\Ahttps://wise\.com/oauth/authorize\?}, response.location
+
+      query = Rack::Utils.parse_query(URI.parse(response.location).query)
+      assert_equal "client-id", query["client_id"]
+      assert_equal reauth_callback_wise_items_url, query["redirect_uri"]
+    end
+  end
+
+  test "reauth ignores configured WISE_REDIRECT_URI and uses dedicated callback" do
+    with_env_overrides(
+      "WISE_CLIENT_ID" => "client-id",
+      "WISE_CLIENT_SECRET" => "client-secret",
+      "WISE_REDIRECT_URI" => "https://app.example/some/other/callback"
+    ) do
+      item = create_wise_item
+
+      get reauth_wise_item_url(item)
+
+      query = Rack::Utils.parse_query(URI.parse(response.location).query)
+      assert_equal reauth_callback_wise_items_url, query["redirect_uri"]
+      assert_not_equal "https://app.example/some/other/callback", query["redirect_uri"]
+    end
+  end
+
+  test "reauth requires admin" do
+    item = create_wise_item
+    sign_in users(:family_member)
+
+    get reauth_wise_item_url(item)
+
+    assert_redirected_to accounts_url
+  end
+
+  test "reauth requires OAuth configuration" do
+    with_env_overrides("WISE_CLIENT_ID" => nil, "WISE_CLIENT_SECRET" => nil) do
+      item = create_wise_item
+
+      get reauth_wise_item_url(item)
+
+      assert_redirected_to settings_providers_url
+      assert_match(/not configured/i, flash[:alert])
+    end
+  end
+
+  test "reauth_callback exchanges token using the dedicated callback URL" do
+    with_env_overrides(
+      "WISE_CLIENT_ID" => "client-id",
+      "WISE_CLIENT_SECRET" => "client-secret",
+      "WISE_REDIRECT_URI" => "https://app.example/some/other/callback"
+    ) do
+      item = create_wise_item
+      get reauth_wise_item_url(item)
+      state = Rack::Utils.parse_query(URI.parse(response.location).query).fetch("state")
+
+      stub_request(:post, "https://api.wise.com/oauth/token")
+        .with(
+          basic_auth: [ "client-id", "client-secret" ],
+          body: hash_including("grant_type" => "authorization_code", "code" => "auth-code", "redirect_uri" => reauth_callback_wise_items_url)
+        )
+        .to_return(status: 200, body: { access_token: "fresh-token", refresh_token: "fresh-refresh", expires_in: 43_199 }.to_json)
+
+      get reauth_callback_wise_items_url, params: { code: "auth-code", state: state }
+
+      assert_redirected_to accounts_url
+      assert_equal "fresh-token", item.reload.access_token
+    end
   end
 
   private

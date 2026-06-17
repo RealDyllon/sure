@@ -72,4 +72,22 @@ class WiseConversionIntentionsControllerTest < ActionDispatch::IntegrationTest
     end
     assert_redirected_to accounts_path
   end
+
+  test "refresh does not create a blank-rate snapshot when exchange rate lookup fails" do
+    intention = @family.wise_conversion_intentions.create!(
+      source_currency: "USD",
+      target_currency: "JPY",
+      target_amount: 1000,
+      desired_rate: 150
+    )
+
+    ExchangeRate.stubs(:find_or_fetch_rate).raises(StandardError, "rate service down")
+
+    assert_no_difference -> { intention.wise_conversion_snapshots.count } do
+      post refresh_wise_conversion_intention_path(intention)
+    end
+
+    assert_redirected_to accounts_path
+    assert_match(/exchange rate lookup failed/i, flash[:alert])
+  end
 end
