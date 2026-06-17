@@ -26,6 +26,9 @@ module Goals
       if @profile.save
         redirect_to goals_fire_path
       else
+        # Reload so @fire reflects persisted values, not the in-memory attributes
+        # that failed validation (e.g., blank withdrawal_rate → fi_target $0).
+        @profile.reload
         @scenario = scenario_params.to_h.symbolize_keys
         @fire = ::Goals::FireCalculator.new(
           user: Current.user,

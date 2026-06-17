@@ -37,9 +37,10 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
       "goals.emergency_fund.subtitle" => "Estimated cash runway using selected cash-like accounts.",
       "goals.emergency_fund.current" => "Current: %{months} months",
       "goals.emergency_fund.target" => "Target: %{amount}",
+      "goals.emergency_fund.target_html" => "Target: <span class=\"privacy-sensitive\">%{amount}</span>",
       "goals.debt_payoff.title" => "Debt payoff",
       "goals.debt_payoff.subtitle" => "Reliable debt balances only; available-credit style values are flagged for review.",
-      "goals.debt_payoff.estimated_months" => "Estimated payoff: %{months} months (estimated)",
+      "goals.debt_payoff.estimated_months" => "Estimated payoff: %{months} months",
       "goals.debt_payoff.balance_only" => "Balance only",
       "goals.debt_payoff.review_accounts.one" => "Review %{count} account",
       "goals.debt_payoff.review_accounts.other" => "Review %{count} accounts",
@@ -66,6 +67,20 @@ class GoalsControllerTest < ActionDispatch::IntegrationTest
     assert_response :ok
     assert_select "h1", text: "Goals"
     assert_select "[data-testid='fire-hero']"
+  end
+
+  test "dashboard renders the emergency fund target with a privacy-sensitive span via the _html locale key" do
+    @family.update!(country: "SG", currency: "SGD")
+    @family.accounts.update_all(status: "disabled")
+    profile = GoalProfile.find_or_create_for!(@user)
+    profile.update!(annual_spending_override: 48_000, emergency_fund_months: 6)
+
+    get goals_path
+
+    assert_response :ok
+    # Uses the _html variant of the key, so the span is rendered as HTML
+    # (not as escaped text). SGD formats as "$S24,000.00".
+    assert_select "span.privacy-sensitive", text: /\$S24,000\.00/
   end
 
   test "dashboard renders an edit form for saved custom goals" do

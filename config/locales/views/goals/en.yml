@@ -67,6 +67,7 @@ en:
       subtitle: Estimated cash runway using selected cash-like accounts.
       current: "Current: %{months} months"
       target: "Target: %{amount}"
+      target_html: "Target: <span class=\"privacy-sensitive\">%{amount}</span>"
       fx_unavailable: Some emergency cash needs exchange rates before it can be included.
     debt_payoff:
       title: Debt payoff
@@ -75,7 +76,7 @@ en:
         one: "Review %{count} account"
         other: "Review %{count} accounts"
       fx_unavailable: Some debt balances need exchange rates before they can be included.
-      estimated_months: "Estimated payoff: %{months} months (estimated)"
+      estimated_months: "Estimated payoff: %{months} months"
       payment_info_missing: Add a minimum payment or loan term to estimate payoff months.
       balance_only: Balance only
     savings_rate:

@@ -128,6 +128,7 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
 
     assert_not result.has_payment_info?
     assert_nil result.estimated_months
+    assert_equal 0, result.monthly_payment_money.amount
     assert_includes result.review_prompts, :payment_info_missing
   end
 
@@ -144,6 +145,33 @@ class GoalsSupportingCalculatorsTest < ActiveSupport::TestCase
     assert_not result.has_payment_info?
     assert_nil result.estimated_months
     assert_includes result.review_prompts, :fx_unavailable
+    # The payment exists, so we don't also flag payment_info_missing (the two
+    # prompts are semantically distinct).
+    assert_not_includes result.review_prompts, :payment_info_missing
+    # monthly_payment_money must be zero when the total is untrustworthy, not a
+    # misleading partial sum.
+    assert_equal 0, result.monthly_payment_money.amount
+  end
+
+  test "debt payoff surfaces both fx_unavailable and payment_info_missing when both apply" do
+    missing_payment_card = create_account(name: "Example Missing Min", balance: 2_000, accountable: CreditCard.new)
+    foreign_card = create_account(
+      name: "Example USD Card",
+      balance: 4_000,
+      currency: "USD",
+      accountable: CreditCard.new(minimum_payment: 100)
+    )
+
+    result = Goals::DebtPayoffCalculator.new(user: @user, profile: @profile).call
+
+    assert_not result.has_payment_info?
+    assert_includes result.review_prompts, :fx_unavailable
+    assert_includes result.review_prompts, :payment_info_missing
+    assert_equal 0, result.monthly_payment_money.amount
+    # The reliable accounts still include both — visibility of the accounts is
+    # independent of whether we could total their payments.
+    assert_includes result.debt_accounts, missing_payment_card
+    assert_includes result.debt_accounts, foreign_card
   end
 
   test "savings rate calculates from recent income and expenses when history exists" do

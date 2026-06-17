@@ -51,7 +51,7 @@
         <p class="text-sm text-secondary"><%= t("goals.emergency_fund.current", months: @dashboard.emergency_fund.current_months) %></p>
       <% end %>
       <p class="text-sm text-secondary">
-        <%= t("goals.emergency_fund.target", amount: (content_tag(:span, @dashboard.emergency_fund.target_money.format, class: "privacy-sensitive"))).html_safe %>
+        <%= t("goals.emergency_fund.target_html", amount: @dashboard.emergency_fund.target_money.format) %>
       </p>
       <% if @dashboard.emergency_fund.review_prompts.include?(:fx_unavailable) %>
         <p class="text-sm text-warning"><%= t("goals.emergency_fund.fx_unavailable") %></p>

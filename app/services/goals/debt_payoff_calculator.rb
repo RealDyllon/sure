@@ -25,12 +25,23 @@ module Goals
       fx_unavailable = debt_fx_unavailable || payment_fx_unavailable
       has_payment_info = !fx_unavailable && !payments_missing && reliable.any?
 
+      # When we can't compute a complete payment total, expose a zero rather than a
+      # partial sum: callers branch on has_payment_info / review_prompts, so the
+      # money value is only ever user-facing when we trust it.
+      monthly_payment_total = has_payment_info ? monthly_payments : 0.to_d
+
       estimated_months = if has_payment_info && monthly_payments.positive?
         (total_debt / monthly_payments).ceil
       end
 
       prompts = []
       prompts << :unsupported_debt if unsupported.any?
+      # :payment_info_missing means "this account has no payment at all" — distinct
+      # from an FX conversion failure on a payment that does exist. The two flags
+      # are tracked independently because they're raised by *different* accounts:
+      # one card may lack a minimum payment, another may be in an unconvertible
+      # currency. We surface both prompts so the user knows there are two
+      # separate things to fix.
       prompts << :payment_info_missing if reliable.any? && payments_missing
       prompts << :fx_unavailable if fx_unavailable
 
@@ -38,7 +49,7 @@ module Goals
         debt_accounts: reliable,
         unsupported_accounts: unsupported,
         total_debt_money: money(total_debt),
-        monthly_payment_money: money(monthly_payments),
+        monthly_payment_money: money(monthly_payment_total),
         estimated_months: estimated_months,
         has_payment_info: has_payment_info,
         review_prompts: prompts
@@ -74,7 +85,8 @@ module Goals
       # Returns [total_in_family_currency, fx_unavailable, any_missing_payment].
       # A "missing payment" is a reliable liability that does not expose a positive
       # minimum/scheduled payment in its own currency. FX failures during payment
-      # conversion count as missing too, since we cannot trust the total.
+      # conversion are reported as fx_unavailable (not missing): the payment exists,
+      # we just can't sum it into the family currency.
       def aggregate_payments(accounts)
         total = 0.to_d
         fx_unavailable = false
@@ -95,7 +107,6 @@ module Goals
             end
           rescue Money::ConversionError
             fx_unavailable = true
-            missing = true
             0.to_d
           end
 
