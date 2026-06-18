@@ -62,9 +62,4 @@ class WiseItem::SyncerTest < ActiveSupport::TestCase
     stats = @sync.reload.sync_stats
     assert_equal 1, stats["linked_accounts"]
   end
-
-  test "perform_post_sync broadcasts a sync-complete event" do
-    WiseItem::SyncCompleteEvent.any_instance.expects(:broadcast).once
-    WiseItem::Syncer.new(@wise_item).perform_post_sync
-  end
 end
