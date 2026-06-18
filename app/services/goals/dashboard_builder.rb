@@ -8,10 +8,12 @@ module Goals
     end
 
     def call
+      classifier = Goals::AccountClassifier.new(user: user, profile: profile).call
+
       Result.new(
         profile: profile,
-        fire: Goals::FireCalculator.new(user: user, profile: profile).call,
-        emergency_fund: Goals::EmergencyFundCalculator.new(user: user, profile: profile).call,
+        fire: Goals::FireCalculator.new(user: user, profile: profile, classifier: classifier).call,
+        emergency_fund: Goals::EmergencyFundCalculator.new(user: user, profile: profile, classifier: classifier).call,
         debt_payoff: Goals::DebtPayoffCalculator.new(user: user, profile: profile).call,
         savings_rate: Goals::SavingsRateCalculator.new(user: user, profile: profile).call,
         custom_goals: user.financial_goals.active.custom.ordered.map { |goal| Goals::CustomGoalCalculator.new(goal: goal, user: user).call }

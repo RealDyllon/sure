@@ -3,48 +3,48 @@
 <div class="max-w-6xl mx-auto py-6 space-y-6">
   <div>
     <h1 class="text-3xl text-primary font-medium"><%= t("goals.fire.title") %></h1>
-    <p class="text-sm text-secondary">Estimated scenario based on current data.</p>
+    <p class="text-sm text-secondary"><%= t("goals.fire.card.subtitle") %></p>
   </div>
 
   <%= render "goals/review_prompts", prompts: @fire.review_prompts %>
 
   <section data-testid="fire-timeline" class="bg-container shadow-border-xs rounded-xl p-5">
-    <h2 class="text-lg text-primary font-medium">Timeline</h2>
+    <h2 class="text-lg text-primary font-medium"><%= t("goals.fire.timeline.title") %></h2>
     <% if @fire.estimated_fi_age %>
-      <p class="text-secondary">Estimated FI age: <%= @fire.estimated_fi_age %></p>
+      <p class="text-secondary"><%= t("goals.fire.timeline.estimated_fi_age", age: @fire.estimated_fi_age) %></p>
     <% else %>
-      <p class="text-secondary">Estimated years to FI: <%= @fire.estimated_years_to_fi || "Review assumptions" %></p>
+      <p class="text-secondary"><%= t("goals.fire.timeline.estimated_years_to_fi", value: @fire.estimated_years_to_fi || t("goals.fire.timeline.review_assumptions")) %></p>
     <% end %>
   </section>
 
   <section data-testid="fire-assumptions" class="bg-container shadow-border-xs rounded-xl p-5">
-    <h2 class="text-lg text-primary font-medium">Assumptions</h2>
-    <p class="text-secondary">Bridge progress: <%= number_to_percentage(@fire.bridge_progress * 100, precision: 0) %></p>
-    <p class="text-secondary">Later bucket progress: <%= number_to_percentage(@fire.later_retirement_progress * 100, precision: 0) %></p>
-    <p class="text-secondary">CPF access age: <%= @fire.milestones[:cpf_access_age] %></p>
-    <p class="text-secondary">CPF LIFE age: <%= @fire.milestones[:cpf_life_age] %></p>
-    <p class="text-secondary">SRS access age: <%= @fire.milestones[:srs_access_age] %></p>
+    <h2 class="text-lg text-primary font-medium"><%= t("goals.fire.assumptions.title") %></h2>
+    <p class="text-secondary"><%= t("goals.fire.assumptions.bridge_progress", percent: number_to_percentage(@fire.bridge_progress * 100, precision: 0)) %></p>
+    <p class="text-secondary"><%= t("goals.fire.assumptions.later_bucket_progress", percent: number_to_percentage(@fire.later_retirement_progress * 100, precision: 0)) %></p>
+    <p class="text-secondary"><%= t("goals.fire.assumptions.cpf_access_age", age: @fire.milestones[:cpf_access_age]) %></p>
+    <p class="text-secondary"><%= t("goals.fire.assumptions.cpf_life_age", age: @fire.milestones[:cpf_life_age]) %></p>
+    <p class="text-secondary"><%= t("goals.fire.assumptions.srs_access_age", age: @fire.milestones[:srs_access_age]) %></p>
   </section>
 
   <section class="bg-container shadow-border-xs rounded-xl p-5">
-    <h2 class="text-lg text-primary font-medium mb-4">Scenario</h2>
+    <h2 class="text-lg text-primary font-medium mb-4"><%= t("goals.fire.scenario.title") %></h2>
     <% scenario = @scenario || {} %>
     <%= form_with url: preview_goals_fire_path, method: :post, class: "grid md:grid-cols-3 gap-4" do |form| %>
       <div>
-        <%= label_tag "scenario_annual_spending", "Annual spending", class: "block text-sm text-secondary mb-1" %>
+        <%= label_tag "scenario_annual_spending", t("goals.fire.scenario.annual_spending"), class: "block text-sm text-secondary mb-1" %>
         <%= number_field_tag "scenario[annual_spending]", scenario.fetch(:annual_spending, @profile.annual_spending_override), autocomplete: "off", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
-        <%= label_tag "scenario_withdrawal_rate", "Withdrawal rate", class: "block text-sm text-secondary mb-1" %>
+        <%= label_tag "scenario_withdrawal_rate", t("goals.fire.scenario.withdrawal_rate"), class: "block text-sm text-secondary mb-1" %>
         <%= number_field_tag "scenario[withdrawal_rate]", scenario.fetch(:withdrawal_rate, @profile.withdrawal_rate), step: "0.01", autocomplete: "off", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div>
-        <%= label_tag "scenario_annual_contribution", "Annual contribution", class: "block text-sm text-secondary mb-1" %>
+        <%= label_tag "scenario_annual_contribution", t("goals.fire.scenario.annual_contribution"), class: "block text-sm text-secondary mb-1" %>
         <%= number_field_tag "scenario[annual_contribution]", scenario.fetch(:annual_contribution, @profile.annual_contribution), autocomplete: "off", class: "w-full bg-surface border border-secondary rounded-lg px-3 py-2" %>
       </div>
       <div class="md:col-span-3 flex flex-wrap gap-3">
-        <%= submit_tag "Preview scenario", class: "px-4 py-2 bg-primary text-white rounded-lg" %>
-        <%= submit_tag "Save scenario", formaction: save_scenario_goals_fire_path, class: "px-4 py-2 bg-surface border border-secondary text-primary rounded-lg" %>
+        <%= submit_tag t("goals.fire.scenario.preview"), class: "px-4 py-2 bg-primary text-white rounded-lg" %>
+        <%= submit_tag t("goals.fire.scenario.save"), formaction: save_scenario_goals_fire_path, class: "px-4 py-2 bg-surface border border-secondary text-primary rounded-lg" %>
       </div>
     <% end %>
   </section>
