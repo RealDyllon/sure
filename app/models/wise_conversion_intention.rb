@@ -15,6 +15,13 @@ class WiseConversionIntention < ApplicationRecord
   before_validation :default_source_currency_from_account
   before_validation :normalize_currencies
 
+  # Always creates a snapshot row. If the exchange-rate provider is
+  # unavailable, `provider_rate` will be nil — this is the best-effort
+  # behavior for the `create` controller path, where a row without a
+  # rate is still useful state for the user. Callers that must not
+  # record a nil-rate snapshot (e.g. manual `refresh`) should call
+  # `current_exchange_rate_or_nil` and guard before
+  # `create_snapshot_with_rate`, as `WiseConversionIntentionsController#refresh` does.
   def refresh_snapshot!(observed_on: Date.current, quote_payload: nil)
     current_rate = current_exchange_rate(observed_on)
     create_snapshot_with_rate(current_rate, observed_on: observed_on, quote_payload: quote_payload)

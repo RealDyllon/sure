@@ -57,7 +57,6 @@ en:
       link: Link account
       cancel: Cancel
     wise_item:
-      provider_name: Wise
       syncing: Syncing
       error: Error
       deletion_in_progress: Deletion in progress
@@ -69,7 +68,6 @@ en:
           other: "%{count} balances synced"
         partial_sync: "%{linked_count} synced, %{unlinked_count} need setup"
       status: "Synced %{timestamp} ago"
-      status_with_summary: "Synced %{timestamp} ago • %{summary}"
       balances_need_setup_title: Wise balances need setup
       balances_need_setup:
         one: "1 Wise balance can be created, linked, or skipped."
@@ -78,10 +76,6 @@ en:
       ask_admin: "Ask the family admin to finish setting up Wise balances."
       delete: Delete
       reconnect: Reconnect
-    wise_balance:
-      type:
-        standard: Standard
-        savings: Savings
     wise_card:
       section_title: Wise cards
       default_name: Wise card
@@ -113,6 +107,7 @@ en:
     providers:
       wise:
         panel_title: "Wise (beta)"
+        connection_title: Connection
         connect: Connect with Wise
         connect_another: Connect another Wise profile
         not_configured: "Set WISE_CLIENT_ID and WISE_CLIENT_SECRET to enable OAuth full sync."

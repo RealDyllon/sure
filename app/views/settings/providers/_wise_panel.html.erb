@@ -26,7 +26,7 @@
       ) %>
     <% else %>
       <div class="p-3 rounded-lg border border-primary bg-surface text-sm text-secondary">
-        <%= t("settings.providers.wise.not_configured").html_safe %>
+        <%= t("settings.providers.wise.not_configured") %>
       </div>
     <% end %>
   </div>
@@ -61,7 +61,7 @@
     <div class="flex items-center gap-2">
       <% if items&.any? %>
         <div class="w-2 h-2 bg-success rounded-full"></div>
-        <p class="text-sm text-secondary"><%= t("settings.providers.wise.configured").html_safe %></p>
+        <p class="text-sm text-secondary"><%= t("settings.providers.wise.configured") %></p>
       <% else %>
         <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
         <p class="text-sm text-secondary"><%= t("settings.providers.wise.not_configured_short") %></p>
