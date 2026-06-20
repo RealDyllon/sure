@@ -1,0 +1,36 @@
+dylan_wise_usd:
+  wise_item: dylan_wise_oauth
+  balance_id: "1001"
+  profile_id: "100"
+  name: Wise USD
+  currency: USD
+  balance_type: STANDARD
+  current_balance: 1000.0
+  available_balance: 950.0
+  institution_metadata:
+    name: Wise
+    domain: wise.com
+    color: "#00B9FF"
+
+dylan_wise_sgd:
+  wise_item: dylan_wise_oauth
+  balance_id: "1002"
+  profile_id: "100"
+  name: Wise SGD
+  currency: SGD
+  balance_type: STANDARD
+  current_balance: 500.0
+  available_balance: 500.0
+  institution_metadata:
+    name: Wise
+    domain: wise.com
+    color: "#00B9FF"
+
+dylan_wise_savings:
+  wise_item: dylan_wise_oauth
+  balance_id: "1003"
+  profile_id: "100"
+  name: Wise Savings Jar
+  currency: USD
+  balance_type: SAVINGS
+  current_balance: 200.0

@@ -15,18 +15,38 @@ class WiseConversionIntention < ApplicationRecord
   before_validation :default_source_currency_from_account
   before_validation :normalize_currencies
 
+  # Always creates a snapshot row. If the exchange-rate provider is
+  # unavailable, `provider_rate` will be nil — this is the best-effort
+  # behavior for the `create` controller path, where a row without a
+  # rate is still useful state for the user. Callers that must not
+  # record a nil-rate snapshot (e.g. manual `refresh`) should call
+  # `current_exchange_rate_or_nil` and guard before
+  # `create_snapshot_with_rate`, as `WiseConversionIntentionsController#refresh` does.
   def refresh_snapshot!(observed_on: Date.current, quote_payload: nil)
     current_rate = current_exchange_rate(observed_on)
+    create_snapshot_with_rate(current_rate, observed_on: observed_on, quote_payload: quote_payload)
+  end
 
+  # Returns the current exchange rate, or nil if the rate provider is
+  # unavailable. Callers can use this to decide whether to insert a new
+  # snapshot row or surface an error to the user.
+  def current_exchange_rate_or_nil(observed_on: Date.current)
+    current_exchange_rate(observed_on)
+  end
+
+  # Inserts a snapshot row when the caller has already resolved a rate
+  # (e.g. from `current_exchange_rate_or_nil`). Centralizes the field list
+  # so the `create` and `refresh` controllers stay thin and consistent.
+  def create_snapshot_with_rate(rate, observed_on: Date.current, quote_payload: nil)
     wise_conversion_snapshots.create!(
       quote_rate: quote_rate_from(quote_payload),
       quote_fee_amount: quote_fee_amount_from(quote_payload),
       quote_fee_currency: quote_fee_currency_from(quote_payload),
-      provider_rate: current_rate,
+      provider_rate: rate,
       provider_name: "exchange_rate",
-      rate_30d_percentile: percentile_for(current_rate, observed_on, 30),
-      rate_90d_percentile: percentile_for(current_rate, observed_on, 90),
-      rate_365d_percentile: percentile_for(current_rate, observed_on, 365),
+      rate_30d_percentile: percentile_for(rate, observed_on, 30),
+      rate_90d_percentile: percentile_for(rate, observed_on, 90),
+      rate_365d_percentile: percentile_for(rate, observed_on, 365),
       observed_on: observed_on,
       raw_quote_payload: quote_payload
     )
@@ -79,6 +99,9 @@ class WiseConversionIntention < ApplicationRecord
         date: observed_on,
         cache: true
       )&.rate
+    rescue => e
+      Rails.logger.warn("WiseConversionIntention: exchange rate lookup failed for #{source_currency}->#{target_currency} on #{observed_on}: #{e.class} - #{e.message}")
+      nil
     end
 
     def percentile_for(current_rate, observed_on, days)

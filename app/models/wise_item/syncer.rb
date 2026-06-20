@@ -38,6 +38,10 @@ class WiseItem::Syncer
   end
 
   def perform_post_sync
-    # no-op
+    # no-op. Sync#perform_post_sync already calls
+    # syncable.broadcast_sync_complete, which delegates to
+    # WiseItem::SyncCompleteEvent via Syncable#sync_broadcaster.
+    # Broadcasting here would fire the event a second time and
+    # re-run the family's recurring-transaction identification.
   end
 end

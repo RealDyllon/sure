@@ -118,24 +118,32 @@ class WiseItem < ApplicationRecord
   end
 
   def connected_institutions
-    [ { "name" => "Wise", "domain" => "wise.com", "color" => "#00B9FF" } ]
+    institutions = wise_balances
+      .where.not(institution_metadata: nil)
+      .map { |balance| balance.institution_metadata }
+      .compact
+      .uniq
+    institutions = [ { "name" => "Wise", "domain" => "wise.com", "color" => "#00B9FF" } ] if institutions.empty?
+    institutions
   end
 
   def institution_summary
     if wise_balances.any?
       "#{linked_accounts_count} of #{total_accounts_count} #{'balance'.pluralize(total_accounts_count)} linked"
     else
-      "Wise"
+      connected_institutions.first&.dig("name") || "Wise"
     end
   end
 
   def sync_status_summary
     if total_accounts_count.zero?
-      "No balances found"
+      I18n.t("wise_items.wise_item.sync_status.no_balances")
     elsif unlinked_accounts_count.zero?
-      "#{linked_accounts_count} #{'balance'.pluralize(linked_accounts_count)} synced"
+      I18n.t("wise_items.wise_item.sync_status.all_synced", count: linked_accounts_count)
     else
-      "#{linked_accounts_count} synced, #{unlinked_accounts_count} need setup"
+      I18n.t("wise_items.wise_item.sync_status.partial_sync",
+        linked_count: linked_accounts_count,
+        unlinked_count: unlinked_accounts_count)
     end
   end
 

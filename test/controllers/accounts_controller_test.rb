@@ -199,6 +199,7 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "Wise skipped balances do not show setup required CTA on index" do
+    @user.family.wise_items.destroy_all
     wise_item = @user.family.wise_items.create!(
       name: "Wise Connection",
       auth_mode: "oauth",
@@ -217,7 +218,7 @@ class AccountsControllerTest < ActionDispatch::IntegrationTest
     get accounts_path
 
     assert_response :success
-    assert_no_match "Wise balances need setup", response.body
+    assert_no_match I18n.t("wise_items.wise_item.balances_need_setup_title"), response.body
   end
 
   test "toggle_active disables and re-enables an account" do

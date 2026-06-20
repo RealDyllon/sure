@@ -1,10 +1,10 @@
-<% content_for :title, "Set Up Wise Balances" %>
+<% content_for :title, t("wise_items.setup_accounts.title") %>
 
 <%= render DS::Dialog.new do |dialog| %>
-  <% dialog.with_header(title: "Set up Wise balances") do %>
+  <% dialog.with_header(title: t("wise_items.setup_accounts.header")) do %>
     <div class="flex items-center gap-2">
       <%= icon "wallet-cards", class: "text-primary" %>
-      <span class="text-primary">Create one Sure account for each Wise currency balance.</span>
+      <span class="text-primary"><%= t("wise_items.setup_accounts.intro") %></span>
     </div>
   <% end %>
 
@@ -18,21 +18,28 @@
         <% if @api_error.present? %>
           <div class="p-8 flex flex-col gap-3 items-center justify-center text-center">
             <%= icon "alert-circle", size: "lg", class: "text-destructive" %>
-            <p class="text-primary font-medium">Could not fetch Wise balances</p>
+            <p class="text-primary font-medium"><%= t("wise_items.setup_accounts.api_error_title") %></p>
             <p class="text-destructive text-sm"><%= @api_error %></p>
           </div>
         <% elsif @wise_balances.empty? %>
           <div class="p-8 flex flex-col gap-3 items-center justify-center text-center">
             <%= icon "check-circle", size: "lg", class: "text-success" %>
-            <p class="text-primary font-medium">All Wise balances are set up</p>
-            <p class="text-secondary text-sm">There are no unlinked STANDARD Wise balances.</p>
+            <p class="text-primary font-medium"><%= t("wise_items.setup_accounts.empty_title") %></p>
+            <p class="text-secondary text-sm"><%= t("wise_items.setup_accounts.empty_subtitle") %></p>
           </div>
         <% else %>
           <div class="bg-surface border border-primary p-4 rounded-lg text-sm text-secondary">
-            Only Wise STANDARD balances are shown. Cards stay inside the Wise provider item and are not created as Sure accounts.
+            <%= t("wise_items.setup_accounts.info") %>
           </div>
 
           <% @wise_balances.each do |wise_balance| %>
+            <%# All three lookups use stringified balance ids because     %>
+            <%# `params[:balance_actions]` and friends arrive as strings.  %>
+            <% balance_key = wise_balance.id.to_s %>
+            <% row_default = (@default_actions && (@default_actions[balance_key] || @default_actions[wise_balance.id])) || "create" %>
+            <% row_selection = (@action_selections && (@action_selections[balance_key] || @action_selections[wise_balance.id])) || row_default %>
+            <% selected_existing_id = @existing_account_selections && (@existing_account_selections[balance_key] || @existing_account_selections[wise_balance.id]) %>
+            <% matching_account = @existing_accounts.find { |acct| acct.currency == wise_balance.currency } %>
             <div class="border border-primary rounded-lg p-4 space-y-3">
               <div class="flex items-center justify-between gap-3">
                 <div>
@@ -43,19 +50,39 @@
 
               <div class="grid gap-3 md:grid-cols-2">
                 <div>
-                  <%= label_tag "balance_actions[#{wise_balance.id}]", "Action", class: "block text-sm font-medium text-primary mb-2" %>
+                  <%= label_tag "balance_actions[#{wise_balance.id}]", t("wise_items.setup_accounts.action_label"), class: "block text-sm font-medium text-primary mb-2" %>
                   <%= select_tag "balance_actions[#{wise_balance.id}]",
-                        options_for_select([ [ "Skip", "skip" ], [ "Create depository account", "create" ], [ "Link existing depository account", "link" ] ], "skip"),
+                        options_for_select([
+                          [ t("wise_items.setup_accounts.actions.create"), "create" ],
+                          [ t("wise_items.setup_accounts.actions.link"), "link" ],
+                          [ t("wise_items.setup_accounts.actions.skip"), "skip" ]
+                        ], row_selection),
                         class: "appearance-none bg-container border border-primary rounded-md px-3 py-2 text-sm leading-6 text-primary focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none w-full" %>
                 </div>
                 <div>
-                  <%= label_tag "existing_account_ids[#{wise_balance.id}]", "Existing account", class: "block text-sm font-medium text-primary mb-2" %>
+                  <%# Pre-select the claim-aware default account for this %>
+                  <%# row. The controller tracks which accounts have been %>
+                  <%# claimed by earlier link rows in the same render, %>
+                  <%# so two same-currency balances default to two %>
+                  <%# distinct accounts. Fall back to the first matching %>
+                  <%# account (and then to the user's previous selection) %>
+                  <%# for any caller that doesn't pass the default map. %>
+                  <% default_account_id = (@default_existing_account_ids && (@default_existing_account_ids[balance_key] || @default_existing_account_ids[wise_balance.id])) || (matching_account && matching_account.id) %>
+                  <%= label_tag "existing_account_ids[#{wise_balance.id}]", t("wise_items.setup_accounts.existing_account_label"), class: "block text-sm font-medium text-primary mb-2" %>
                   <%= select_tag "existing_account_ids[#{wise_balance.id}]",
-                        options_from_collection_for_select(@existing_accounts, :id, :name),
-                        include_blank: "Choose only when linking",
+                        options_from_collection_for_select(@existing_accounts, :id, :name, selected_existing_id || default_account_id),
+                        include_blank: t("wise_items.setup_accounts.existing_account_prompt"),
                         class: "appearance-none bg-container border border-primary rounded-md px-3 py-2 text-sm leading-6 text-primary focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none w-full" %>
                 </div>
               </div>
+
+              <% row_error = @setup_errors && (@setup_errors[balance_key] || @setup_errors[wise_balance.id]) %>
+              <% if row_error %>
+                <p class="text-sm text-destructive flex items-center gap-1">
+                  <%= icon "alert-circle", size: "sm" %>
+                  <%= row_error %>
+                </p>
+              <% end %>
             </div>
           <% end %>
         <% end %>
@@ -63,7 +90,7 @@
 
       <div class="flex gap-3">
         <%= render DS::Button.new(
-          text: "Apply setup",
+          text: t("wise_items.setup_accounts.apply"),
           variant: "primary",
           icon: "plus",
           type: "submit",
@@ -71,7 +98,7 @@
           disabled: @api_error.present? || @wise_balances.empty?
         ) %>
         <%= render DS::Link.new(
-          text: "Cancel",
+          text: t("wise_items.setup_accounts.cancel"),
           variant: "secondary",
           href: accounts_path
         ) %>

@@ -1,10 +1,10 @@
 <%= turbo_frame_tag "modal" do %>
   <%= render DS::Dialog.new do |dialog| %>
-    <% dialog.with_header(title: "Link #{@account.name} to Wise") %>
+    <% dialog.with_header(title: t("wise_items.select_existing_account.title", account_name: @account.name)) %>
 
     <% dialog.with_body do %>
       <div class="space-y-4">
-        <p class="text-sm text-secondary">Choose an unlinked Wise balance for this depository account.</p>
+        <p class="text-sm text-secondary"><%= t("wise_items.select_existing_account.intro") %></p>
 
         <form action="<%= link_existing_account_wise_items_path %>" method="post" class="space-y-4" data-turbo-frame="_top">
           <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
@@ -24,10 +24,10 @@
           </div>
 
           <div class="flex gap-2 justify-end pt-4">
-            <%= link_to "Cancel", @return_to || accounts_path,
+            <%= link_to t("wise_items.select_existing_account.cancel"), @return_to || accounts_path,
                 class: "inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg text-primary button-bg-secondary hover:button-bg-secondary-hover",
                 data: { turbo_frame: "_top", action: "DS--dialog#close" } %>
-            <%= submit_tag "Link account",
+            <%= submit_tag t("wise_items.select_existing_account.link"),
                 class: "inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg text-inverse bg-inverse hover:bg-inverse-hover disabled:button-bg-disabled" %>
           </div>
         </form>

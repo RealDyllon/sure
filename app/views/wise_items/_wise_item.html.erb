@@ -22,7 +22,7 @@
           <div class="flex items-center gap-2">
             <%= tag.p wise_item.name, class: "font-medium text-primary" %>
             <% if wise_item.scheduled_for_deletion? %>
-              <p class="text-destructive text-sm animate-pulse">Deletion in progress</p>
+              <p class="text-destructive text-sm animate-pulse"><%= t("wise_items.wise_item.deletion_in_progress") %></p>
             <% end %>
           </div>
           <p class="text-xs text-secondary"><%= wise_item.institution_summary %></p>
@@ -30,22 +30,22 @@
           <% if wise_item.syncing? %>
             <div class="text-secondary flex items-center gap-1">
               <%= icon "loader", size: "sm", class: "animate-spin" %>
-              <%= tag.span "Syncing" %>
+              <%= tag.span t("wise_items.wise_item.syncing") %>
             </div>
           <% elsif wise_item.sync_error.present? %>
             <div class="text-secondary flex items-center gap-1">
               <%= render DS::Tooltip.new(text: wise_item.sync_error, icon: "alert-circle", size: "sm", color: "destructive") %>
-              <%= tag.span "Error", class: "text-destructive" %>
+              <%= tag.span t("wise_items.wise_item.error"), class: "text-destructive" %>
             </div>
           <% else %>
             <p class="text-secondary">
               <% if wise_item.last_synced_at %>
-                Synced <%= time_ago_in_words(wise_item.last_synced_at) %> ago
+                <%= t("wise_items.wise_item.status", timestamp: time_ago_in_words(wise_item.last_synced_at)) %>
                 <% if wise_item.sync_status_summary.present? %>
                   • <%= wise_item.sync_status_summary %>
                 <% end %>
               <% else %>
-                Never synced
+                <%= t("wise_items.wise_item.never_synced") %>
               <% end %>
             </p>
           <% end %>
@@ -66,15 +66,29 @@
             <% if unlinked_count.to_i > 0 %>
               <% menu.with_item(
                 variant: "link",
-                text: "Set up balances",
+                text: t("wise_items.wise_item.set_up_balances"),
                 icon: "settings",
                 href: setup_accounts_wise_item_path(wise_item),
                 frame: :modal
               ) %>
             <% end %>
+            <% if wise_item.requires_update? %>
+              <%# External OAuth redirect — the controller immediately %>
+              <%# 302s to wise.com, so a top-level navigation is %>
+              <%# required. Without `turbo: false`, Turbo intercepts %>
+              <%# the click and handles the redirect inside a fetch %>
+              <%# visit, which can swallow the external navigation. %>
+              <% menu.with_item(
+                variant: "link",
+                text: t("wise_items.wise_item.reconnect"),
+                icon: "refresh-cw",
+                href: reauth_wise_item_path(wise_item),
+                data: { turbo: false }
+              ) %>
+            <% end %>
             <% menu.with_item(
               variant: "button",
-              text: "Delete",
+              text: t("wise_items.wise_item.delete"),
               icon: "trash-2",
               href: wise_item_path(wise_item),
               method: :delete,
@@ -95,19 +109,19 @@
           <div class="border border-primary rounded-lg p-3">
             <div class="flex items-center gap-2 mb-3">
               <%= icon "credit-card", size: "sm" %>
-              <p class="text-sm font-medium text-primary">Wise cards</p>
+              <p class="text-sm font-medium text-primary"><%= t("wise_items.wise_card.section_title") %></p>
             </div>
             <div class="grid gap-2 md:grid-cols-2">
               <% wise_item.wise_cards.each do |card| %>
                 <div class="rounded-lg bg-surface p-3 text-sm">
                   <div class="flex items-center justify-between gap-2">
-                    <p class="font-medium text-primary"><%= card.card_type.to_s.titleize.presence || "Wise card" %></p>
+                    <p class="font-medium text-primary"><%= card.card_type.to_s.titleize.presence || t("wise_items.wise_card.default_name") %></p>
                     <span class="text-xs text-secondary"><%= card.status.to_s.titleize.presence || "Unknown" %></span>
                   </div>
                   <p class="text-secondary mt-1">
-                    <% if card.last_four.present? %>•••• <%= card.last_four %><% else %>No card number details stored<% end %>
+                    <% if card.last_four.present? %>•••• <%= card.last_four %><% else %><%= t("wise_items.wise_card.no_card_number") %><% end %>
                     <% if card.expiry_month.present? && card.expiry_year.present? %>
-                      • Expires <%= card.expiry_month.to_s.rjust(2, "0") %>/<%= card.expiry_year %>
+                      • <%= t("wise_items.wise_card.expires", month: card.expiry_month.to_s.rjust(2, "0"), year: card.expiry_year) %>
                     <% end %>
                   </p>
                 </div>
@@ -129,15 +143,19 @@
 
         <% if unlinked_count.to_i > 0 %>
           <div class="p-4 flex flex-col gap-3 items-center justify-center">
-            <p class="text-primary font-medium text-sm">Wise balances need setup</p>
-            <p class="text-secondary text-sm"><%= unlinked_count %> Wise <%= "balance".pluralize(unlinked_count) %> can be created, linked, or skipped.</p>
-            <%= render DS::Link.new(
-              text: "Set up balances",
-              icon: "settings",
-              variant: "primary",
-              href: setup_accounts_wise_item_path(wise_item),
-              frame: :modal
-            ) %>
+            <p class="text-primary font-medium text-sm"><%= t("wise_items.wise_item.balances_need_setup_title") %></p>
+            <p class="text-secondary text-sm"><%= t("wise_items.wise_item.balances_need_setup", count: unlinked_count) %></p>
+            <% if Current.user&.admin? %>
+              <%= render DS::Link.new(
+                text: t("wise_items.wise_item.set_up_balances"),
+                icon: "settings",
+                variant: "primary",
+                href: setup_accounts_wise_item_path(wise_item),
+                frame: :modal
+              ) %>
+            <% else %>
+              <p class="text-xs text-secondary italic"><%= t("wise_items.wise_item.ask_admin") %></p>
+            <% end %>
           </div>
         <% end %>
 
@@ -145,7 +163,7 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <%= icon "repeat", size: "sm" %>
-              <p class="text-sm font-medium text-primary">Conversion plans</p>
+              <p class="text-sm font-medium text-primary"><%= t("wise_items.conversion_plans.section_title") %></p>
             </div>
           </div>
 
@@ -156,26 +174,26 @@
                 <% snapshot = plan.latest_snapshot %>
                 <div class="rounded-lg bg-surface p-3 text-sm flex items-center justify-between gap-3">
                   <div>
-                    <p class="font-medium text-primary"><%= plan.source_currency %> to <%= plan.target_currency %></p>
+                    <p class="font-medium text-primary"><%= t("wise_items.conversion_plans.from_to", source: plan.source_currency, target: plan.target_currency) %></p>
                     <p class="text-secondary">
                       <%= plan.target_status_label %>
                       <% if snapshot&.provider_rate.present? %>
-                        • Rate <%= snapshot.provider_rate %>
+                        • <%= t("wise_items.conversion_plans.rate", rate: snapshot.provider_rate) %>
                       <% end %>
                       <% if snapshot&.rate_90d_percentile.present? %>
-                        • 90d percentile <%= snapshot.rate_90d_percentile %>%
+                        • <%= t("wise_items.conversion_plans.percentile_90d", percentile: snapshot.rate_90d_percentile) %>
                       <% end %>
                     </p>
                   </div>
                   <div class="flex items-center gap-2">
-                    <%= button_to "Refresh", refresh_wise_conversion_intention_path(plan), method: :post, class: "text-sm link" %>
-                    <%= button_to "Delete", wise_conversion_intention_path(plan), method: :delete, class: "text-sm text-destructive" %>
+                    <%= button_to t("wise_items.conversion_plans.refresh"), refresh_wise_conversion_intention_path(plan), method: :post, class: "text-sm link" %>
+                    <%= button_to t("wise_items.conversion_plans.delete"), wise_conversion_intention_path(plan), method: :delete, class: "text-sm text-destructive" %>
                   </div>
                 </div>
               <% end %>
             </div>
           <% else %>
-            <p class="text-sm text-secondary">No conversion plans yet.</p>
+            <p class="text-sm text-secondary"><%= t("wise_items.conversion_plans.none") %></p>
           <% end %>
 
           <% if Current.user&.admin? %>
@@ -188,15 +206,15 @@
                     wise_item.accounts,
                     :id,
                     :name,
-                    { include_blank: "Source account" },
+                    { include_blank: t("wise_items.conversion_plans.new.source_account_placeholder") },
                     class: "appearance-none bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary md:col-span-2" %>
-              <%= form.text_field :source_currency, placeholder: "From", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
-              <%= form.text_field :target_currency, placeholder: "To", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
-              <%= form.number_field :target_amount, step: "0.01", placeholder: "Amount", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
-              <%= form.number_field :desired_rate, step: "0.0001", placeholder: "Target rate", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
+              <%= form.text_field :source_currency, placeholder: t("wise_items.conversion_plans.new.from_placeholder"), class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
+              <%= form.text_field :target_currency, placeholder: t("wise_items.conversion_plans.new.to_placeholder"), class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
+              <%= form.number_field :target_amount, step: "0.01", placeholder: t("wise_items.conversion_plans.new.amount_placeholder"), class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
+              <%= form.number_field :desired_rate, step: "0.0001", placeholder: t("wise_items.conversion_plans.new.target_rate_placeholder"), class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary" %>
               <%= form.date_field :deadline_on, class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary md:col-span-2" %>
-              <%= form.text_field :notes, placeholder: "Notes", class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary md:col-span-3" %>
-              <%= form.submit "Save plan", class: "rounded-lg px-3 py-2 text-sm font-medium text-inverse button-bg-primary" %>
+              <%= form.text_field :notes, placeholder: t("wise_items.conversion_plans.new.notes_placeholder"), class: "bg-container border border-primary rounded-md px-3 py-2 text-sm text-primary md:col-span-3" %>
+              <%= form.submit t("wise_items.conversion_plans.new.submit"), class: "rounded-lg px-3 py-2 text-sm font-medium text-inverse button-bg-primary" %>
             <% end %>
           <% end %>
         </div>

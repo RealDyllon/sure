@@ -1,0 +1,12 @@
+dylan_wise_card:
+  wise_item: dylan_wise_oauth
+  wise_card_id: "card-token-1"
+  wise_balance_id: "1001"
+  profile_id: "100"
+  name: Wise virtual card
+  card_type: VIRTUAL
+  status: ACTIVE
+  last_four: "4242"
+  expiry_month: 12
+  expiry_year: 2030
+  currency: USD

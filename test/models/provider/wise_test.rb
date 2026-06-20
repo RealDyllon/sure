@@ -78,4 +78,84 @@ class Provider::WiseTest < ActiveSupport::TestCase
 
     assert_equal :unauthorized, error.error_type
   end
+
+  test "falls back to the default message when the error body is a top-level array" do
+    # A misbehaving proxy can return `["some error"]` or `["oops"]`
+    # instead of an object. The old parser indexed `[:error]` on the
+    # array and raised `TypeError`, which 500s the importer/reauth
+    # callback before WiseError can be built.
+    stub_request(:get, "https://api.wise.com/v1/profiles")
+      .to_return(status: 401, body: '["token rejected"]')
+
+    error = assert_raises Provider::Wise::WiseError do
+      Provider::Wise.new(access_token: "bad-token").get_profiles
+    end
+
+    assert_equal :unauthorized, error.error_type
+    assert_equal "Wise authorization failed. The token may be expired or revoked.", error.message
+  end
+
+  test "falls back to the default message when the error body is a top-level string" do
+    stub_request(:get, "https://api.wise.com/v1/profiles")
+      .to_return(status: 403, body: '"forbidden"')
+
+    error = assert_raises Provider::Wise::WiseError do
+      Provider::Wise.new(access_token: "bad-token").get_profiles
+    end
+
+    assert_equal :access_forbidden, error.error_type
+  end
+
+  test "surfaces Wise's error message in WiseError" do
+    stub_request(:get, "https://api.wise.com/v1/profiles")
+      .to_return(status: 401, body: { error: "Token has expired" }.to_json)
+
+    error = assert_raises Provider::Wise::WiseError do
+      Provider::Wise.new(access_token: "stale-token").get_profiles
+    end
+
+    assert_equal "Token has expired", error.message
+    assert_equal :unauthorized, error.error_type
+  end
+
+  test "connection_configs returns [] when no configured Wise item exists" do
+    with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret") do
+      family = families(:empty)
+
+      assert_empty Provider::WiseAdapter.connection_configs(family: family)
+    end
+  end
+
+  test "connection_configs returns a balance-setup config when a configured item exists" do
+    with_env_overrides("WISE_CLIENT_ID" => "client-id", "WISE_CLIENT_SECRET" => "client-secret") do
+      family = families(:dylan_family)
+      wise_items(:dylan_wise_oauth)
+
+      configs = Provider::WiseAdapter.connection_configs(family: family)
+
+      assert_equal 1, configs.size
+      assert_equal "wise", configs.first[:key]
+      assert_match(/currency balance/i, configs.first[:description])
+    end
+  end
+
+  test "connection_configs returns a balance-setup config for a personal-token-only item even when OAuth env is unset" do
+    with_env_overrides("WISE_CLIENT_ID" => nil, "WISE_CLIENT_SECRET" => nil) do
+      family = families(:dylan_family)
+      wise_items(:dylan_wise_personal)
+
+      configs = Provider::WiseAdapter.connection_configs(family: family)
+
+      assert_equal 1, configs.size
+      assert_equal "wise", configs.first[:key]
+    end
+  end
+
+  test "connection_configs returns [] when OAuth is not configured" do
+    with_env_overrides("WISE_CLIENT_ID" => nil, "WISE_CLIENT_SECRET" => nil) do
+      family = families(:empty)
+
+      assert_empty Provider::WiseAdapter.connection_configs(family: family)
+    end
+  end
 end

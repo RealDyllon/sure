@@ -220,6 +220,29 @@
       "note": "Intentional redirect to Wise's external OAuth authorization page; URL is generated from configured Wise auth host and a server-generated OAuth state."
     },
     {
+      "warning_type": "Redirect",
+      "warning_code": 18,
+      "fingerprint": "9edf6326bdc513d9077c2df1ec22979279fb025e6a22a4d5ff2745de8451a8bf",
+      "check_name": "Redirect",
+      "message": "Possible unprotected redirect",
+      "file": "app/controllers/wise_items_controller.rb",
+      "line": 288,
+      "link": "https://brakemanscanner.org/docs/warning_types/redirect/",
+      "code": "redirect_to(Provider::Wise.oauth_authorize_url(:redirect_uri => ((Provider::Wise.oauth_reauth_redirect_uri or (Provider::Wise.oauth_redirect_uri or reauth_callback_wise_items_url))), :state => SecureRandom.hex(24), :auth_url => Current.family.wise_items.find(params[:id]).effective_auth_url), :allow_other_host => true)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "WiseItemsController",
+        "method": "reauth"
+      },
+      "user_input": "Provider::Wise.oauth_authorize_url(:redirect_uri => ((Provider::Wise.oauth_reauth_redirect_uri or (Provider::Wise.oauth_redirect_uri or reauth_callback_wise_items_url))), :state => SecureRandom.hex(24), :auth_url => Current.family.wise_items.find(params[:id]).effective_auth_url)",
+      "confidence": "Weak",
+      "cwe_id": [
+        601
+      ],
+      "note": "Intentional redirect to Wise's external OAuth authorization page; URL is generated from the item's stored Wise auth host (so sandbox/custom-proxy items stay on their original environment), the operator-configured reauth callback URL (with fallback chain: WISE_REAUTH_REDIRECT_URI → WISE_REDIRECT_URI → Rails-generated reauth callback), and a server-generated OAuth state."
+    },
+    {
       "warning_type": "Unmaintained Dependency",
       "warning_code": 122,
       "fingerprint": "21ab0fe00fdd5899ffc405cff75aadb91b805ee996a614f7e27b08a287e9062d",

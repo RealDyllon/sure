@@ -22,6 +22,16 @@ class Provider::Wise
     ENV["WISE_REDIRECT_URI"].presence || Setting["wise_redirect_uri"].presence
   end
 
+  # Separate override for the reauth flow's callback URL. Wise requires the
+  # `redirect_uri` to match the value registered in the developer console
+  # exactly, so deployments behind a reverse proxy or on a custom domain
+  # that set `WISE_REDIRECT_URI` to a public URL also need the reauth flow
+  # to point there. If unset, the controller falls back to `oauth_redirect_uri`
+  # and finally to the Rails-generated `reauth_callback_wise_items_url`.
+  def self.oauth_reauth_redirect_uri
+    ENV["WISE_REAUTH_REDIRECT_URI"].presence || Setting["wise_reauth_redirect_uri"].presence
+  end
+
   def self.oauth_auth_url
     ENV["WISE_AUTH_URL"].presence || Setting["wise_auth_url"].presence || DEFAULT_AUTH_URL
   end
@@ -34,7 +44,7 @@ class Provider::Wise
     oauth_client_id.present? && oauth_client_secret.present?
   end
 
-  def self.oauth_authorize_url(redirect_uri:, state:)
+  def self.oauth_authorize_url(redirect_uri:, state:, auth_url: nil)
     query = {
       response_type: "code",
       client_id: oauth_client_id,
@@ -42,7 +52,7 @@ class Provider::Wise
       state: state
     }
 
-    "#{oauth_auth_url}/oauth/authorize?#{URI.encode_www_form(query)}"
+    "#{auth_url.presence || oauth_auth_url}/oauth/authorize?#{URI.encode_www_form(query)}"
   end
 
   def initialize(access_token:, refresh_token: nil, base_url: DEFAULT_BASE_URL, auth_url: DEFAULT_AUTH_URL, client_id: nil, client_secret: nil)
@@ -159,20 +169,43 @@ class Provider::Wise
       when 200, 201
         JSON.parse(response.body.presence || "{}", symbolize_names: true)
       when 400
-        raise WiseError.new("Bad request to Wise API: #{response.body}", :bad_request)
+        raise WiseError.new(parse_error_message(response.body, default: "Bad request to Wise API"), :bad_request)
       when 401
-        raise WiseError.new("Wise authorization failed", :unauthorized)
+        raise WiseError.new(parse_error_message(response.body, default: "Wise authorization failed. The token may be expired or revoked."), :unauthorized)
       when 403
-        raise WiseError.new("Wise access forbidden", :access_forbidden)
+        raise WiseError.new(parse_error_message(response.body, default: "Wise access forbidden. The token may lack the required scopes."), :access_forbidden)
       when 404
         raise WiseError.new("Wise resource not found", :not_found)
       when 429
-        raise WiseError.new("Wise rate limit exceeded", :rate_limited)
+        raise WiseError.new("Wise rate limit exceeded. Please try again later.", :rate_limited)
       else
         raise WiseError.new("Wise API error: #{response.code} #{response.body}", :api_error)
       end
     rescue JSON::ParserError => e
       raise WiseError.new("Invalid Wise response: #{e.message}", :invalid_response)
+    end
+
+    # Best-effort: pull a human-readable error message out of the response
+    # body. Wise's error format is not strongly typed, so we look for a
+    # handful of known keys before falling back to the raw body. Proxies
+    # sometimes return a top-level array or string instead of an object,
+    # in which case we cannot read symbol keys off it.
+    def parse_error_message(body, default:)
+      parsed = JSON.parse(body.to_s, symbolize_names: true)
+      return default unless parsed.is_a?(Hash)
+
+      message = parsed[:error] || parsed[:message] || parsed[:error_description]
+      return message if message.is_a?(String) && message.present?
+
+      # Wise occasionally returns errors as a list under `errors`.
+      first = Array(parsed[:errors]).first
+      if first.is_a?(Hash) && first[:message].present?
+        return first[:message]
+      end
+
+      default
+    rescue JSON::ParserError
+      default
     end
 
     def url_escape(value)
