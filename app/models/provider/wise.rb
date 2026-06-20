@@ -22,6 +22,16 @@ class Provider::Wise
     ENV["WISE_REDIRECT_URI"].presence || Setting["wise_redirect_uri"].presence
   end
 
+  # Separate override for the reauth flow's callback URL. Wise requires the
+  # `redirect_uri` to match the value registered in the developer console
+  # exactly, so deployments behind a reverse proxy or on a custom domain
+  # that set `WISE_REDIRECT_URI` to a public URL also need the reauth flow
+  # to point there. If unset, the controller falls back to `oauth_redirect_uri`
+  # and finally to the Rails-generated `reauth_callback_wise_items_url`.
+  def self.oauth_reauth_redirect_uri
+    ENV["WISE_REAUTH_REDIRECT_URI"].presence || Setting["wise_reauth_redirect_uri"].presence
+  end
+
   def self.oauth_auth_url
     ENV["WISE_AUTH_URL"].presence || Setting["wise_auth_url"].presence || DEFAULT_AUTH_URL
   end

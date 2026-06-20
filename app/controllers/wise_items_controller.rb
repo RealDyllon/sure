@@ -270,11 +270,17 @@ class WiseItemsController < ApplicationController
     state = SecureRandom.hex(24)
     session[:wise_oauth_state] = state
     session[:wise_oauth_reauth_id] = @wise_item.id
-    # Reauth always uses the dedicated reauth callback URL even if a global
-    # WISE_REDIRECT_URI is configured. The reauth flow needs to know which
-    # WiseItem to update on return, and that bookkeeping only lives in this
-    # controller's session.
-    redirect_uri = reauth_callback_wise_items_url
+    # The reauth flow uses the same callback-URL fallback chain as the
+    # initial OAuth flow (operator override → shared WISE_REDIRECT_URI →
+    # the Rails-generated reauth callback). Wise requires the redirect_uri
+    # to match the registered callback exactly, so honoring WISE_REDIRECT_URI
+    # here matters for any deployment that registered a public URL different
+    # from what Rails would generate. The reauth-vs-oauth disambiguation is
+    # recovered from session state on the callback side, so the registered
+    # URL does not need to point at a separate action.
+    redirect_uri = Provider::Wise.oauth_reauth_redirect_uri.presence ||
+                   Provider::Wise.oauth_redirect_uri.presence ||
+                   reauth_callback_wise_items_url
     # Use the item's stored OAuth hosts (sandbox, custom proxy, etc.)
     # rather than the current global defaults, so a reauth keeps working
     # when the item was originally connected to a different environment
@@ -309,7 +315,9 @@ class WiseItemsController < ApplicationController
     # token exchange for an unmatched callback. The token exchange goes
     # against the item's stored base URL so the new tokens are scoped to
     # the same environment as the original connection.
-    redirect_uri = reauth_callback_wise_items_url
+    redirect_uri = Provider::Wise.oauth_reauth_redirect_uri.presence ||
+                   Provider::Wise.oauth_redirect_uri.presence ||
+                   reauth_callback_wise_items_url
     provider = Provider::Wise.new(
       access_token: nil,
       base_url: wise_item.effective_base_url,

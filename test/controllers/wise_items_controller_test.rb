@@ -490,7 +490,7 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to accounts_url
   end
 
-  test "reauth loads the item and redirects to Wise using the dedicated reauth callback" do
+  test "reauth loads the item and redirects to Wise using the configured WISE_REDIRECT_URI" do
     with_env_overrides(
       "WISE_CLIENT_ID" => "client-id",
       "WISE_CLIENT_SECRET" => "client-secret",
@@ -505,15 +505,16 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
 
       query = Rack::Utils.parse_query(URI.parse(response.location).query)
       assert_equal "client-id", query["client_id"]
-      assert_equal reauth_callback_wise_items_url, query["redirect_uri"]
+      assert_equal "https://configured.example/wise/callback", query["redirect_uri"]
     end
   end
 
-  test "reauth ignores configured WISE_REDIRECT_URI and uses dedicated callback" do
+  test "reauth uses the dedicated reauth callback URL when no override is set" do
     with_env_overrides(
       "WISE_CLIENT_ID" => "client-id",
       "WISE_CLIENT_SECRET" => "client-secret",
-      "WISE_REDIRECT_URI" => "https://app.example/some/other/callback"
+      "WISE_REDIRECT_URI" => nil,
+      "WISE_REAUTH_REDIRECT_URI" => nil
     ) do
       item = create_wise_item
 
@@ -521,7 +522,22 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
 
       query = Rack::Utils.parse_query(URI.parse(response.location).query)
       assert_equal reauth_callback_wise_items_url, query["redirect_uri"]
-      assert_not_equal "https://app.example/some/other/callback", query["redirect_uri"]
+    end
+  end
+
+  test "reauth prefers WISE_REAUTH_REDIRECT_URI over WISE_REDIRECT_URI" do
+    with_env_overrides(
+      "WISE_CLIENT_ID" => "client-id",
+      "WISE_CLIENT_SECRET" => "client-secret",
+      "WISE_REDIRECT_URI" => "https://app.example/wise/callback",
+      "WISE_REAUTH_REDIRECT_URI" => "https://app.example/wise/reauth"
+    ) do
+      item = create_wise_item
+
+      get reauth_wise_item_url(item)
+
+      query = Rack::Utils.parse_query(URI.parse(response.location).query)
+      assert_equal "https://app.example/wise/reauth", query["redirect_uri"]
     end
   end
 
@@ -545,11 +561,11 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "reauth_callback exchanges token using the dedicated callback URL" do
+  test "reauth_callback exchanges token using the configured WISE_REDIRECT_URI" do
     with_env_overrides(
       "WISE_CLIENT_ID" => "client-id",
       "WISE_CLIENT_SECRET" => "client-secret",
-      "WISE_REDIRECT_URI" => "https://app.example/some/other/callback"
+      "WISE_REDIRECT_URI" => "https://app.example/wise/callback"
     ) do
       item = create_wise_item
       get reauth_wise_item_url(item)
@@ -558,7 +574,34 @@ class WiseItemsControllerTest < ActionDispatch::IntegrationTest
       stub_request(:post, "https://api.wise.com/oauth/token")
         .with(
           basic_auth: [ "client-id", "client-secret" ],
-          body: hash_including("grant_type" => "authorization_code", "code" => "auth-code", "redirect_uri" => reauth_callback_wise_items_url)
+          body: hash_including("grant_type" => "authorization_code", "code" => "auth-code", "redirect_uri" => "https://app.example/wise/callback")
+        )
+        .to_return(status: 200, body: { access_token: "fresh-token", refresh_token: "fresh-refresh", expires_in: 43_199 }.to_json)
+
+      get reauth_callback_wise_items_url, params: { code: "auth-code", state: state }
+
+      assert_redirected_to accounts_url
+      assert_equal "fresh-token", item.reload.access_token
+    end
+  end
+
+  test "reauth and reauth_callback agree on the redirect_uri for the token exchange" do
+    with_env_overrides(
+      "WISE_CLIENT_ID" => "client-id",
+      "WISE_CLIENT_SECRET" => "client-secret",
+      "WISE_REDIRECT_URI" => "https://app.example/wise/callback",
+      "WISE_REAUTH_REDIRECT_URI" => "https://app.example/wise/reauth"
+    ) do
+      item = create_wise_item
+      get reauth_wise_item_url(item)
+      authorize_query = Rack::Utils.parse_query(URI.parse(response.location).query)
+      state = authorize_query.fetch("state")
+      assert_equal "https://app.example/wise/reauth", authorize_query["redirect_uri"]
+
+      stub_request(:post, "https://api.wise.com/oauth/token")
+        .with(
+          basic_auth: [ "client-id", "client-secret" ],
+          body: hash_including("redirect_uri" => "https://app.example/wise/reauth")
         )
         .to_return(status: 200, body: { access_token: "fresh-token", refresh_token: "fresh-refresh", expires_in: 43_199 }.to_json)
 
