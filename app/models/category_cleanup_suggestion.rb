@@ -127,8 +127,10 @@ class CategoryCleanupSuggestion < ApplicationRecord
       return mark_unchanged! if cleaned_name == source_category.name
       return skip!("category name already exists") if duplicate_name?(cleaned_name)
 
-      source_category.update!(name: cleaned_name)
-      mark_applied!
+      Category.transaction do
+        source_category.update!(name: cleaned_name)
+        mark_applied!
+      end
     end
 
     def apply_reparent!
@@ -240,6 +242,18 @@ class CategoryCleanupSuggestion < ApplicationRecord
                   .update_all(value: target_category.id)
       Rule::Condition.where(rule_id: rule_ids, condition_type: "transaction_category", value: source_category.id)
                      .update_all(value: target_category.id)
+
+      # Compound rules store sub-conditions as Rule::Condition rows with
+      # rule_id: nil and parent_id pointing at the compound parent. They
+      # walk up to the parent rule via #rule, so a rule_id scope misses
+      # them. Rewrite them in a second pass keyed by the family rule ids.
+      compound_parent_ids = Rule::Condition.where(rule_id: rule_ids, condition_type: "compound").pluck(:id)
+      if compound_parent_ids.any?
+        Rule::Condition.where(parent_id: compound_parent_ids,
+                              condition_type: "transaction_category",
+                              value: source_category.id)
+                       .update_all(value: target_category.id)
+      end
     end
 
     def reassign_import_mappings!(source_category:, target_category:)

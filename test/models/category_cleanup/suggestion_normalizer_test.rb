@@ -126,6 +126,74 @@ class CategoryCleanup::SuggestionNormalizerTest < ActiveSupport::TestCase
     assert_equal "parent category missing", rows.first[:error]
   end
 
+  test "default-selects only the first rename per source and flags conflicts" do
+    rows = CategoryCleanup::SuggestionNormalizer.call(
+      run: @run,
+      suggestions: [
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "rename",
+          source_category_id: @source.id,
+          target_category_id: nil,
+          new_name: "Example Renamed A",
+          parent_category_id: nil,
+          rationale: "Tidy this label",
+          confidence: 0.9
+        ),
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "rename",
+          source_category_id: @source.id,
+          target_category_id: nil,
+          new_name: "Example Different Name",
+          parent_category_id: nil,
+          rationale: "Try a different label",
+          confidence: 0.9
+        )
+      ]
+    )
+
+    assert_equal 2, rows.size
+
+    first = rows.find { |row| row[:new_name] == "Example Renamed A" }
+    second = rows.find { |row| row[:new_name] == "Example Different Name" }
+
+    assert first[:selected]
+    assert_equal "suggested", first[:status]
+
+    assert_not second[:selected]
+    assert_equal "needs_review", second[:status]
+    assert_equal "conflicting rename suggestion for this category", second[:error]
+  end
+
+  test "does not flag identical renames for the same source as conflicts" do
+    rows = CategoryCleanup::SuggestionNormalizer.call(
+      run: @run,
+      suggestions: [
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "rename",
+          source_category_id: @source.id,
+          target_category_id: nil,
+          new_name: "Example Renamed A",
+          parent_category_id: nil,
+          rationale: "First suggestion",
+          confidence: 0.9
+        ),
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "rename",
+          source_category_id: @source.id,
+          target_category_id: nil,
+          new_name: "Example Renamed A",
+          parent_category_id: nil,
+          rationale: "Duplicate suggestion",
+          confidence: 0.9
+        )
+      ]
+    )
+
+    assert_equal 1, rows.size
+    assert rows.first[:selected]
+    assert_equal "suggested", rows.first[:status]
+  end
+
   private
     def category!(name, parent: nil)
       @family.categories.create!(
