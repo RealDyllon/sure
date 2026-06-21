@@ -19,6 +19,9 @@ class CategoryCleanupRunsController < ApplicationController
   end
 
   def retry
+    # The apply path only re-runs already-reviewed suggestions and does not
+    # call the LLM, so retries of a failed/stalled `applying` phase are
+    # allowed even when the default LLM provider is no longer configured.
     if retry_requires_provider? && !provider_configured?
       redirect_to category_cleanup_run_path(@run), alert: "AI configuration is required before retrying."
       return

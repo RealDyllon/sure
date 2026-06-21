@@ -101,6 +101,38 @@ class CategoryCleanupSuggestionTest < ActiveSupport::TestCase
     assert_equal "category name already exists", suggestion.reload.error
   end
 
+  test "rename applies and records status atomically" do
+    suggestion = @run.suggestions.create!(
+      source_category: @source,
+      suggested_action: :rename,
+      new_name: "Renamed Example Root A",
+      selected: true
+    )
+
+    assert suggestion.apply!
+
+    assert_equal "Renamed Example Root A", @source.reload.name
+    assert suggestion.reload.applied?
+    assert_not_nil suggestion.applied_at
+  end
+
+  test "rename rolls back when status update fails" do
+    suggestion = @run.suggestions.create!(
+      source_category: @source,
+      suggested_action: :rename,
+      new_name: "Renamed Example Root A",
+      selected: true
+    )
+
+    CategoryCleanupSuggestion.any_instance.stubs(:mark_applied!).raises(StandardError, "boom")
+
+    assert_not suggestion.apply!
+
+    assert_equal "Example Root A", @source.reload.name
+    assert suggestion.reload.skipped?
+    assert_equal "boom", suggestion.error
+  end
+
   test "merge does not double-count budget when child merges into parent" do
     budget = @family.budgets.create!(
       start_date: Date.current.beginning_of_month,
@@ -271,6 +303,33 @@ class CategoryCleanupSuggestionTest < ActiveSupport::TestCase
 
     assert_equal @target.id, rule.reload.actions.first.value
     assert_equal @target.id, rule.reload.conditions.first.value
+    assert_not Category.exists?(@source.id)
+  end
+
+  test "merge repoints compound rule sub-conditions" do
+    unrelated = category!("Example Other")
+
+    rule = @family.rules.build(name: "Compound Rule", resource_type: "transaction", active: true)
+    parent_condition = rule.conditions.build(condition_type: "compound", operator: "and")
+    parent_condition.sub_conditions.build(condition_type: "transaction_category", operator: "=", value: @source.id)
+    parent_condition.sub_conditions.build(condition_type: "transaction_category", operator: "=", value: unrelated.id)
+    rule.actions.build(action_type: "set_transaction_category", value: @source.id)
+    rule.save!
+
+    source_sub = parent_condition.sub_conditions.find { |sc| sc.value == @source.id }
+    unrelated_sub = parent_condition.sub_conditions.find { |sc| sc.value == unrelated.id }
+
+    suggestion = @run.suggestions.create!(
+      source_category: @source,
+      target_category: @target,
+      suggested_action: :merge,
+      selected: true
+    )
+
+    assert suggestion.apply!
+
+    assert_equal @target.id, source_sub.reload.value
+    assert_equal unrelated.id, unrelated_sub.reload.value
     assert_not Category.exists?(@source.id)
   end
 

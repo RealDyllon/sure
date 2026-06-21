@@ -14,6 +14,7 @@ module CategoryCleanup
       @run = run
       @categories_by_id = run.family.categories.index_by { |category| category.id.to_s }
       @seen_keys = Set.new
+      @seen_renames = {}
     end
 
     def call
@@ -25,12 +26,14 @@ module CategoryCleanup
         next if seen_keys.include?(key)
 
         seen_keys << key
+        attrs = apply_rename_conflict(attrs)
         attrs
       end
     end
 
     private
       attr_reader :suggestions, :run, :categories_by_id, :seen_keys
+      attr_accessor :seen_renames
 
       def attrs_for(suggestion)
         raw = suggestion.respond_to?(:to_h) ? suggestion.to_h : suggestion
@@ -120,6 +123,29 @@ module CategoryCleanup
           attrs[:parent_category]&.id,
           attrs[:new_name].to_s.downcase
         ].join(":")
+      end
+
+      # When the provider returns two or more rename suggestions for the same
+      # source category with different `new_name` values, only the first such
+      # suggestion in normalization order keeps the default selection. Any
+      # later rename with a different new_name is flagged for review so the
+      # user picks one explicitly instead of having both apply in sequence.
+      def apply_rename_conflict(attrs)
+        return attrs unless attrs[:suggested_action] == "rename"
+
+        source_id = attrs[:source_category].id
+        first_new_name = seen_renames[source_id]
+
+        if first_new_name && first_new_name != attrs[:new_name]
+          attrs.merge(
+            selected: false,
+            status: "needs_review",
+            error: "conflicting rename suggestion for this category"
+          )
+        else
+          seen_renames[source_id] = attrs[:new_name]
+          attrs
+        end
       end
   end
 end
