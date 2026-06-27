@@ -243,6 +243,31 @@ class AutoCategorizationRunsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to auto_categorization_run_url(run, q: "Cafe", per_page: "20")
   end
 
+  test "refresh suggestions clears stale transaction suggestions and queues generation" do
+    old_category = @family.categories.create!(name: "Example Old Category", color: "#22c55e", lucide_icon: "shapes")
+    entry = create_transaction(account: accounts(:depository), name: "Example Cafe")
+    run = create_auto_categorization_run(family: @family, user: @user, status: :reviewing_transactions)
+    run_transaction = create_run_transaction(run, entry)
+    run_transaction.update!(status: :generated)
+    run.suggestions.create!(
+      run_transaction: run_transaction,
+      selected_category: old_category,
+      selected: true,
+      status: :suggested
+    )
+    stub_default_llm_provider
+
+    assert_enqueued_with(job: AutoCategorizationGenerateJob) do
+      post refresh_suggestions_auto_categorization_run_url(run)
+    end
+
+    assert_redirected_to auto_categorization_run_url(run)
+    assert_equal "AI suggestions are being refreshed with your current categories.", flash[:notice]
+    assert run.reload.suggesting_transactions?
+    assert_equal 0, run.suggestions.count
+    assert_equal "pending_generation", run_transaction.reload.status
+  end
+
   test "review table paginates large suggestion sets and clamps per page" do
     category = @family.categories.create!(name: "Example Category", color: "#22c55e", lucide_icon: "shapes")
     run = create_auto_categorization_run(family: @family, user: @user, status: :reviewing_transactions)

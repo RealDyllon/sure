@@ -258,11 +258,20 @@ Rails.application.routes.draw do
   resources :auto_categorization_runs, path: "ai-category-wizard", only: %i[show create] do
     member do
       post :retry
+      post :refresh_suggestions
       post :create_categories
       post :bootstrap_categories
       post :apply
       patch "category_suggestions/:category_suggestion_id", action: :update_category_suggestion, as: :category_suggestion
       post :category_suggestions, action: :create_category_suggestion
+      patch "suggestions/:suggestion_id", action: :update_suggestion, as: :suggestion
+    end
+  end
+
+  resources :category_cleanup_runs, path: "ai-category-cleanup", only: %i[show create] do
+    member do
+      post :retry
+      post :apply
       patch "suggestions/:suggestion_id", action: :update_suggestion, as: :suggestion
     end
   end

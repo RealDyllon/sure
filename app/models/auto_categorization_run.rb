@@ -124,6 +124,43 @@ class AutoCategorizationRun < ApplicationRecord
     queued
   end
 
+  def queue_transaction_suggestion_refresh!
+    job = AutoCategorizationGenerateJob.new(self)
+    queued = false
+
+    with_lock do
+      reload
+      return false unless reviewing_transactions?
+      return false unless family.categories.exists?
+      return false unless run_transactions.exists?
+
+      suggestions.delete_all
+      run_transactions.update_all(status: AutoCategorizationRunTransaction.statuses[:pending_generation], updated_at: Time.current)
+      update!(
+        status: :suggesting_transactions,
+        error: nil,
+        finished_at: nil,
+        transaction_suggestions_count: 0,
+        selected_count: 0,
+        applied_count: 0,
+        skipped_count: 0,
+        unchanged_count: 0
+      )
+      update_processing_progress!(
+        phase: :suggesting_transactions,
+        message: "Refreshing transaction suggestions with current categories",
+        current: 0,
+        total: run_transactions.count,
+        job_id: job.job_id,
+        retry_count: 0
+      )
+      queued = true
+    end
+
+    job.enqueue if queued
+    queued
+  end
+
   def update_processing_progress!(phase:, message:, current: nil, total: nil, job_id: nil, retry_count: nil, guard_job_id: nil)
     with_lock do
       reload

@@ -1,0 +1,206 @@
+require "test_helper"
+
+class CategoryCleanup::SuggestionNormalizerTest < ActiveSupport::TestCase
+  setup do
+    @family = families(:empty)
+    @family.categories.destroy_all
+    @user = users(:empty)
+    @source = category!("Example Root A")
+    @child = category!("Example Child A", parent: @source)
+    @target = category!("Example Root B")
+    @run = CategoryCleanupRun.create!(
+      family: @family,
+      user: @user,
+      status: :generating,
+      provider_name: "Fake LLM",
+      model: "test-model"
+    )
+  end
+
+  test "selects valid actionable suggestions by default" do
+    rows = CategoryCleanup::SuggestionNormalizer.call(
+      run: @run,
+      suggestions: [
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "merge",
+          source_category_id: @child.id,
+          target_category_id: @target.id,
+          new_name: nil,
+          parent_category_id: nil,
+          rationale: "The examples overlap",
+          confidence: 0.9
+        )
+      ]
+    )
+
+    assert_equal 1, rows.size
+    assert rows.first[:selected]
+    assert_equal "suggested", rows.first[:status]
+  end
+
+  test "marks unsafe nesting suggestions for review" do
+    rows = CategoryCleanup::SuggestionNormalizer.call(
+      run: @run,
+      suggestions: [
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "reparent",
+          source_category_id: @source.id,
+          target_category_id: nil,
+          new_name: nil,
+          parent_category_id: @target.id,
+          rationale: "Move this under a broader example",
+          confidence: 0.9
+        )
+      ]
+    )
+
+    assert_equal 1, rows.size
+    assert_not rows.first[:selected]
+    assert_equal "needs_review", rows.first[:status]
+    assert_equal "cannot move a parent category under another parent", rows.first[:error]
+  end
+
+  test "defaults missing confidence to low confidence" do
+    rows = CategoryCleanup::SuggestionNormalizer.call(
+      run: @run,
+      suggestions: [
+        {
+          action: "merge",
+          source_category_id: @child.id,
+          target_category_id: @target.id,
+          new_name: nil,
+          parent_category_id: nil,
+          rationale: "The examples overlap",
+          confidence: nil
+        }
+      ]
+    )
+
+    assert_equal 1, rows.size
+    assert_equal 0.0, rows.first[:confidence]
+    assert_not rows.first[:selected]
+    assert_equal "suggested", rows.first[:status]
+  end
+
+  test "allows explicit root reparent suggestions" do
+    rows = CategoryCleanup::SuggestionNormalizer.call(
+      run: @run,
+      suggestions: [
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "reparent",
+          source_category_id: @child.id,
+          target_category_id: nil,
+          new_name: nil,
+          parent_category_id: nil,
+          rationale: "Make this a root category",
+          confidence: 0.9
+        )
+      ]
+    )
+
+    assert_equal 1, rows.size
+    assert rows.first[:selected]
+    assert_equal "suggested", rows.first[:status]
+    assert_nil rows.first[:error]
+  end
+
+  test "marks reparent suggestions missing their intended parent for review" do
+    rows = CategoryCleanup::SuggestionNormalizer.call(
+      run: @run,
+      suggestions: [
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "reparent",
+          source_category_id: @child.id,
+          target_category_id: nil,
+          new_name: nil,
+          parent_category_id: "missing-category-id",
+          rationale: "Move under a now-deleted category",
+          confidence: 0.9
+        )
+      ]
+    )
+
+    assert_equal 1, rows.size
+    assert_not rows.first[:selected]
+    assert_equal "needs_review", rows.first[:status]
+    assert_equal "parent category missing", rows.first[:error]
+  end
+
+  test "default-selects only the first rename per source and flags conflicts" do
+    rows = CategoryCleanup::SuggestionNormalizer.call(
+      run: @run,
+      suggestions: [
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "rename",
+          source_category_id: @source.id,
+          target_category_id: nil,
+          new_name: "Example Renamed A",
+          parent_category_id: nil,
+          rationale: "Tidy this label",
+          confidence: 0.9
+        ),
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "rename",
+          source_category_id: @source.id,
+          target_category_id: nil,
+          new_name: "Example Different Name",
+          parent_category_id: nil,
+          rationale: "Try a different label",
+          confidence: 0.9
+        )
+      ]
+    )
+
+    assert_equal 2, rows.size
+
+    first = rows.find { |row| row[:new_name] == "Example Renamed A" }
+    second = rows.find { |row| row[:new_name] == "Example Different Name" }
+
+    assert first[:selected]
+    assert_equal "suggested", first[:status]
+
+    assert_not second[:selected]
+    assert_equal "needs_review", second[:status]
+    assert_equal "conflicting rename suggestion for this category", second[:error]
+  end
+
+  test "does not flag identical renames for the same source as conflicts" do
+    rows = CategoryCleanup::SuggestionNormalizer.call(
+      run: @run,
+      suggestions: [
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "rename",
+          source_category_id: @source.id,
+          target_category_id: nil,
+          new_name: "Example Renamed A",
+          parent_category_id: nil,
+          rationale: "First suggestion",
+          confidence: 0.9
+        ),
+        Provider::LlmConcept::CategoryCleanupSuggestion.new(
+          action: "rename",
+          source_category_id: @source.id,
+          target_category_id: nil,
+          new_name: "Example Renamed A",
+          parent_category_id: nil,
+          rationale: "Duplicate suggestion",
+          confidence: 0.9
+        )
+      ]
+    )
+
+    assert_equal 1, rows.size
+    assert rows.first[:selected]
+    assert_equal "suggested", rows.first[:status]
+  end
+
+  private
+    def category!(name, parent: nil)
+      @family.categories.create!(
+        name: name,
+        parent: parent,
+        color: "#3b82f6",
+        lucide_icon: "shapes"
+      )
+    end
+end

@@ -10,6 +10,24 @@
       ) %>
     <% end %>
 
+    <% if @latest_category_cleanup_run %>
+      <%= render DS::Link.new(
+        text: "Review cleanup",
+        variant: "outline",
+        icon: "list-tree",
+        href: category_cleanup_run_path(@latest_category_cleanup_run)
+      ) %>
+    <% end %>
+
+    <% if @categories.any? %>
+      <%= button_to category_cleanup_runs_path,
+            method: :post,
+            class: "button button--secondary flex items-center gap-2" do %>
+        <%= icon "list-tree", size: "sm" %>
+        <span>Organize categories</span>
+      <% end %>
+    <% end %>
+
     <%= button_to auto_categorization_runs_path,
           method: :post,
           class: "button button--primary flex items-center gap-2" do %>
