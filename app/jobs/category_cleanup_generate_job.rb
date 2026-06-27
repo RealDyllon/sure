@@ -15,6 +15,15 @@ class CategoryCleanupGenerateJob < ApplicationJob
       run.with_lock do
         run.reload
         return false if run.complete? || run.empty?
+        # Reject the claim if the run has already moved past generating. This
+        # guards against a worker restart after the previous job instance
+        # completed generation and transitioned the run to :reviewing but
+        # before Sidekiq could ack the job. Without this check, the replayed
+        # job would re-flip the run to :generating and
+        # GenerateSuggestions#persist_suggestions! would delete and recreate
+        # suggestions, silently destroying any review edits the user already
+        # made in :reviewing.
+        return false unless run.generating?
         return false unless run.processing_progress_job_matches?(job_id)
 
         retry_count = run.processing_progress.to_h["retry_count"].to_i
