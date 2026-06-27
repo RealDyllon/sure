@@ -34,6 +34,49 @@ class CategoryCleanupSuggestionTest < ActiveSupport::TestCase
     assert suggestion.reload.applied?
   end
 
+  test "merge bumps entries updated_at so entries_cache_version invalidates report caches" do
+    account = @family.accounts.create!(
+      name: "Example Checking",
+      balance: 1_000,
+      currency: "USD",
+      accountable: Depository.new
+    )
+
+    travel_to 2.days.ago do
+      txn = Transaction.create!(category: @source)
+      Entry.create!(
+        account: account,
+        entryable: txn,
+        amount: 50,
+        currency: "USD",
+        date: Date.current,
+        name: "Example purchase"
+      )
+    end
+
+    entry = Entry.where(entryable_type: "Transaction", entryable_id: @source.transactions.pluck(:id)).first
+    original_entry_updated_at = entry.updated_at
+    # Snapshot the raw maximum(entries.updated_at) — Family#entries_cache_version
+    # memoizes per instance, so the real-world invalidation key is the SQL value
+    # computed on the next request.
+    original_max_entry_updated_at = @family.entries.maximum(:updated_at)
+
+    travel_to 1.hour.from_now do
+      suggestion = @run.suggestions.create!(
+        source_category: @source,
+        target_category: @target,
+        suggested_action: :merge,
+        selected: true
+      )
+      assert suggestion.apply!
+    end
+
+    assert entry.reload.updated_at > original_entry_updated_at,
+      "Entry updated_at should be bumped by merge so Family#entries_cache_version invalidates"
+    assert @family.entries.maximum(:updated_at) > original_max_entry_updated_at,
+      "Family entries.maximum(:updated_at) should advance after merge so report caches miss"
+  end
+
   test "merge skips parent category into subcategory" do
     suggestion = @run.suggestions.create!(
       source_category: @source,

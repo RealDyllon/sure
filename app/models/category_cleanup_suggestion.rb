@@ -74,7 +74,13 @@ class CategoryCleanupSuggestion < ApplicationRecord
 
       Category.transaction do
         now = Time.current
+        reassigned_transaction_ids = source_category.transactions.pluck(:id)
         source_category.transactions.update_all(category_id: target_category.id, updated_at: now)
+        # Bump the corresponding entries' updated_at so the family entries_cache_version
+        # (entries.maximum(:updated_at)) is invalidated. The bulk update_all above
+        # bypasses the Entryable `touch: true` callback on the Transaction -> Entry
+        # association, leaving report caches keyed to the old category_id.
+        Entry.where(entryable_type: "Transaction", entryable_id: reassigned_transaction_ids).update_all(updated_at: now) if reassigned_transaction_ids.any?
         source_category.subcategories.update_all(parent_id: target_category.id, color: target_category.color, updated_at: now) if target_category.parent_id.nil?
         reassign_budget_categories!(now: now)
         repoint_rule_categories!(source_category: source_category, target_category: target_category)
