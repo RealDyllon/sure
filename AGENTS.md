@@ -56,6 +56,40 @@ After every API endpoint commit, ensure: (1) **Minitest** behavioral coverage in
 
 If you need to add a new securities price provider (Tiingo, EODHD, Binance-style crypto, etc.), see [adding-a-securities-provider.md](./docs/llm-guides/adding-a-securities-provider.md) for the full walkthrough — provider class, registry wiring, MIC handling, settings UI, locales, and tests.
 
+## Model Context Protocol (MCP) Server
+
+The app exposes financial data to external AI assistants through two MCP endpoints:
+
+- `POST /mcp` — legacy hand-rolled JSON-RPC 2.0 endpoint (`McpController`).
+  Only supports the bare `initialize`, `tools/list`, and `tools/call` methods.
+- `GET /mcp/fast/sse` and `POST /mcp/fast/messages` — standards-compliant MCP
+  server mounted via the [`fast-mcp`](https://github.com/yjacquin/fast-mcp) gem
+  (Rack middleware). Same seven assistant functions are exposed as MCP tools.
+
+Both endpoints are mounted only when `MCP_API_TOKEN` and `MCP_USER_EMAIL` are set
+in the environment. Auth is bearer-token based; the resolved acting user comes
+from `MCP_USER_EMAIL`. See `.env.local.example` for details.
+
+Tools live in `app/tools/` and inherit from `ApplicationTool` (which is
+`ActionTool::Base`, the fast-mcp Rails alias). Each tool wraps an existing
+`Assistant::Function` class so chat and MCP clients see identical behavior.
+
+Sample Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "sure": {
+      "url": "http://localhost:3000/mcp/fast/sse",
+      "transport": "sse",
+      "headers": {
+        "Authorization": "Bearer <MCP_API_TOKEN>"
+      }
+    }
+  }
+}
+```
+
 ## Providers: Pending Transactions and FX Metadata (SimpleFIN/Plaid/Lunchflow)
 
 - Pending detection

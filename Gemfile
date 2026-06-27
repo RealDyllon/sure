@@ -103,6 +103,9 @@ gem "after_commit_everywhere", "~> 1.0"
 gem "ruby-openai"
 gem "langfuse-ruby", "~> 0.1.4", require: "langfuse"
 
+# Model Context Protocol
+gem "fast-mcp"
+
 group :development, :test do
   gem "debug", platforms: %i[mri windows]
   gem "brakeman", require: false

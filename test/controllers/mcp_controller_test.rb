@@ -28,7 +28,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "returns 503 when MCP_API_TOKEN is not set" do
-    with_env_overrides("MCP_USER_EMAIL" => @user.email) do
+    with_env_overrides("MCP_API_TOKEN" => nil, "MCP_USER_EMAIL" => @user.email) do
       post "/mcp", params: jsonrpc_request("initialize").to_json,
            headers: mcp_headers(@token)
 
@@ -38,7 +38,7 @@ class McpControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "returns 503 when MCP_USER_EMAIL is not set" do
-    with_env_overrides("MCP_API_TOKEN" => @token) do
+    with_env_overrides("MCP_API_TOKEN" => @token, "MCP_USER_EMAIL" => nil) do
       post "/mcp", params: jsonrpc_request("initialize").to_json,
            headers: mcp_headers(@token)
 
