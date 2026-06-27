@@ -8,8 +8,9 @@
 - Tooling: `bin/` (project scripts), `docs/` (guides), `public/` (static), `lib/` (shared libs).
 
 ## Build, Test, and Development Commands
-- Setup: `cp .env.local.example .env.local && bin/setup` — install deps, set DB, prepare app.
-- Run app: `bin/dev` — starts Rails server and asset/watchers via `Procfile.dev`.
+- Prerequisites: Ruby (see `.ruby-version`), PostgreSQL 12+, and Redis 6.2+ running locally (`redis-cli ping` → `PONG`; `brew services start redis` on macOS). Sidekiq will fail to connect if Redis is down.
+- Setup: `cp .env.local.example .env.local && bin/setup` — install deps, build design tokens, prepare DB. **Caution:** `.env.local` overrides `.env`. If a populated DB already exists (check the existing `.env` for `POSTGRES_DB`/`POSTGRES_USER`), point `.env.local` at it first — otherwise `bin/setup` creates/uses the example's empty `sure_development` and the app shows first-user onboarding.
+- Run app: `bin/dev` — starts Rails server, Sidekiq, and the Tailwind watcher via `Procfile.dev`. If foreman tears everything down shortly after Puma boots (the Tailwind `css` proc can exit immediately after building), start the pieces directly: `bin/rails server` and `bundle exec sidekiq`. CSS is already built during `bin/setup`.
 - Test suite: `bin/rails test` — run all Minitest tests; add `TEST=test/models/user_test.rb` to target a file.
 - Lint Ruby: `bin/rubocop` — style checks; add `-A` to auto-correct safe cops.
 - Lint/format JS/CSS: `npm run lint` and `npm run format` — uses Biome.
@@ -24,6 +25,7 @@
 ## Testing Guidelines
 - Framework: Minitest (Rails). Name files `*_test.rb` and mirror `app/` structure.
 - Run: `bin/rails test` locally and ensure green before pushing.
+- RSpec/rswag is **docs-only** (see API Development Guidelines below). `.rspec` is scoped via `--pattern spec/requests/api/v1/**/*_spec.rb`, so a bare `bundle exec rspec` runs only the OpenAPI request specs — not the full suite. Behavioral coverage lives in `test/`.
 - Fixtures/VCR: Use `test/fixtures` and existing VCR cassettes for HTTP. Prefer unit tests plus focused integration tests.
 
 ## Commit & Pull Request Guidelines

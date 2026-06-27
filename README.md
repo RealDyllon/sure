@@ -82,10 +82,16 @@ The instructions below are for developers to get started with contributing to th
 ### Requirements
 
 - See `.ruby-version` file for required Ruby version
-- PostgreSQL >9.3 (latest stable version recommended)
-- Redis > 5.4 (latest stable version recommended)
+- PostgreSQL 12+ (latest stable version recommended)
+- Redis 6.2+ (latest stable version recommended), running locally — e.g. `brew services start redis` on macOS
 
 ### Getting Started
+
+> [!CAUTION]
+> If you already have a populated database (e.g. from a previous Docker/self-hosted setup, tracked in your existing `.env`), check which `POSTGRES_DB` / `POSTGRES_USER` it points at **before** copying `.env.local.example`. `.env.local` overrides `.env`, and `bin/setup` will otherwise connect to the example's empty `sure_development` database — your real data stays safe in its own DB, but the app will show the first-user onboarding screen until you repoint `.env.local` at it.
+
+Make sure Redis is running (`redis-cli ping` should return `PONG`; start it with `brew services start redis` on macOS), then:
+
 ```sh
 cd sure
 cp .env.local.example .env.local
@@ -93,12 +99,15 @@ bin/setup
 bin/dev
 
 # Optionally, load demo data
-rake demo_data:default
+bin/rails demo_data:default
 ```
 
 Visit http://localhost:3000 to view the app.
 
-If you loaded the optional demo data, log in with these credentials:
+> [!NOTE]
+> `bin/dev` runs Rails, Sidekiq, and the Tailwind watcher together via foreman (see `Procfile.dev`). On some setups the Tailwind `css` process exits immediately after building, which makes foreman tear down **all** processes. If `bin/dev` dies right after Puma boots, either rerun it or start the pieces directly: `bin/rails server` and `bundle exec sidekiq`. The CSS is already built during `bin/setup`.
+
+If you loaded the optional demo data, log in with these credentials (this login **only** works after running `bin/rails demo_data:default`; otherwise the app redirects to `/registration/new` to create the first user):
 
 - Email: `user@example.com`
 - Password: `Password1!`
