@@ -100,24 +100,44 @@ class CategoryCleanupSuggestion < ApplicationRecord
         )
 
         if target_budget_category
-          target_amount = (target_budget_category.budgeted_spending || 0) + source_amount
-
-          if target_budget_category.subcategory?
-            target_budget_category.update_budgeted_spending!(target_amount)
-          else
-            target_budget_category.update!(budgeted_spending: target_amount, updated_at: now)
-          end
-
-          source_budget_category.destroy!
+          merge_into_existing_budget_category!(source_budget_category, target_budget_category, source_amount:, now:)
         else
-          source_budget_category.update!(category: target_category, updated_at: now)
-
-          if target_category.subcategory?
-            source_budget_category.update_budgeted_spending!(source_amount)
-          elsif source_amount.nonzero?
-            source_budget_category.update!(budgeted_spending: source_amount, updated_at: now)
-          end
+          move_budget_category_to_target!(source_budget_category, source_amount, now)
         end
+      end
+    end
+
+    def merge_into_existing_budget_category!(source_budget_category, target_budget_category, source_amount:, now:)
+      target_amount = (target_budget_category.budgeted_spending || 0) + source_amount
+
+      if target_budget_category.subcategory?
+        target_budget_category.update_budgeted_spending!(target_amount)
+      else
+        target_budget_category.update!(budgeted_spending: target_amount, updated_at: now)
+      end
+
+      source_budget_category.destroy!
+    end
+
+    def move_budget_category_to_target!(source_budget_category, source_amount, now)
+      target_is_subcategory = target_category.subcategory?
+
+      # Zero the row before re-pointing the category. For a subcategory source this
+      # detaches the amount from the old parent; for a root source it just resets
+      # the value so the subsequent update_budgeted_spending! call below sees a
+      # real delta and correctly increments the new (target) parent budget.
+      # Without this, sync_parent_budgeted_spending! would see previous == new and
+      # leave the target parent budget understated by source_amount.
+      if target_is_subcategory && source_amount.nonzero?
+        source_budget_category.update_budgeted_spending!(0)
+      end
+
+      source_budget_category.update!(category: target_category, updated_at: now)
+
+      if target_is_subcategory
+        source_budget_category.update_budgeted_spending!(source_amount) if source_amount.nonzero?
+      elsif source_amount.nonzero?
+        source_budget_category.update!(budgeted_spending: source_amount, updated_at: now)
       end
     end
 

@@ -156,6 +156,34 @@ class CategoryCleanupSuggestionTest < ActiveSupport::TestCase
     assert_not budget.budget_categories.exists?(category: @child)
   end
 
+  test "merge syncs target parent budget when root is merged into subcategory without existing target row" do
+    leaf_source = category!("Example Leaf Source") # no subcategories of its own
+    budget = @family.budgets.create!(
+      start_date: Date.current.beginning_of_month,
+      end_date: Date.current.end_of_month,
+      currency: @family.currency
+    )
+    budget.budget_categories.create!(category: leaf_source, budgeted_spending: 100, currency: @family.currency)
+    budget.budget_categories.create!(category: @target, budgeted_spending: 40, currency: @family.currency)
+    # No budget row for @target_child — this is the case the bug report flags.
+
+    suggestion = @run.suggestions.create!(
+      source_category: leaf_source,
+      target_category: @target_child,
+      suggested_action: :merge,
+      selected: true
+    )
+
+    assert suggestion.apply!
+
+    target_parent_budget = budget.budget_categories.find_by!(category: @target)
+    target_child_budget = budget.budget_categories.find_by!(category: @target_child)
+    # The source amount (100) must be added to the target parent budget on top
+    # of the target child's existing amount (40).
+    assert_equal 140, target_parent_budget.budgeted_spending
+    assert_equal 100, target_child_budget.budgeted_spending
+  end
+
   test "reparent applies explicit move to root" do
     @child.update!(parent: @source)
     suggestion = @run.suggestions.create!(
