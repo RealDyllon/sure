@@ -30,21 +30,24 @@ class ApplicationTool < ActionTool::Base
     end
   end
 
+  # fast-mcp's `Server#send_formatted_result` only passes through results that
+  # are a Hash with a `:content` key; anything else is coerced with `to_s` and
+  # marked `isError: false`. We therefore return MCP-spec-compliant content
+  # envelopes so clients receive JSON text and errors are flagged correctly.
+  #
+  # Unexpected exceptions are NOT rescued here — they propagate to
+  # `FastMcp::Server#handle_tools_call`, which logs them and returns a proper
+  # `isError: true` result.
   def call(**kwargs)
     klass = self.class.function_class
     ActiveSupport::CurrentAttributes.clear_all
 
-    unless mcp_user_configured?
-      return not_configured_error
-    end
+    return not_configured_error unless mcp_user_configured?
 
     setup_mcp_session!
 
-    klass.new(current_user).call(stringify_args(kwargs)).as_json
-  rescue StandardError => e
-    Rails.logger.error("[MCP Tool #{self.class.tool_name}] #{e.class.name}: #{e.message}")
-    Rails.logger.error(e.backtrace.first(5).join("\n"))
-    { "error" => e.message, "type" => e.class.name }
+    data = klass.new(current_user).call(stringify_args(kwargs))
+    mcp_content(data.as_json.to_json)
   ensure
     ActiveSupport::CurrentAttributes.clear_all
   end
@@ -80,9 +83,19 @@ class ApplicationTool < ActionTool::Base
     end
 
     def not_configured_error
+      mcp_content(
+        { "error" => "mcp_user_not_configured",
+          "message" => "Set the MCP_USER_EMAIL environment variable to a valid user email." }.to_json,
+        is_error: true
+      )
+    end
+
+    # Build an MCP-spec tool result envelope. `text` is the JSON string the
+    # client receives as text content; `is_error` flags the result per spec.
+    def mcp_content(text, is_error: false)
       {
-        "error" => "mcp_user_not_configured",
-        "message" => "Set the MCP_USER_EMAIL environment variable to a valid user email."
+        content: [ { type: "text", text: text } ],
+        isError: is_error
       }
     end
 end

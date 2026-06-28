@@ -13,10 +13,24 @@
 # we can install an `EnvAwareAuthenticatedRackTransport` that re-reads the
 # bearer token from the environment on every request (mirroring the legacy
 # `McpController#authenticate_mcp_token!` behavior).
-return unless ENV["MCP_API_TOKEN"].present? && ENV["MCP_USER_EMAIL"].present?
-
+#
+# The gem is required unconditionally so that `ActionTool::Base` is always
+# defined and tool classes in `app/tools/` can autoload even when the
+# middleware is not mounted (e.g. in CI without MCP env vars).
 require "fast_mcp"
 require Rails.root.join("lib/fast_mcp/transports/env_aware_authenticated_rack_transport")
+
+# In the test environment, seed deterministic MCP env vars so the middleware
+# is mounted during tests without relying on a gitignored `.env.test` file.
+# Tests override these per-request via `with_env_overrides` / ClimateControl.
+if Rails.env.test?
+  ENV["MCP_API_TOKEN"] ||= "test-fast-mcp-token"
+  ENV["MCP_USER_EMAIL"] ||= "bob@bobdylan.com"
+end
+
+# Mount the middleware only when both env vars are present so we never
+# accidentally expose the endpoint unauthenticated.
+return unless ENV["MCP_API_TOKEN"].present? && ENV["MCP_USER_EMAIL"].present?
 
 server = FastMcp::Server.new(
   name: Rails.application.class.module_parent_name.underscore.dasherize,

@@ -7,9 +7,10 @@ class FastMcpControllerTest < ActionDispatch::IntegrationTest
   end
 
   # -- Mounting --
-  # The `return unless ENV[...]` guard in the initializer is evaluated once at
-  # boot, so we can't toggle it per-test. The fast-mcp middleware is mounted
-  # by the test process because `.env.test` sets both env vars.
+  # The initializer seeds `MCP_API_TOKEN` / `MCP_USER_EMAIL` defaults in the
+  # test environment (no gitignored `.env.test` needed), so the fast-mcp
+  # middleware is always mounted during tests. Individual tests override the
+  # env vars via `with_env_overrides` / ClimateControl.
 
   test "fast_mcp initializer refuses to mount when env vars are missing" do
     source = Rails.root.join("config/initializers/fast_mcp.rb").read
@@ -71,11 +72,10 @@ class FastMcpControllerTest < ActionDispatch::IntegrationTest
     with_fast_mcp_env do
       result = GetBalanceSheetTool.new.call
 
-      assert result.is_a?(Hash), "Expected a Hash, got: #{result.class}"
-      assert(
-        result.key?("net_worth") || result.key?("error"),
-        "Expected net_worth or error key, got: #{result.keys.inspect}"
-      )
+      assert mcp_success?(result), "Expected isError: false, got: #{result.inspect}"
+      data = parse_mcp_text(result)
+      assert(data.key?("net_worth") || data.key?("error"),
+             "Expected net_worth or error key, got: #{data.keys.inspect}")
     end
   end
 
@@ -83,19 +83,21 @@ class FastMcpControllerTest < ActionDispatch::IntegrationTest
     with_fast_mcp_env do
       result = GetAccountsTool.new.call
 
-      assert result.is_a?(Hash), "Expected a Hash, got: #{result.class}"
-      assert result.key?("as_of_date")
-      assert result.key?("accounts")
-      assert_kind_of Array, result["accounts"]
+      assert mcp_success?(result)
+      data = parse_mcp_text(result)
+      assert data.key?("as_of_date")
+      assert data.key?("accounts")
+      assert_kind_of Array, data["accounts"]
     end
   end
 
   test "GetIncomeStatementTool rejects missing required arguments" do
     with_fast_mcp_env do
-      # fast-mcp's schema validation happens before the tool's call method,
-      # so we pass invalid args directly and check the rescue path.
-      result = GetIncomeStatementTool.new.call(start_date: "2024-01-01")
-      assert result.is_a?(Hash)
+      # Schema validation happens in `call_with_schema_validation!` (the entry
+      # point used by fast-mcp's server), not in `call` itself.
+      assert_raises FastMcp::Tool::InvalidArgumentsError do
+        GetIncomeStatementTool.new.call_with_schema_validation!(start_date: "2024-01-01")
+      end
     end
   end
 
@@ -103,8 +105,10 @@ class FastMcpControllerTest < ActionDispatch::IntegrationTest
     with_env_overrides("MCP_API_TOKEN" => @token, "MCP_USER_EMAIL" => nil) do
       result = GetBalanceSheetTool.new.call
 
-      assert_equal "mcp_user_not_configured", result["error"]
-      assert_match(/MCP_USER_EMAIL/, result["message"])
+      assert result[:isError], "Expected isError: true, got: #{result.inspect}"
+      data = parse_mcp_text(result)
+      assert_equal "mcp_user_not_configured", data["error"]
+      assert_match(/MCP_USER_EMAIL/, data["message"])
     end
   end
 
@@ -112,7 +116,9 @@ class FastMcpControllerTest < ActionDispatch::IntegrationTest
     with_env_overrides("MCP_API_TOKEN" => @token, "MCP_USER_EMAIL" => "noone@example.com") do
       result = GetBalanceSheetTool.new.call
 
-      assert_equal "mcp_user_not_configured", result["error"]
+      assert result[:isError]
+      data = parse_mcp_text(result)
+      assert_equal "mcp_user_not_configured", data["error"]
     end
   end
 
@@ -140,5 +146,15 @@ class FastMcpControllerTest < ActionDispatch::IntegrationTest
 
     def jsonrpc_request(method, params = {}, id: 1)
       { jsonrpc: "2.0", id: id, method: method, params: params }
+    end
+
+    # ApplicationTool#call returns MCP-spec content envelopes:
+    #   { content: [{ type: "text", text: "<json>" }], isError: <bool> }
+    def parse_mcp_text(result)
+      JSON.parse(result[:content].first[:text])
+    end
+
+    def mcp_success?(result)
+      result.is_a?(Hash) && result[:isError] == false
     end
 end
