@@ -10,6 +10,32 @@
     <% end %>
   </div>
 
+  <% if defined?(@llm_health) && @llm_health %>
+    <div class="rounded-lg border border-secondary p-3 space-y-1 text-xs">
+      <div class="flex items-center gap-2">
+        <% if @llm_health.available? %>
+          <span class="w-2 h-2 rounded-full bg-success" aria-hidden="true"></span>
+          <span class="text-primary font-medium"><%= @llm_health.provider_name %></span>
+          <span class="text-secondary">· <%= @llm_health.effective_model %></span>
+        <% else %>
+          <span class="w-2 h-2 rounded-full bg-error" aria-hidden="true"></span>
+          <span class="text-error font-medium"><%= t(".health_unavailable", default: "Provider unavailable") %></span>
+          <span class="text-secondary">· <%= @llm_health.provider_key %></span>
+        <% end %>
+      </div>
+      <% if @llm_health.available? %>
+        <p class="text-secondary">
+          <%= t(".health_budgets", default: "Effective budgets") %>:
+          ctx <%= @llm_health.context_window.value %> (<%= @llm_health.context_window.source %>),
+          out <%= @llm_health.max_response_tokens.value %> (<%= @llm_health.max_response_tokens.source %>),
+          items <%= @llm_health.max_items_per_call.value %> (<%= @llm_health.max_items_per_call.source %>)
+        </p>
+      <% else %>
+        <p class="text-secondary"><%= t(".health_auth_config_missing", default: "Auth/config missing — set an access token or configure Codex auth.") %></p>
+      <% end %>
+    </div>
+  <% end %>
+
   <%= styled_form_with model: Setting.new,
                        url: settings_hosting_path,
                        method: :patch,

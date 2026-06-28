@@ -10,6 +10,7 @@ class ChatsController < ApplicationController
 
   def show
     set_last_viewed_chat(@chat)
+    @llm_health = Provider::LlmHealth.for_family(Current.user.family)
   end
 
   def new

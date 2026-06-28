@@ -42,6 +42,8 @@ class Settings::HostingsController < ApplicationController
     if @show_yahoo_finance_settings
       @yahoo_finance_provider = Provider::Registry.get_provider(:yahoo_finance)
     end
+
+    @llm_health = Provider::LlmHealth.for_family(Current.family)
   end
 
   def update

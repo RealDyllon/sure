@@ -136,7 +136,8 @@ class Chat < ApplicationRecord
   private
 
     def build_error_payload(error)
-      technical_message = error_message_for(error)
+      raw_technical_message = error_message_for(error)
+      technical_message = Provider::LlmHealth::LlmErrorSanitizer.sanitize(raw_technical_message)
 
       {
         message: classify_error_message(technical_message),

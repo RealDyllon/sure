@@ -35,6 +35,10 @@
       <div class="px-4 pt-4 lg:pt-0 lg:mt-auto sticky lg:static left-0 bottom-0 w-full bg-surface">
         <%= render "messages/chat_form", chat: @chat %>
       </div>
+
+      <% if defined?(@llm_health) && @llm_health %>
+        <%= render "chats/health", health: @llm_health %>
+      <% end %>
     </div>
   <% end %>
 </div>

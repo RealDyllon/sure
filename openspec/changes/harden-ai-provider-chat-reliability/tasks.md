@@ -8,11 +8,11 @@
 
 ## 2. Provider Health And Error Visibility
 
-- [ ] 2.1 Implement a central LLM health/status object that resolves selected provider key, provider availability, effective model, auth/config status, effective budgets, budget sources, and sanitized last error.
-- [ ] 2.2 Update chat error persistence to retain a classified user-facing error plus a sanitized exact technical provider error while remaining compatible with legacy string error payloads.
-- [ ] 2.3 Render provider health in the assistant sidebar, including provider unavailable state, effective model, auth/config status, budgets, and exact sanitized provider error for failed chats.
-- [ ] 2.4 Render provider health in self-hosting AI settings and mark environment-backed provider/model/budget fields as overridden or non-editable.
-- [ ] 2.5 Add tests proving provider health omits API keys, OAuth tokens, prompts, account names, raw financial data, stack traces, and oversized provider payloads.
+- [x] 2.1 Implement a central LLM health/status object that resolves selected provider key, provider availability, effective model, auth/config status, effective budgets, budget sources, and sanitized last error.
+- [x] 2.2 Update chat error persistence to retain a classified user-facing error plus a sanitized exact technical provider error while remaining compatible with legacy string error payloads.
+- [x] 2.3 Render provider health in the assistant sidebar, including provider unavailable state, effective model, auth/config status, budgets, and exact sanitized provider error for failed chats.
+- [x] 2.4 Render provider health in self-hosting AI settings and mark environment-backed provider/model/budget fields as overridden or non-editable.
+- [x] 2.5 Add tests proving provider health omits API keys, OAuth tokens, prompts, account names, raw financial data, stack traces, and oversized provider payloads.
 
 ## 3. Worker Runtime Smoke Test
 

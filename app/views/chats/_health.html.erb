@@ -1,0 +1,22 @@
+<%# locals: (health:) %>
+
+<div id="ai-provider-health" class="flex items-center gap-2 px-3 py-2 text-xs border-t border-secondary">
+  <% if health.available? %>
+    <span class="w-2 h-2 rounded-full bg-success" aria-hidden="true"></span>
+    <span class="text-secondary">
+      <span class="text-primary font-medium"><%= health.provider_name %></span>
+      · <%= health.effective_model %>
+    </span>
+  <% else %>
+    <span class="w-2 h-2 rounded-full bg-error" aria-hidden="true"></span>
+    <span class="text-secondary">
+      <span class="text-primary font-medium"><%= t("chats.health.unavailable", default: "AI provider unavailable") %></span>
+      <% if health.provider_key %>
+        · <%= health.provider_key %>
+      <% end %>
+    </span>
+    <% if Current.user.admin? %>
+      <%= link_to t("chats.health.configure", default: "Configure"), health.settings_path, class: "ml-auto text-primary underline" %>
+    <% end %>
+  <% end %>
+</div>
