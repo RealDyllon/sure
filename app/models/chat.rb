@@ -61,15 +61,26 @@ class Chat < ApplicationRecord
     conversation_messages.ordered.last.role != "assistant"
   end
 
-  def retry_last_message!
-    update!(error: nil)
+  # Single model-level retry path shared by the web (ChatsController#retry) and
+  # API (Api::V1::MessagesController#retry) surfaces.
+  #
+  # Retries the last retryable user message: clears the stale chat error, finds
+  # the last complete user message, creates exactly one fresh pending assistant
+  # message, and enqueues exactly one AssistantResponseJob with that user
+  # message plus the pending assistant message. Failed/partial assistant
+  # messages are excluded from subsequent provider history by the
+  # `status: "complete"` filter in Assistant::Responder#conversation_history,
+  # so they are left in place rather than re-enqueued as a prompt.
+  #
+  # Returns the pending AssistantMessage when a retryable user message exists,
+  # or nil when there is no user message to retry.
+  def retry!
+    clear_error
 
-    last_message = conversation_messages.ordered.last
+    user_message = last_retryable_user_message
+    return nil unless user_message
 
-    if last_message.present? && last_message.role == "user"
-
-      ask_assistant_later(last_message)
-    end
+    ask_assistant_later(user_message)
   end
 
   def update_latest_response!(provider_response_id)
@@ -107,10 +118,15 @@ class Chat < ApplicationRecord
     ActionView::RecordIdentifier.dom_id(self, :chat_error)
   end
 
+  def last_retryable_user_message
+    conversation_messages.where(type: "UserMessage").ordered.last
+  end
+
   def ask_assistant_later(message)
     clear_error
     pending = messages.create!(type: "AssistantMessage", content: "", ai_model: message.ai_model, status: :pending)
     AssistantResponseJob.perform_later(message, pending)
+    pending
   end
 
   def ask_assistant(message, assistant_message: nil)

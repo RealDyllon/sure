@@ -275,4 +275,89 @@ class Provider::OpenaiViaCodex::ClientTest < ActiveSupport::TestCase
 
     assert_equal Provider::OpenaiViaCodex::DEFAULT_MODEL_SLUGS, client.fetch_model_slugs
   end
+
+  test "chat surfaces refusal deltas as the message content" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with(body: hash_including(model: "gpt-5.4", stream: true))
+      .to_return(
+        status: 200,
+        body: "data: {\"type\":\"response.refusal.delta\",\"delta\":\"I can't \"}\n\n" \
+              "data: {\"type\":\"response.refusal.delta\",\"delta\":\"help with that\"}\n\n" \
+              "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"model\":\"gpt-5.4\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    response = client.chat(parameters: {
+      model: "openai-codex/gpt-5.4",
+      messages: [ { role: "user", content: "do something disallowed" } ]
+    })
+
+    assert_equal "I can't help with that", response.dig("choices", 0, "message", "content")
+  end
+
+  test "responses.create raises a sanitized error for an unsuccessful HTTP response" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .to_return(status: 401, body: "unauthorized")
+
+    error = assert_raises(Provider::OpenaiViaCodex::Client::Error) do
+      client.responses.create(parameters: {
+        model: "openai-codex/gpt-5.4",
+        input: [ { role: "user", content: "hi" } ],
+        stream: proc { |_| }
+      })
+    end
+
+    assert_match(/401/, error.message)
+  end
+
+  test "request_json raises a sanitized error for invalid JSON in a stream" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .to_return(
+        status: 200,
+        body: "data: not-valid-json\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    error = assert_raises(Provider::OpenaiViaCodex::Client::Error) do
+      client.responses.create(parameters: {
+        model: "openai-codex/gpt-5.4",
+        input: [ { role: "user", content: "hi" } ],
+        stream: proc { |_| }
+      })
+    end
+
+    assert_match(/invalid JSON/i, error.message)
+  end
+
+  test "chat raises a sanitized error when the stream finishes without a completed response" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with(body: hash_including(model: "gpt-5.4", stream: true))
+      .to_return(
+        status: 200,
+        body: "data: {\"type\":\"response.output_text.delta\",\"delta\":\"partial\"}\n\n" \
+              "data: [DONE]\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    error = assert_raises(Provider::OpenaiViaCodex::Client::Error) do
+      client.chat(parameters: {
+        model: "openai-codex/gpt-5.4",
+        messages: [ { role: "user", content: "hi" } ]
+      })
+    end
+
+    assert_match(/completed without a response/i, error.message)
+  end
 end

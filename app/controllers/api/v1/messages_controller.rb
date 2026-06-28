@@ -26,19 +26,12 @@ class Api::V1::MessagesController < Api::V1::BaseController
   end
 
   def retry
-    last_message = @chat.messages.ordered.last
+    pending = @chat.retry!
 
-    if last_message&.type == "AssistantMessage"
-      new_message = @chat.messages.create!(
-        type: "AssistantMessage",
-        content: "",
-        ai_model: last_message.ai_model
-      )
-
-      AssistantResponseJob.perform_later(new_message)
-      render json: { message: "Retry initiated", message_id: new_message.id }, status: :accepted
+    if pending
+      render json: { message: "Retry initiated", message_id: pending.id }, status: :accepted
     else
-      render json: { error: "No assistant message to retry" }, status: :unprocessable_entity
+      render json: { error: "No user message to retry" }, status: :unprocessable_entity
     end
   end
 

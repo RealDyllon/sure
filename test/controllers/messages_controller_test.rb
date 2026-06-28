@@ -19,4 +19,24 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :forbidden
   end
+
+  test "creating a message enqueues exactly one assistant response job, not duplicates" do
+    assert_enqueued_jobs 1, only: AssistantResponseJob do
+      post chat_messages_url(@chat), params: { message: { content: "Hello", ai_model: "gpt-4.1" } }
+    end
+
+    assert_redirected_to chat_path(@chat, thinking: true)
+  end
+
+  test "web retry enqueues exactly one assistant response job and clears the chat error" do
+    @chat.add_error(StandardError.new("OpenAI API error 503: service unavailable"))
+    assert @chat.error.present?
+
+    assert_enqueued_jobs 1, only: AssistantResponseJob do
+      post retry_chat_url(@chat)
+    end
+
+    assert_redirected_to chat_path(@chat)
+    assert_nil @chat.reload.error
+  end
 end

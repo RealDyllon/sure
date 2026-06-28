@@ -1,10 +1,10 @@
 ## 1. Audit And Test Baseline
 
-- [ ] 1.1 Audit current uncommitted AI provider, chat retry, Codex, settings, and category cleanup changes against this OpenSpec and decide whether category cleanup will be finished or removed in this implementation branch.
-- [ ] 1.2 Add focused failing tests for web chat create/respond/retry behavior, including no duplicate assistant jobs and clearing stale chat errors on retry.
-- [ ] 1.3 Add focused failing tests for API message create/retry behavior that prove API retry uses the last retryable user message and never enqueues `AssistantResponseJob` with an assistant message as the prompt.
+- [x] 1.1 Audit current uncommitted AI provider, chat retry, Codex, settings, and category cleanup changes against this OpenSpec and decide whether category cleanup will be finished or removed in this implementation branch.
+- [x] 1.2 Add focused failing tests for web chat create/respond/retry behavior, including no duplicate assistant jobs and clearing stale chat errors on retry.
+- [x] 1.3 Add focused failing tests for API message create/retry behavior that prove API retry uses the last retryable user message and never enqueues `AssistantResponseJob` with an assistant message as the prompt.
 - [ ] 1.4 Add focused failing tests for provider-unavailable sidebar/settings UI and worker-runtime auth/config failure reporting.
-- [ ] 1.5 Add or extend Codex client tests for SSE output deltas, refusal deltas, function calls, unsuccessful HTTP responses, invalid JSON, and streams that finish without a completed response.
+- [x] 1.5 Add or extend Codex client tests for SSE output deltas, refusal deltas, function calls, unsuccessful HTTP responses, invalid JSON, and streams that finish without a completed response.
 
 ## 2. Provider Health And Error Visibility
 
@@ -33,11 +33,11 @@
 
 ## 5. Chat Retry And Recovery
 
-- [ ] 5.1 Refactor chat retry into one model-level path used by both web and API controllers.
-- [ ] 5.2 Fix API retry so it retries the last retryable user message, creates one pending assistant message, and enqueues one `AssistantResponseJob` with the user message plus pending assistant message.
-- [ ] 5.3 Ensure failed or partially streamed assistant messages are marked/excluded so subsequent provider conversation history only includes complete messages.
-- [ ] 5.4 Ensure chat create/respond paths for web and API rely on one enqueue mechanism and do not duplicate assistant responses.
-- [ ] 5.5 Add or update tests for retry with no retryable user message, retry after provider failure, retry after partial stream failure, and retry authorization/scope failures.
+- [x] 5.1 Refactor chat retry into one model-level path used by both web and API controllers.
+- [x] 5.2 Fix API retry so it retries the last retryable user message, creates one pending assistant message, and enqueues one `AssistantResponseJob` with the user message plus pending assistant message.
+- [x] 5.3 Ensure failed or partially streamed assistant messages are marked/excluded so subsequent provider conversation history only includes complete messages.
+- [x] 5.4 Ensure chat create/respond paths for web and API rely on one enqueue mechanism and do not duplicate assistant responses.
+- [x] 5.5 Add or update tests for retry with no retryable user message, retry after provider failure, retry after partial stream failure, and retry authorization/scope failures.
 
 ## 6. Category Cleanup Readiness
 

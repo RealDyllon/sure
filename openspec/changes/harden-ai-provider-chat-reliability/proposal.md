@@ -30,3 +30,7 @@ None.
 - May add a small persisted or cache-backed smoke-test result record/state, or reuse existing settings/job patterns if they can provide durable worker-runtime feedback.
 - Updates self-hosting documentation and settings copy for Codex account/session requirements and provider status.
 - Does not add public API endpoints, so OpenAPI rswag artifacts are not required unless implementation later exposes a new `/api/v1` endpoint.
+
+## Working Agreement
+
+Commit after every stage. Each task group (`## 1. Audit And Test Baseline`, `## 2. Provider Health And Error Visibility`, etc.) is a stage: when all tasks in a stage are complete and the targeted tests are green, make one cohesive Git commit before moving to the next stage. Stages map directly to the numbered sections in `tasks.md`.

@@ -1,6 +1,8 @@
 require "test_helper"
 
 class ChatTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
   setup do
     @user = users(:family_admin)
     @assistant = mock
@@ -132,5 +134,64 @@ class ChatTest < ActiveSupport::TestCase
 
     assert_equal I18n.t("chat.errors.rate_limited"), chat.presentable_error_message
     assert_equal "OpenAI API error 429: rate limit exceeded", chat.technical_error_message
+  end
+
+  test "create with initial message enqueues exactly one assistant response job" do
+    assert_enqueued_with(job: AssistantResponseJob) do
+      chat = @user.chats.start!("Test prompt", model: "gpt-4.1")
+
+      assert_equal 2, chat.messages.count
+    end
+
+    assert_enqueued_jobs 1, only: AssistantResponseJob
+  end
+
+  test "retry clears the stale chat error before queuing a replacement response" do
+    chat = chats(:one)
+    chat.add_error(StandardError.new("OpenAI API error 503: service unavailable"))
+    assert chat.present?
+
+    assert chat.error.present?
+
+    pending = nil
+    assert_enqueued_jobs 1, only: AssistantResponseJob do
+      pending = chat.retry!
+    end
+
+    assert_nil chat.error
+    assert_kind_of AssistantMessage, pending
+    assert pending.pending?
+  end
+
+  test "retry retries the last user message even when a failed assistant message follows it" do
+    chat = chats(:one)
+
+    # Simulate a partially-streamed failure: a failed assistant message after the last user message
+    user_message = chat.conversation_messages.where(type: "UserMessage").ordered.last
+    chat.messages.create!(
+      type: "AssistantMessage",
+      content: "partial response",
+      ai_model: user_message.ai_model,
+      status: "failed"
+    )
+
+    captured = nil
+    AssistantResponseJob.expects(:perform_later).with do |prompt_message, pending_message|
+      captured = [ prompt_message, pending_message ]
+      true
+    end
+
+    pending = chat.retry!
+
+    assert captured, "retry should enqueue exactly one assistant response job"
+    assert_kind_of UserMessage, captured[0], "retry must enqueue the user message as the prompt, not an assistant message"
+    assert_kind_of AssistantMessage, captured[1]
+    assert_equal pending, captured[1]
+  end
+
+  test "retry returns nil when there is no retryable user message" do
+    chat = Chat.create!(user: @user, title: "empty", messages: [])
+
+    assert_nil chat.retry!
   end
 end
