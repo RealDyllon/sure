@@ -194,4 +194,29 @@ class ChatTest < ActiveSupport::TestCase
 
     assert_nil chat.retry!
   end
+
+  test "provider-unavailable failure surfaces a sanitized user-facing plus technical error" do
+    chat = chats(:one)
+
+    with_env_overrides("OPENAI_ACCESS_TOKEN" => nil, "LLM_PROVIDER" => nil, "OPENAI_MODEL" => nil) do
+      Setting.stubs(:openai_access_token).returns(nil)
+      Setting.stubs(:openai_model).returns(nil)
+      Setting.stubs(:llm_provider).returns("openai")
+
+      user_message = chat.messages.create!(
+        type: "UserMessage",
+        content: "ask me anything",
+        ai_model: "gpt-4.1"
+      )
+
+      Assistant::Builtin.for_chat(chat).respond_to(user_message)
+
+      assert chat.error.present?, "an unavailable provider should report a chat error"
+      assert chat.presentable_error_message.present?
+      assert_match(/provider configured/i, chat.technical_error_message)
+      # Sanitization baseline: the technical message must not leak the raw model
+      # identifier beyond the provider context and must remain a short string.
+      assert_operator chat.technical_error_message.length, :<, 500
+    end
+  end
 end

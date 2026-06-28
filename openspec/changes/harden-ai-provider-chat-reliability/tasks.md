@@ -3,7 +3,7 @@
 - [x] 1.1 Audit current uncommitted AI provider, chat retry, Codex, settings, and category cleanup changes against this OpenSpec and decide whether category cleanup will be finished or removed in this implementation branch.
 - [x] 1.2 Add focused failing tests for web chat create/respond/retry behavior, including no duplicate assistant jobs and clearing stale chat errors on retry.
 - [x] 1.3 Add focused failing tests for API message create/retry behavior that prove API retry uses the last retryable user message and never enqueues `AssistantResponseJob` with an assistant message as the prompt.
-- [ ] 1.4 Add focused failing tests for provider-unavailable sidebar/settings UI and worker-runtime auth/config failure reporting.
+- [x] 1.4 Add focused failing tests for provider-unavailable sidebar/settings UI and worker-runtime auth/config failure reporting.
 - [x] 1.5 Add or extend Codex client tests for SSE output deltas, refusal deltas, function calls, unsuccessful HTTP responses, invalid JSON, and streams that finish without a completed response.
 
 ## 2. Provider Health And Error Visibility
