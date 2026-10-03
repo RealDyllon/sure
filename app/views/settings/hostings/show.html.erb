@@ -5,15 +5,18 @@
 <%= settings_section title: t(".general") do %>
   <div class="space-y-6"
        data-controller="provider-settings"
-       data-provider-settings-active-value="<%= Setting.llm_provider %>">
+       data-provider-settings-active-value="<%= Setting.effective_llm_provider %>">
     <%= render "settings/hostings/llm_provider_selector" %>
     <%= tag.div data: { "provider-settings-target": "panel", provider: "openai" },
-                hidden: Setting.llm_provider != "openai" do %>
+                hidden: Setting.effective_llm_provider != "openai" do %>
       <%= render "settings/hostings/openai_settings" %>
     <% end %>
     <%= tag.div data: { "provider-settings-target": "panel", provider: "anthropic" },
-                hidden: Setting.llm_provider != "anthropic" do %>
+                hidden: Setting.effective_llm_provider != "anthropic" do %>
       <%= render "settings/hostings/anthropic_settings" %>
+    <% end %>
+    <%= tag.div data: { "provider-settings-target": "panel", provider: "codex" }, hidden: Setting.effective_llm_provider != "codex" do %>
+      <%= render "settings/hostings/codex_settings" %>
     <% end %>
     <%# Jev is a classification provider, not an LLM: it answers typed questions
         and cannot generate text. This sits outside the panels above so the

@@ -171,6 +171,7 @@ class LlmUsage < ApplicationRecord
   # Infer provider from model name by checking which provider has pricing for it
   # Returns the provider name if found, or "openai" as default (for backward compatibility)
   def self.infer_provider(model)
+    return "openai_codex" if model.to_s.start_with?("openai-codex/")
     return "openai" if model.blank?
 
     # Bedrock + Vertex prefix model IDs with "anthropic." regardless of

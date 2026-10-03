@@ -14,6 +14,11 @@ class Setting < RailsSettings::Base
   field :anthropic_access_token, type: :string, default: ENV["ANTHROPIC_ACCESS_TOKEN"].presence || ENV["ANTHROPIC_API_KEY"].presence
   field :anthropic_model, type: :string, default: ENV["ANTHROPIC_MODEL"]
   field :anthropic_base_url, type: :string, default: ENV["ANTHROPIC_BASE_URL"]
+  def self.effective_llm_provider
+    selected = (ENV["LLM_PROVIDER"].presence || llm_provider).to_s.downcase
+    %w[openai anthropic codex].include?(selected) ? selected : "openai"
+  end
+
   field :llm_provider, type: :string, default: ENV.fetch("LLM_PROVIDER", "openai")
 
   # Jev (TypeSafe) — a classification provider, not an LLM. Reachable either

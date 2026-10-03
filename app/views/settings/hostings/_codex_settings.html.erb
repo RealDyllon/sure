@@ -1,0 +1,5 @@
+<%= styled_form_with model: Setting.new, url: settings_hosting_path, method: :patch, class: "space-y-3" do |form| %>
+  <%= form.text_field :openai_model, label: t(".model"), value: Provider::OpenaiViaCodex.effective_model, disabled: ENV["OPENAI_MODEL"].present? %>
+  <p class="text-sm text-secondary"><%= t(".help") %></p>
+  <%= form.submit t(".save") %>
+<% end %>

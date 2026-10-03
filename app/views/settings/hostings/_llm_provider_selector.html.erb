@@ -1,8 +1,8 @@
 <%
-  active = Setting.llm_provider.to_s.downcase == "anthropic" ? "anthropic" : "openai"
+  active = Setting.effective_llm_provider.to_s.downcase
   locked = ENV["LLM_PROVIDER"].present?
-  providers = [ [ "openai", t(".provider_openai") ], [ "anthropic", t(".provider_anthropic") ] ]
-  active_configured = active == "anthropic" ? Provider::Anthropic.configured? : Provider::Openai.configured?
+  providers = [ [ "openai", t(".provider_openai") ], [ "anthropic", t(".provider_anthropic") ], [ "codex", t(".provider_codex") ] ]
+  active_configured = { "openai" => Provider::Openai, "anthropic" => Provider::Anthropic, "codex" => Provider::OpenaiViaCodex }.fetch(active, Provider::Openai).configured?
 %>
 
 <div class="space-y-3">
@@ -49,12 +49,15 @@
   <% end %>
 
   <p class="text-xs text-secondary"><%= t(".provider_help") %></p>
+  <% if active == "codex" %>
+    <p class="text-sm text-secondary"><%= t(".codex_help") %></p>
+  <% end %>
 
   <% if !locked && !active_configured %>
     <p class="text-xs text-warning"><%= t(".not_configured_hint", provider: t(".provider_#{active}")) %></p>
   <% end %>
 
   <%= render DS::Note.new(title: t(".data_retention_heading")) do %>
-    <p><%= t(".data_retention") %></p>
+    <p><%= t(active == "codex" ? ".codex_data_handling" : ".data_retention") %></p>
   <% end %>
 </div>

@@ -92,6 +92,8 @@ class Provider::Openai < Provider
   end
 
   def supports_model?(model)
+    return false if model.to_s.start_with?("openai-codex/")
+
     # If using custom uri_base, support any model
     return true if custom_provider?
 

@@ -1,0 +1,363 @@
+require "test_helper"
+
+class Provider::OpenaiViaCodex::ClientTest < ActiveSupport::TestCase
+  test "responses.create strips codex model prefix and sends account header" do
+    auth = stub(access_token_and_account_id: [ "access-token", "account-123" ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with(
+        headers: {
+          "Authorization" => "Bearer access-token",
+          "ChatGPT-Account-ID" => "account-123",
+          "Content-Type" => "application/json"
+        },
+        body: hash_including(model: "gpt-5.4", input: [ { role: "user", content: "hi" } ], stream: true)
+      )
+      .to_return(
+        status: 200,
+        body: "data: #{{
+          type: "response.completed",
+          response: {
+            id: "resp_1",
+            output: [],
+            usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 }
+          }
+        }.to_json}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    response = client.responses.create(parameters: {
+      model: "openai-codex/gpt-5.4",
+      input: [ { role: "user", content: "hi" } ],
+      stream: nil
+    })
+
+    assert_equal "resp_1", response["id"]
+  end
+
+  test "responses.create strips unsupported previous_response_id" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with do |request|
+        body = JSON.parse(request.body)
+        body["model"] == "gpt-5.4" && body["stream"] == true && !body.key?("previous_response_id")
+      end
+      .to_return(
+        status: 200,
+        body: "data: #{{
+          type: "response.completed",
+          response: { id: "resp_1", output: [], usage: { total_tokens: 0 } }
+        }.to_json}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    response = client.responses.create(parameters: {
+      model: "openai-codex/gpt-5.4",
+      input: [ { role: "user", content: "hi" } ],
+      previous_response_id: "resp_previous"
+    })
+
+    assert_equal "resp_1", response["id"]
+  end
+
+  test "responses.create returns a completed response from internal streaming" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with(body: hash_including(model: "gpt-5.4", stream: true))
+      .to_return(
+        status: 200,
+        body: "data: {\"type\":\"response.output_text.delta\",\"delta\":\"{\\\"ok\\\":\"}\n\n" \
+              "data: {\"type\":\"response.output_text.delta\",\"delta\":\"true}\"}\n\n" \
+              "data: #{{
+                type: "response.completed",
+                response: { id: "resp_1", model: "gpt-5.4", output: [], usage: { total_tokens: 2 } }
+              }.to_json}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    response = client.responses.create(parameters: {
+      model: "openai-codex/gpt-5.4",
+      input: [ { role: "user", content: "hi" } ]
+    })
+
+    assert_equal "resp_1", response["id"]
+    assert_equal "{\"ok\":true}", response.dig("output", 0, "content", 0, "text")
+  end
+
+  test "responses.create streams SSE hashes to the supplied callback" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+    events = []
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with(body: hash_including(model: "gpt-5.4", stream: true))
+      .to_return(
+        status: 200,
+        body: "data: {\"type\":\"response.output_text.delta\",\"delta\":\"Hi\"}\n\n" \
+              "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n" \
+              "data: [DONE]\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    result = client.responses.create(parameters: {
+      model: "openai-codex/gpt-5.4",
+      input: [ { role: "user", content: "hi" } ],
+      stream: proc { |event| events << event }
+    })
+
+    assert_nil result
+    assert_equal [ "response.output_text.delta", "response.completed" ], events.map { |event| event["type"] }
+  end
+
+  test "chat translates chat-completions parameters to responses and returns chat shape" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with(body: hash_including(
+        model: "gpt-5.4",
+        instructions: "System instructions",
+        input: [ { role: "user", content: "Return JSON" } ],
+        text: { format: { type: "json_object" } },
+        stream: true
+      ))
+      .to_return(
+        status: 200,
+        body: "data: #{{
+          type: "response.completed",
+          response: {
+            id: "resp_1",
+            output: [
+              { type: "message", content: [ { type: "output_text", text: "{\"ok\":true}" } ] }
+            ],
+            usage: { input_tokens: 5, output_tokens: 3, total_tokens: 8 }
+          }
+        }.to_json}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    response = client.chat(parameters: {
+      model: "openai-codex/gpt-5.4",
+      messages: [
+        { role: "system", content: "System instructions" },
+        { role: "user", content: "Return JSON" }
+      ],
+      response_format: { type: "json_object" }
+    })
+
+    assert_equal "{\"ok\":true}", response.dig("choices", 0, "message", "content")
+    assert_equal 8, response.dig("usage", "total_tokens")
+  end
+
+  test "chat keeps json mode valid when only system instructions mention json" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with do |request|
+        body = JSON.parse(request.body)
+        body["text"] == { "format" => { "type" => "json_object" } } &&
+          body["instructions"].include?("JSON") &&
+          body["input"].any? { |item| item["role"] == "user" && item["content"].include?("Return JSON.") }
+      end
+      .to_return(
+        status: 200,
+        body: "data: #{{
+          type: "response.completed",
+          response: {
+            id: "resp_1",
+            output: [
+              { type: "message", content: [ { type: "output_text", text: "{\"ok\":true}" } ] }
+            ],
+            usage: { input_tokens: 5, output_tokens: 3, total_tokens: 8 }
+          }
+        }.to_json}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    response = client.chat(parameters: {
+      model: "openai-codex/gpt-5.4",
+      messages: [
+        { role: "system", content: "Respond with JSON only" },
+        { role: "user", content: "Extract transactions from this statement" }
+      ],
+      response_format: { type: "json_object" }
+    })
+
+    assert_equal "{\"ok\":true}", response.dig("choices", 0, "message", "content")
+  end
+
+  test "chat uses streamed output text when completed response omits output content" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with(body: hash_including(model: "gpt-5.4", stream: true))
+      .to_return(
+        status: 200,
+        body: "data: {\"type\":\"response.output_text.delta\",\"delta\":\"po\"}\n\n" \
+              "data: {\"type\":\"response.output_text.delta\",\"delta\":\"ng\"}\n\n" \
+              "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"model\":\"gpt-5.4\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    response = client.chat(parameters: {
+      model: "openai-codex/gpt-5.4",
+      messages: [ { role: "user", content: "Reply pong" } ]
+    })
+
+    assert_equal "pong", response.dig("choices", 0, "message", "content")
+  end
+
+  test "chat translates tools and function calls" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with do |request|
+        body = JSON.parse(request.body)
+        body["stream"] == true && body["tools"] == [
+          {
+            "type" => "function",
+            "name" => "get_accounts",
+            "description" => "Gets account data",
+            "parameters" => { "type" => "object", "properties" => {} },
+            "strict" => true
+          }
+        ]
+      end
+      .to_return(
+        status: 200,
+        body: "data: #{{
+          type: "response.completed",
+          response: {
+            id: "resp_1",
+            output: [
+              { type: "function_call", call_id: "call_1", name: "get_accounts", arguments: "{}" }
+            ],
+            usage: { input_tokens: 5, output_tokens: 3, total_tokens: 8 }
+          }
+        }.to_json}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    response = client.chat(parameters: {
+      model: "openai-codex/gpt-5.4",
+      messages: [ { role: "user", content: "How many accounts?" } ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "get_accounts",
+            description: "Gets account data",
+            parameters: { type: "object", properties: {} },
+            strict: true
+          }
+        }
+      ]
+    })
+
+    assert_equal "call_1", response.dig("choices", 0, "message", "tool_calls", 0, "id")
+    assert_equal "get_accounts", response.dig("choices", 0, "message", "tool_calls", 0, "function", "name")
+  end
+
+  test "fetch_models falls back when upstream request fails" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:get, "https://chatgpt.com/backend-api/codex/models?client_version=1.0.0")
+      .to_return(status: 500, body: "boom")
+
+    assert_equal Provider::OpenaiViaCodex::DEFAULT_MODEL_SLUGS, client.fetch_model_slugs
+  end
+
+  test "chat surfaces refusal deltas as the message content" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with(body: hash_including(model: "gpt-5.4", stream: true))
+      .to_return(
+        status: 200,
+        body: "data: {\"type\":\"response.refusal.delta\",\"delta\":\"I can't \"}\n\n" \
+              "data: {\"type\":\"response.refusal.delta\",\"delta\":\"help with that\"}\n\n" \
+              "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"model\":\"gpt-5.4\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    response = client.chat(parameters: {
+      model: "openai-codex/gpt-5.4",
+      messages: [ { role: "user", content: "do something disallowed" } ]
+    })
+
+    assert_equal "I can't help with that", response.dig("choices", 0, "message", "content")
+  end
+
+  test "responses.create raises a sanitized error for an unsuccessful HTTP response" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .to_return(status: 401, body: "unauthorized")
+
+    error = assert_raises(Provider::OpenaiViaCodex::Client::Error) do
+      client.responses.create(parameters: {
+        model: "openai-codex/gpt-5.4",
+        input: [ { role: "user", content: "hi" } ],
+        stream: proc { |_| }
+      })
+    end
+
+    assert_match(/401/, error.message)
+  end
+
+  test "request_json raises a sanitized error for invalid JSON in a stream" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .to_return(
+        status: 200,
+        body: "data: not-valid-json\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    error = assert_raises(Provider::OpenaiViaCodex::Client::Error) do
+      client.responses.create(parameters: {
+        model: "openai-codex/gpt-5.4",
+        input: [ { role: "user", content: "hi" } ],
+        stream: proc { |_| }
+      })
+    end
+
+    assert_match(/invalid JSON/i, error.message)
+  end
+
+  test "chat raises a sanitized error when the stream finishes without a completed response" do
+    auth = stub(access_token_and_account_id: [ "access-token", nil ])
+    client = Provider::OpenaiViaCodex::Client.new(auth: auth)
+
+    stub_request(:post, "https://chatgpt.com/backend-api/codex/responses")
+      .with(body: hash_including(model: "gpt-5.4", stream: true))
+      .to_return(
+        status: 200,
+        body: "data: {\"type\":\"response.output_text.delta\",\"delta\":\"partial\"}\n\n" \
+              "data: [DONE]\n\n",
+        headers: { "Content-Type" => "text/event-stream" }
+      )
+
+    error = assert_raises(Provider::OpenaiViaCodex::Client::Error) do
+      client.chat(parameters: {
+        model: "openai-codex/gpt-5.4",
+        messages: [ { role: "user", content: "hi" } ]
+      })
+    end
+
+    assert_match(/completed without a response/i, error.message)
+  end
+end

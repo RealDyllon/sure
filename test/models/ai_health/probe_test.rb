@@ -27,6 +27,23 @@ class AiHealth::ProbeTest < ActiveSupport::TestCase
     assert_requested request
   end
 
+  test "Codex PDF health checks exercise text and image inputs separately" do
+    client = mock("codex_client")
+    inputs = []
+    client.expects(:chat).twice.with do |parameters:|
+      inputs << parameters.fetch(:messages).last.fetch(:content)
+      parameters.fetch(:model) == "openai-codex/gpt-6.1-sol"
+    end.returns({ "choices" => [ { "message" => { "content" => { document_type: "bank_statement", summary: "Synthetic statement only", extracted_data: { institution_name: AiHealth::Probe::PDF_TEST_INSTITUTION } }.to_json } } ] })
+    Provider::OpenaiViaCodex::Client.expects(:new).twice.returns(client)
+    Provider::Openai::PdfProcessor.any_instance.expects(:convert_pdf_to_images).once.returns([ "synthetic-page" ])
+    params = { provider: :codex, endpoint: Provider::OpenaiViaCodex::CODEX_BASE_URL, access_token: "configured", model: "openai-codex/gpt-6.1-sol" }
+    assert @probe.pdf_text_extraction(**params).passing?
+    assert @probe.pdf_vision_processing(**params).passing?
+    assert_kind_of String, inputs.first
+    assert_includes inputs.first, AiHealth::Probe::PDF_TEST_INSTITUTION
+    assert_equal "image_url", inputs.last.first.fetch(:type)
+  end
+
   test "timeout honors AI_HEALTH_PROBE_TIMEOUT and falls back for missing or non-positive values" do
     ClimateControl.modify(AI_HEALTH_PROBE_TIMEOUT: "42") do
       assert_equal 42, AiHealth::Probe.timeout

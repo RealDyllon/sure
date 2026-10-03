@@ -24,7 +24,9 @@ class Provider::Registry
     # one configured) keeps working. Returns nil when neither is configured —
     # callers guard on that.
     def preferred_llm_provider
-      order = Setting.llm_provider == "anthropic" ? %i[anthropic openai] : %i[openai anthropic]
+      return codex if Setting.effective_llm_provider == "codex"
+
+      order = Setting.effective_llm_provider == "anthropic" ? %i[anthropic openai] : %i[openai anthropic]
       order.each do |name|
         provider = get_provider(name)
         return provider if provider
@@ -90,6 +92,12 @@ class Provider::Registry
         end
 
         Provider::Openai.new(access_token, uri_base: uri_base, model: model)
+      end
+
+      def codex
+        return nil unless Setting.effective_llm_provider == "codex" && Provider::OpenaiViaCodex.configured?
+
+        Provider::OpenaiViaCodex.new
       end
 
       def anthropic
@@ -226,7 +234,7 @@ class Provider::Registry
       when :securities
         %i[twelve_data yahoo_finance tiingo eodhd alpha_vantage mfapi binance_public moex_public tinkoff_invest mansa]
       when :llm
-        %i[openai anthropic]
+        %i[openai anthropic codex]
       when :classification
         # Only providers implementing Provider::ClassificationConcept#decide
         # belong here. OpenAI and Anthropic can auto-categorize but cannot

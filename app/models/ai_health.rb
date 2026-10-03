@@ -152,7 +152,7 @@ class AiHealth
 
   private
     def load_llm_status
-      @selected_llm_protocol = normalized_llm_provider(Setting.llm_provider)
+      @selected_llm_protocol = normalized_llm_provider(Setting.effective_llm_provider)
       @openai_custom_endpoint = openai_uri_base.present? && !hosted_openai_endpoint?(openai_uri_base)
       @selected_llm_provider = selected_provider_name(@selected_llm_protocol)
       @openai_credentials_configured = safely(false) { Provider::Openai.configured? }
@@ -171,7 +171,7 @@ class AiHealth
       @pdf_processing_capable = safely(false) do
         @llm_provider&.supports_pdf_processing?(model: llm_model)
       end
-      @pdf_text_extraction_capable = @pdf_processing_capable && @effective_llm_protocol == :openai
+      @pdf_text_extraction_capable = @pdf_processing_capable && @effective_llm_protocol.in?(%i[openai codex])
       @pdf_vision_processing_capable = @pdf_processing_capable
 
       @openai_endpoint = redact_endpoint(openai_uri_base.presence || OPENAI_DEFAULT_ENDPOINT)
@@ -286,11 +286,12 @@ class AiHealth
     end
 
     def normalized_llm_provider(value)
-      value.to_s == "anthropic" ? :anthropic : :openai
+      %w[anthropic codex].include?(value.to_s) ? value.to_sym : :openai
     end
 
     def protocol_name(provider)
       case provider
+      when Provider::OpenaiViaCodex then :codex
       when Provider::Openai then :openai
       when Provider::Anthropic then :anthropic
       end
@@ -328,6 +329,7 @@ class AiHealth
 
     def effective_model(provider)
       case provider
+      when :codex then Provider::OpenaiViaCodex.effective_model
       when :anthropic then Provider::Anthropic.effective_model
       else Provider::Openai.effective_model
       end
@@ -343,10 +345,12 @@ class AiHealth
     end
 
     def raw_endpoint(provider)
+      return Provider::OpenaiViaCodex::CODEX_BASE_URL if provider == :codex
       provider == :anthropic ? anthropic_base_url : openai_uri_base
     end
 
     def access_token(provider)
+      return "codex-cli-auth" if provider == :codex
       if provider == :anthropic
         ENV["ANTHROPIC_ACCESS_TOKEN"].presence ||
           ENV["ANTHROPIC_API_KEY"].presence ||

@@ -58,7 +58,9 @@ class Chat < ApplicationRecord
     # provider's classes would later raise "no LLM provider supports model …"
     # even when the other provider is configured.
     def default_model
-      prefers_anthropic = Setting.llm_provider == "anthropic"
+      return Provider::OpenaiViaCodex.effective_model if Setting.effective_llm_provider == "codex"
+
+      prefers_anthropic = Setting.effective_llm_provider == "anthropic"
 
       if prefers_anthropic && Provider::Anthropic.configured?
         Provider::Anthropic.effective_model.presence || Setting.anthropic_model

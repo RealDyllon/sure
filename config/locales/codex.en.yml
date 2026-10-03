@@ -1,0 +1,17 @@
+en:
+  settings:
+    hostings:
+      codex_settings:
+        model: Codex model
+        help: Use an openai-codex/ model available to your Codex login. No API key is needed. Embeddings use separate credentials.
+        save: Save model
+      llm_provider_selector:
+        provider_codex: OpenAI via Codex
+        codex_data_handling: "Requests use the server owner’s ChatGPT account. Review that account’s data controls before using the assistant or uploading PDF statements."
+        codex_help: "Uses the server owner's Codex login. Run codex login as the user running Rails and Sidekiq. Choose your model below."
+  admin:
+    system_health:
+      show:
+        ai:
+          providers:
+            codex: OpenAI via Codex

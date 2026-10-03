@@ -106,6 +106,9 @@ class AiHealth
             response = openai_client(access_token:, endpoint:).models.list
             openai_model_ids(response).include?(model)
           end
+        when :codex
+          result = Provider::OpenaiViaCodex.new.chat_response(CHAT_TEST_INPUT, model: model)
+          result.success?
         when :anthropic
           model_info = anthropic_client(access_token:, endpoint:).models.retrieve(model)
           model_info.respond_to?(:id) && model_info.id.present?
@@ -140,6 +143,9 @@ class AiHealth
           else
             openai_chat_tool_call?(access_token:, endpoint:, model:)
           end
+        when :codex
+          result = Provider::OpenaiViaCodex.new.chat_response(FUNCTION_CALL_TEST_INPUT, model: model, functions: [ { name: FUNCTION_CALL_TEST_TOOL[:name], description: FUNCTION_CALL_TEST_TOOL[:description], params_schema: FUNCTION_CALL_TEST_TOOL[:schema] } ])
+          result.success? && result.data.function_requests.any? { |request| request.function_name == "sure_health_check" }
         when :anthropic
           anthropic_tool_call?(access_token:, endpoint:, model:)
         else
@@ -238,6 +244,14 @@ class AiHealth
                 model: model,
                 pdf_content: synthetic_pdf,
                 custom_provider: openai_compatible,
+                max_response_tokens: PDF_MAX_RESPONSE_TOKENS,
+                processing_mode: processing_mode
+              ).process
+            when :codex
+              Provider::Openai::PdfProcessor.new(
+                Provider::OpenaiViaCodex::Client.new(auth: Provider::OpenaiViaCodex::Auth.new),
+                model: model,
+                pdf_content: synthetic_pdf,
                 max_response_tokens: PDF_MAX_RESPONSE_TOKENS,
                 processing_mode: processing_mode
               ).process
