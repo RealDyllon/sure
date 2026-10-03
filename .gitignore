@@ -134,3 +134,7 @@ logs/security/
 # Ignore Playwright artifacts
 playwright-report/
 .playwright-mcp
+
+# Isolated local app data and checkouts
+.local/
+.worktrees/

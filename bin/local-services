@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+project_root="$PWD"
+pg_bin="${SURE_POSTGRES_BIN:-/Applications/Postgres.app/Contents/Versions/18/bin}"
+pg_cluster="$project_root/.local/postgres-rebuild"
+redis_dir="$project_root/.local/redis-rebuild"
+redis_bin="${SURE_REDIS_BIN:-/opt/homebrew/opt/redis/bin}"
+if [[ ! -f "$pg_cluster/PG_VERSION" ]]; then
+  echo "The isolated PostgreSQL cluster is missing. Set up a fresh local environment first."
+  exit 1
+fi
+if ! "$pg_bin/pg_ctl" -D "$pg_cluster" status >/dev/null 2>&1; then
+  "$pg_bin/pg_ctl" -D "$pg_cluster" -l "$pg_cluster/server.log" -o '-p 55432 -h localhost' start
+fi
+mkdir -p "$redis_dir"
+if ! "$redis_bin/redis-cli" -p 56379 ping >/dev/null 2>&1; then
+  "$redis_bin/redis-server" --port 56379 --bind 127.0.0.1 --daemonize yes --dir "$redis_dir" --pidfile "$redis_dir/redis.pid" --logfile "$redis_dir/redis.log"
+fi
+echo "Local PostgreSQL and Redis are ready."

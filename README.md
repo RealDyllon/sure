@@ -1,3 +1,5 @@
+> This fork starts from we-promise/sure v0.7.5-hotfix.1 and adds optional Codex auth, statement import workflows, and FIRE planning. See docs/fork-rebuild.md for local setup and maintenance.
+
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/we-promise/sure)
 [![View performance data on Skylight](https://badges.skylight.io/typical/s6PEZSKwcklL.svg)](https://oss.skylight.io/app/applications/s6PEZSKwcklL)
 [![Dosu](https://raw.githubusercontent.com/dosu-ai/assets/main/dosu-badge.svg)](https://app.dosu.dev/a72bdcfd-15f5-4edc-bd85-ea0daa6c3adc/ask)
