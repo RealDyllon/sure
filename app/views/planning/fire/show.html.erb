@@ -1,0 +1,42 @@
+<div class="space-y-6 pb-6">
+  <header>
+    <%= link_to t("fire.back"), plan_path, class: "text-sm text-secondary" %>
+    <h1 class="text-2xl font-semibold text-primary"><%= t("fire.title") %></h1>
+    <p class="text-sm text-secondary mt-1"><%= t("fire.description") %></p>
+  </header>
+  <% if @fire %>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <% { target: @fire.fi_target_money, bridge: @fire.bridge_assets_money, later: @fire.later_assets_money }.each do |key, value| %>
+        <div class="bg-container shadow-border-xs rounded-xl p-5">
+          <p class="text-sm text-secondary"><%= t("fire.#{key}") %></p>
+          <p class="text-xl font-semibold text-primary mt-2"><%= format_money(value) %></p>
+        </div>
+      <% end %>
+    </div>
+    <div class="bg-container shadow-border-xs rounded-xl p-5 space-y-2 text-primary">
+      <p><%= t("fire.progress", value: number_to_percentage(@fire.headline_progress * 100, precision: 1)) %></p>
+      <p><%= t("fire.bridge_target", amount: format_money(@fire.bridge_target_money)) %></p>
+      <p><%= t("fire.estimate", age: @fire.estimated_fi_age || t("fire.unknown")) %></p>
+      <% @fire.review_prompts.each do |prompt| %><p class="text-secondary"><%= t("fire.prompts.#{prompt}") %></p><% end %>
+    </div>
+  <% end %>
+  <%= styled_form_with model: @profile, url: plan_fire_path, method: :patch, data: { turbo: false }, class: "bg-container shadow-border-xs rounded-xl p-5 space-y-4" do |form| %>
+    <% if @profile.errors.any? %><p class="text-destructive"><%= @profile.errors.full_messages.to_sentence %></p><% end %>
+    <h2 class="text-lg font-semibold text-primary"><%= t("fire.assumptions") %></h2>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <%= form.select :planning_region, [[t("fire.generic"), "generic"], [t("fire.singapore"), "singapore"]], label: t("fire.fields.planning_region") %>
+      <% %i[current_age annual_spending_override annual_contribution withdrawal_rate expected_return inflation_rate cpf_access_age cpf_life_age srs_access_age].each do |field| %>
+        <%= form.number_field field, label: t("fire.fields.#{field}"), step: field.to_s.end_with?("age") ? 1 : "any" %>
+      <% end %>
+    </div>
+    <p class="text-sm text-secondary"><%= t("fire.rates_help") %></p>
+    <h2 class="text-lg font-semibold text-primary"><%= t("fire.account_roles") %></h2>
+    <% @accounts.each do |account| %>
+      <%= form.select "fire_roles[#{account.id}]", [[t("fire.automatic"), ""]] + FireProfile::FIRE_ROLES.map { |role| [t("fire.roles.#{role}"), role] }, { selected: @profile.fire_role_overrides[account.id], label: account.name }, name: "fire_roles[#{account.id}]" %>
+    <% end %>
+    <div class="flex gap-3">
+      <%= render DS::Button.new(text: t("fire.preview"), type: "submit", name: "commit_mode", value: "preview") %>
+      <%= render DS::Button.new(text: t("fire.save"), type: "submit", name: "commit_mode", value: "save") %>
+    </div>
+  <% end %>
+</div>

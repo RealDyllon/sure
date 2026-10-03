@@ -3,6 +3,8 @@ class Family < ApplicationRecord
   has_many :financekit_account_lineages, dependent: :destroy
   has_many :financekit_conflicts, dependent: :destroy
 
+  has_many :fire_profiles, dependent: :destroy
+
   include FioConnectable
   include Syncable, AutoTransferMatchable, Subscribeable, VectorSearchable
   include PlaidConnectable, SimplefinConnectable, LunchflowConnectable, AkahuConnectable, EnableBankingConnectable

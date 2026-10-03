@@ -2,6 +2,9 @@ require "sidekiq/web"
 require "sidekiq/cron/web"
 
 Rails.application.routes.draw do
+  get "plan/fire", to: "planning/fire#show", as: :plan_fire
+  patch "plan/fire", to: "planning/fire#update"
+
   resources :questrade_items, only: [ :index, :new, :create, :show, :edit, :update, :destroy ] do
     collection do
       get :preload_accounts

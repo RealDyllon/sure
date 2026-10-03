@@ -1,0 +1,42 @@
+en:
+  fire:
+    title: FIRE planning
+    description: Explore financial independence using accessible assets and later retirement savings. Estimates depend on your assumptions.
+    back: Back to Plan
+    target: Financial independence target
+    bridge: Accessible bridge assets
+    later: Later retirement assets
+    progress: "Overall progress: %{value}"
+    bridge_target: "Bridge target: %{amount}"
+    estimate: "Estimated financial independence age: %{age}"
+    unknown: Not available
+    assumptions: Assumptions and scenarios
+    generic: General
+    singapore: Singapore
+    rates_help: Enter rates as decimal fractions (0.04) or percentages (4). Blank annual spending uses recorded expenses. CPF and SRS ages are planning assumptions; verify your applicable access rules.
+    account_roles: Account roles
+    automatic: Automatic
+    preview: Preview scenario
+    save: Save assumptions
+    saved: FIRE assumptions saved
+    roles:
+      bridge: Accessible bridge
+      later: Later retirement
+      srs_later: SRS later retirement
+      excluded: Excluded
+    fields:
+      planning_region: Planning region
+      current_age: Current age
+      annual_spending_override: Annual spending override
+      annual_contribution: Annual contribution
+      withdrawal_rate: Withdrawal rate
+      expected_return: Expected annual return
+      inflation_rate: Annual inflation
+      cpf_access_age: CPF access age
+      cpf_life_age: CPF LIFE milestone age
+      srs_access_age: SRS access age
+    prompts:
+      spending_missing: Record expenses or enter annual spending before using this projection.
+      current_age_missing: Enter your age to calculate the bridge period.
+      srs_mapping: Review the role of your SRS accounts.
+      fx_unavailable: Some balances could not be converted. Review exchange rates before using this estimate.

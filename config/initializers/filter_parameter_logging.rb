@@ -22,3 +22,5 @@ Rails.application.config.filter_parameters += [
   # credential_id and has_*_credentials, and :events any key containing "events".
   /\A(publisher_)?credential\z/i, /\Aevents\z/i, /\Aconsent\z/i, /\Abooked_balance\z/i
 ]
+
+Rails.application.config.filter_parameters += [ :fire_roles, :annual_spending_override, :annual_contribution ]

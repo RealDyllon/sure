@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_29_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_03_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -1109,6 +1109,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_29_120000) do
     t.datetime "updated_at", null: false
     t.index ["family_id"], name: "index_fio_items_on_family_id"
     t.index ["status"], name: "index_fio_items_on_status"
+  end
+
+  create_table "fire_profiles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.jsonb "account_role_overrides", default: {}, null: false
+    t.decimal "annual_contribution", precision: 19, scale: 4, default: "0.0", null: false
+    t.decimal "annual_spending_override", precision: 19, scale: 4
+    t.integer "cpf_access_age", default: 55, null: false
+    t.integer "cpf_life_age", default: 65, null: false
+    t.datetime "created_at", null: false
+    t.integer "current_age"
+    t.decimal "expected_return", precision: 8, scale: 5, default: "0.06", null: false
+    t.uuid "family_id", null: false
+    t.decimal "inflation_rate", precision: 8, scale: 5, default: "0.02", null: false
+    t.string "planning_region", default: "generic", null: false
+    t.integer "srs_access_age", default: 63, null: false
+    t.datetime "updated_at", null: false
+    t.uuid "user_id", null: false
+    t.decimal "withdrawal_rate", precision: 8, scale: 5, default: "0.04", null: false
+    t.index ["family_id"], name: "index_fire_profiles_on_family_id"
+    t.index ["user_id", "family_id"], name: "index_fire_profiles_on_user_id_and_family_id", unique: true
+    t.index ["user_id"], name: "index_fire_profiles_on_user_id"
   end
 
   create_table "goal_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -2997,6 +3018,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_29_120000) do
   add_foreign_key "financekit_transactions", "financekit_accounts", on_delete: :nullify
   add_foreign_key "fio_accounts", "fio_items"
   add_foreign_key "fio_items", "families"
+  add_foreign_key "fire_profiles", "families"
+  add_foreign_key "fire_profiles", "users"
   add_foreign_key "goal_accounts", "accounts", on_delete: :restrict
   add_foreign_key "goal_accounts", "goals", on_delete: :cascade
   add_foreign_key "goal_pledges", "accounts", on_delete: :restrict

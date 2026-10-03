@@ -85,6 +85,13 @@ class Investment < ApplicationRecord
     "gold_mf" => { short: "Gold MF", long: "Gold Mutual Fund", region: "in", tax_treatment: :taxable },
     "sgb" => { short: "SGB", long: "Sovereign Gold Bond", region: "in", tax_treatment: :tax_advantaged },
 
+    # === Singapore ===
+    "cpf_ordinary" => { short: "CPF Ordinary", long: "CPF Ordinary Account", region: "sg", tax_treatment: :tax_advantaged },
+    "cpf_special" => { short: "CPF Special", long: "CPF Special Account", region: "sg", tax_treatment: :tax_advantaged },
+    "cpf_medisave" => { short: "CPF MediSave", long: "CPF MediSave Account", region: "sg", tax_treatment: :tax_advantaged },
+    "cpf_retirement" => { short: "CPF Retirement", long: "CPF Retirement Account", region: "sg", tax_treatment: :tax_advantaged },
+    "cpf_other" => { short: "CPF Other", long: "CPF Other Account", region: "sg", tax_treatment: :tax_advantaged },
+
     # === Generic (available everywhere) ===
     "pension" => { short: "Pension", long: "Pension", region: nil, tax_treatment: :tax_deferred },
     "retirement" => { short: "Retirement", long: "Retirement Account", region: nil, tax_treatment: :tax_deferred },
@@ -124,7 +131,8 @@ class Investment < ApplicationRecord
       "AUD" => "au",
       "EUR" => "eu",
       "CHF" => "eu",
-      "INR" => "in"
+      "INR" => "in",
+      "SGD" => "sg"
     }.freeze
 
     # Returns subtypes grouped by region for use with grouped_options_for_select
@@ -134,7 +142,7 @@ class Investment < ApplicationRecord
       grouped = SUBTYPES.group_by { |_, v| v[:region] }
 
       # Build region order: user's region first (if known), then Generic, then others
-      other_regions = %w[us uk ca au eu in] - [ user_region ].compact
+      other_regions = %w[us uk ca au eu in sg] - [ user_region ].compact
       region_order = if user_region
         [ user_region, nil, *other_regions ].uniq
       else

@@ -12,6 +12,11 @@
 
   <div class="grid grid-cols-1 @3xl:grid-cols-2 gap-4 items-stretch">
     <%= render "plans/budget_card", budget: @budget, top_budget_categories: @top_budget_categories, editable: @editable, switch_options: @switch_options %>
+    <div class="bg-container shadow-border-xs rounded-xl p-5">
+      <h2 class="text-lg font-semibold text-primary"><%= t("fire.title") %></h2>
+      <p class="text-sm text-secondary my-3"><%= t("fire.description") %></p>
+      <%= render DS::Link.new(text: t("fire.title"), href: plan_fire_path) %>
+    </div>
     <%= render "plans/goals_card", goals: @goals, summary: @goals_summary, linkable_account_count: @linkable_account_count, family_has_goals: @family_has_goals %>
   </div>
 </div>
