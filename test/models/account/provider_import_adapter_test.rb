@@ -250,8 +250,8 @@ class Account::ProviderImportAdapterTest < ActiveSupport::TestCase
     adapter = Account::ProviderImportAdapter.new(investment_account)
     security = securities(:aapl)
 
-    # Use a date that doesn't conflict with fixtures (fixtures use today and 1.day.ago)
-    holding_date = Date.today - 2.days
+    # Keep the new date clear of fixtures across system and Rails time zones.
+    holding_date = investment_account.holdings.minimum(:date) - 1.day
 
     assert_difference "investment_account.holdings.count", 1 do
       holding = adapter.import_holding(
