@@ -2,6 +2,13 @@ require "sidekiq/web"
 require "sidekiq/cron/web"
 
 Rails.application.routes.draw do
+  resources :statement_imports, only: [ :new, :create, :show, :update ] do
+    member do
+      post :publish
+      post :retry_processing
+      post :revert
+    end
+  end
   get "plan/fire", to: "planning/fire#show", as: :plan_fire
   patch "plan/fire", to: "planning/fire#update"
 

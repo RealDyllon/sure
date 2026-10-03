@@ -1,0 +1,57 @@
+<div class="space-y-5 pb-6">
+  <header>
+    <%= link_to t("statement_imports.back"), imports_path, class: "text-secondary" %>
+    <h1 class="text-2xl font-semibold text-primary"><%= t("statement_imports.title") %></h1>
+    <p class="text-secondary"><%= @import.original_filename %> · <%= @import.status.humanize %></p>
+  </header>
+  <% if @import.error.present? %><p class="text-destructive"><%= @import.error %></p><% end %>
+  <% if @import.importing? %>
+    <div class="bg-container rounded-xl p-5 text-primary">
+      <p><%= @import.processing_progress["message"].presence || t("statement_imports.processing") %></p>
+      <% if @import.processing_progress["total"].to_i > 0 %><p><%= @import.processing_progress["current"] %> / <%= @import.processing_progress["total"] %></p><% end %>
+      <%= render DS::Link.new(text: t("statement_imports.refresh"), href: statement_import_path(@import)) %>
+    </div>
+  <% end %>
+  <% if @import.pending? && @import.extracted_accounts.present? %>
+    <%= styled_form_with url: statement_import_path(@import), method: :patch, class: "space-y-4", data: {turbo: false} do |form| %>
+      <% @import.extracted_accounts.each do |payload| %>
+        <% review = payload["review"] || {}; prefix = "reviews[#{payload.fetch('source_id')}]" %>
+        <div class="bg-container shadow-border-xs rounded-xl p-5 space-y-4">
+          <h2 class="text-lg font-semibold text-primary"><%= payload["name"] %></h2>
+          <p class="text-sm text-secondary"><%= t("statement_imports.counts", transactions: Array(payload["transactions"]).size, trades: Array(payload["trades"]).size, positions: Array(payload["positions"]).size) %></p>
+          <p class="text-sm text-secondary"><%= t("statement_imports.balance", value: payload["closing_balance"].presence || t("statement_imports.unavailable"), currency: payload["currency"]) %></p>
+          <%= form.select "#{prefix}[action]", [[t("statement_imports.match"), "match"], [t("statement_imports.create"), "create"]], {label: t("statement_imports.action"), selected: review["action"]} %>
+          <%= form.select "#{prefix}[account_id]", @accounts.map { |account| [account.name, account.id] }, {label: t("statement_imports.account"), include_blank: true, selected: review["account_id"]} %>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <%= form.text_field "#{prefix}[account_name]", label: t("statement_imports.name"), value: review["account_name"].presence || payload["name"] %>
+            <%= form.select "#{prefix}[account_type]", Accountable::TYPES.map { |type| [type.titleize, type] }, {label: t("statement_imports.type"), selected: review["account_type"].presence || payload["account_type"]} %>
+            <%= form.text_field "#{prefix}[account_subtype]", label: t("statement_imports.subtype"), value: review["account_subtype"].presence || payload["subtype"] %>
+            <%= form.select "#{prefix}[currency]", Money::Currency.all_instances.map { |currency| [currency.iso_code, currency.iso_code] }, {label: t("statement_imports.currency"), selected: review["currency"].presence || payload["currency"]} %>
+          </div>
+          <% (Array(payload["transactions"]) + Array(payload["trades"])).presence&.then do |activities| %>
+            <details><summary class="text-primary cursor-pointer"><%= t("statement_imports.activities") %></summary>
+              <div class="overflow-x-auto mt-3">
+                <%= render DS::Table.new(rows: activities, label: t("statement_imports.activities")) do |table| %>
+                  <% %w[date name amount currency].each do |key| %>
+                    <% table.with_column(t("statement_imports.#{key}")) { |activity| activity[key].to_s } %>
+                  <% end %>
+                <% end %>
+              </div>
+            </details>
+          <% end %>
+        </div>
+      <% end %>
+      <%= form.submit t("statement_imports.save_review") %>
+    <% end %>
+    <% if @import.publishable? %><%= render DS::Button.new(text: t("statement_imports.publish"), href: publish_statement_import_path(@import), method: :post) %><% end %>
+  <% end %>
+  <% if @import.complete? %><p class="text-primary"><%= t("statement_imports.complete") %></p><% end %>
+  <% if @import.revertable? %><%= render DS::Button.new(text: t("statement_imports.revert"), href: revert_statement_import_path(@import), method: :post) %><% end %>
+  <% if @import.failed? || @import.importing? %>
+    <%= styled_form_with url: retry_processing_statement_import_path(@import), method: :post, class: "space-y-3" do |form| %>
+      <%= form.password_field :password, label: t("statement_imports.password"), autocomplete: "off" %>
+      <p class="text-sm text-secondary"><%= t("statement_imports.retry_help") %></p>
+      <%= form.submit t("statement_imports.retry") %>
+    <% end %>
+  <% end %>
+</div>

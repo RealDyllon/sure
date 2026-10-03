@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_03_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_03_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -1395,11 +1395,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_03_000001) do
     t.jsonb "extracted_data"
     t.uuid "family_id", null: false
     t.uuid "import_session_id"
+    t.uuid "initiating_user_id"
     t.string "name_col_label"
     t.string "normalized_csv_str"
     t.string "notes_col_label"
     t.string "number_format"
     t.string "price_col_label"
+    t.jsonb "processing_progress", default: {}, null: false
+    t.jsonb "publication_journal", default: {}, null: false
     t.string "qty_col_label"
     t.string "raw_file_str"
     t.jsonb "readback_verification", default: {}, null: false
@@ -1407,6 +1410,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_03_000001) do
     t.integer "rows_to_skip", default: 0, null: false
     t.integer "sequence"
     t.string "signage_convention", default: "inflows_positive"
+    t.text "statement_pdf_password"
     t.string "status"
     t.jsonb "summary", default: {}, null: false
     t.string "tags_col_label"
@@ -1418,6 +1422,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_03_000001) do
     t.index ["import_session_id", "client_chunk_id"], name: "idx_imports_on_session_client_chunk", unique: true, where: "((import_session_id IS NOT NULL) AND (client_chunk_id IS NOT NULL))"
     t.index ["import_session_id", "sequence"], name: "idx_imports_on_session_sequence", unique: true, where: "((import_session_id IS NOT NULL) AND (sequence IS NOT NULL))"
     t.index ["import_session_id"], name: "index_imports_on_import_session_id"
+    t.index ["initiating_user_id"], name: "index_imports_on_initiating_user_id"
     t.check_constraint "checksum IS NULL OR length(checksum::text) = 64", name: "chk_imports_checksum_sha256_length"
     t.check_constraint "client_chunk_id IS NULL OR btrim(client_chunk_id::text) <> ''::text", name: "chk_imports_client_chunk_id_present"
     t.check_constraint "import_session_id IS NULL OR checksum IS NOT NULL", name: "chk_imports_session_checksum_present"
@@ -1614,7 +1619,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_03_000001) do
     t.jsonb "variable_rate_schedule", default: {}, null: false
     t.check_constraint "down_payment IS NULL OR down_payment >= 0::numeric", name: "chk_loans_down_payment_non_negative"
     t.check_constraint "insurance_rate IS NULL OR insurance_rate >= 0::numeric", name: "chk_loans_insurance_rate_non_negative"
-    t.check_constraint "insurance_rate_type IS NULL OR (insurance_rate_type::text = ANY (ARRAY['level_term'::character varying, 'decreasing_life'::character varying]::text[]))", name: "chk_loans_insurance_rate_type"
+    t.check_constraint "insurance_rate_type IS NULL OR (insurance_rate_type::text = ANY (ARRAY['level_term'::character varying::text, 'decreasing_life'::character varying::text]))", name: "chk_loans_insurance_rate_type"
   end
 
   create_table "lunchflow_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -2586,6 +2591,35 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_03_000001) do
     t.index ["name"], name: "index_sso_providers_on_name", unique: true
   end
 
+  create_table "statement_import_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "account_id", null: false
+    t.datetime "created_at", null: false
+    t.string "source_id", null: false
+    t.uuid "statement_import_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_statement_import_accounts_on_account_id"
+    t.index ["statement_import_id", "source_id"], name: "idx_on_statement_import_id_source_id_408d45cb8c", unique: true
+    t.index ["statement_import_id"], name: "index_statement_import_accounts_on_statement_import_id"
+  end
+
+  create_table "statement_profiles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "account_id", null: false
+    t.string "account_subtype"
+    t.string "account_type", null: false
+    t.datetime "created_at", null: false
+    t.string "currency", null: false
+    t.uuid "family_id", null: false
+    t.date "last_statement_end_on"
+    t.jsonb "metadata", default: {}, null: false
+    t.string "provider", null: false
+    t.string "source_id", null: false
+    t.string "source_name"
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_statement_profiles_on_account_id"
+    t.index ["family_id", "provider", "source_id"], name: "idx_on_family_id_provider_source_id_b6d9cd898c", unique: true
+    t.index ["family_id"], name: "index_statement_profiles_on_family_id"
+  end
+
   create_table "subscriptions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.decimal "amount", precision: 19, scale: 4
     t.boolean "cancel_at_period_end", default: false, null: false
@@ -3042,6 +3076,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_03_000001) do
   add_foreign_key "imports", "account_statements", on_delete: :nullify
   add_foreign_key "imports", "families"
   add_foreign_key "imports", "import_sessions", column: ["import_session_id", "family_id"], primary_key: ["id", "family_id"], name: "fk_imports_session_family", on_delete: :cascade
+  add_foreign_key "imports", "users", column: "initiating_user_id"
   add_foreign_key "indexa_capital_accounts", "indexa_capital_items"
   add_foreign_key "indexa_capital_items", "families"
   add_foreign_key "insights", "families"
@@ -3107,6 +3142,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_03_000001) do
   add_foreign_key "sophtron_accounts", "sophtron_items"
   add_foreign_key "sophtron_items", "families"
   add_foreign_key "sso_audit_logs", "users"
+  add_foreign_key "statement_import_accounts", "accounts"
+  add_foreign_key "statement_import_accounts", "imports", column: "statement_import_id"
+  add_foreign_key "statement_profiles", "accounts"
+  add_foreign_key "statement_profiles", "families"
   add_foreign_key "subscriptions", "families"
   add_foreign_key "syncs", "syncs", column: "parent_id"
   add_foreign_key "taggings", "tags"

@@ -57,7 +57,7 @@ class ImportsController < ApplicationController
   end
 
   def index
-    @pagy, @imports = pagy(Current.family.imports.where(type: Import::TYPES).ordered, limit: safe_per_page)
+    @pagy, @imports = pagy(visible_imports.where(type: Import::TYPES).ordered, limit: safe_per_page)
     @breadcrumbs = [
       [ t("breadcrumbs.home"), root_path ],
       [ t("breadcrumbs.imports"), imports_path ]
@@ -68,7 +68,7 @@ class ImportsController < ApplicationController
   end
 
   def new
-    @pending_import = Current.family.imports.ordered.pending.first
+    @pending_import = visible_imports.ordered.pending.first
     @document_upload_extensions = document_upload_supported_extensions
   end
 
@@ -129,6 +129,8 @@ class ImportsController < ApplicationController
   end
 
   def show
+    return redirect_to statement_import_path(@import) if @import.is_a?(StatementImport)
+
     unless @import.requires_csv_workflow?
       redirect_to import_upload_path(@import), alert: t("imports.show.finalize_upload") unless @import.uploaded?
       return
@@ -163,6 +165,9 @@ class ImportsController < ApplicationController
   end
 
   private
+    def visible_imports
+      Current.family.imports.where.not(type: "StatementImport").or(Current.family.imports.where(type: "StatementImport", initiating_user_id: Current.user.id))
+    end
     def set_import
       @import = Current.family.imports.includes(:account, :account_statement).find(params[:id])
       raise ActiveRecord::RecordNotFound if @import.account_statement.present? && !@import.account_statement.viewable_by?(Current.user)

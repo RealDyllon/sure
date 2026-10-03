@@ -1,0 +1,10 @@
+<div class="max-w-2xl mx-auto space-y-4">
+  <h1 class="text-2xl font-semibold text-primary"><%= t("statement_imports.title") %></h1>
+  <p class="text-secondary"><%= t("statement_imports.formats") %></p>
+  <%= styled_form_with url: statement_imports_path, scope: :statement_import, multipart: true, data: { turbo: false }, class: "bg-container shadow-border-xs rounded-xl p-5 space-y-4" do |form| %>
+    <%= form.file_field :file, accept: ".csv,.pdf", required: true, label: t("statement_imports.file") %>
+    <%= form.password_field :password, label: t("statement_imports.password"), autocomplete: "off" %>
+    <p class="text-sm text-secondary"><%= t("statement_imports.ai_notice") %></p>
+    <%= form.submit t("statement_imports.upload") %>
+  <% end %>
+</div>

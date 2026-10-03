@@ -142,3 +142,12 @@
     </div>
   </div>
 </div>
+
+<% if (@statement_imports || []).any? %>
+  <div class="bg-container shadow-border-xs rounded-xl p-4 space-y-3">
+    <h3 class="text-sm font-medium text-primary"><%= t("statement_imports.title") %></h3>
+    <% @statement_imports.each do |import| %>
+      <p><%= render DS::Link.new(text: import.original_filename, href: statement_import_path(import), data: {turbo_frame: "_top"}) %></p>
+    <% end %>
+  </div>
+<% end %>

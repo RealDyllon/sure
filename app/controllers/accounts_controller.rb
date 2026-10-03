@@ -469,7 +469,8 @@ class AccountsController < ApplicationController
       return unless statement_tab_active?
 
       @statement_coverage = AccountStatement::Coverage.for_year(@account, params[:statement_year])
-      @account_statements = @account.account_statements.with_attached_original_file.ordered.to_a
+      @account_statements = @account.account_statements.with_attached_original_file.visible_to(Current.user).ordered.to_a
+      @statement_imports = StatementImport.where(family: Current.family, initiating_user: Current.user).joins(:statement_import_accounts).where(statement_import_accounts: { account_id: @account.id }).includes(:account_statement).distinct
       @statement_reconciliation_statuses = AccountStatement.reconciliation_statuses_for(@account_statements, account: @account)
       permission = @account.permission_for(Current.user)
       @can_manage_statements = AccountStatement.statement_manager?(Current.user) &&

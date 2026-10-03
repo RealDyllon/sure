@@ -1,0 +1,37 @@
+en:
+  statement_imports:
+    title: Import bank and investment statements
+    formats: DBS consolidated PDFs and DBS, UOB, PayLah, CPF and IBKR CSV or PDF statements. Review all accounts before publishing. Positions are informational and are not imported as holdings.
+    file: Statement file (CSV or PDF)
+    password: PDF password (optional)
+    ai_notice: PDF text is sent to your selected AI provider. CSV parsing runs locally. The password is cleared after processing.
+    upload: Upload and extract
+    back: Back to imports
+    duplicate: This file is already in the statement vault.
+    invalid_file: Upload a supported CSV or PDF file up to 25 MB.
+    processing: Processing statement
+    refresh: Refresh progress
+    counts: "%{transactions} transactions · %{trades} trades · %{positions} informational positions"
+    balance: "Closing balance: %{value} %{currency}"
+    unavailable: Not available
+    match: Match existing account
+    create: Create a new account
+    action: Account action
+    account: Existing account
+    name: Name
+    type: Account type
+    subtype: Account subtype
+    currency: Currency
+    date: Date
+    amount: Amount
+    activities: Review extracted activities
+    save_review: Save account review
+    publish: Publish reviewed statement
+    review_required: Review every account and confirm access before publishing.
+    complete: Statement published and balances queued for synchronization.
+    revert: Revert this import
+    retry: Retry extraction
+    retry_help: Retry failed extraction or a job with no progress for five minutes. Enter the password again for an encrypted PDF.
+  accounts:
+    subtype_regions:
+      sg: Singapore

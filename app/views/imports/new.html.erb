@@ -43,6 +43,7 @@
       <% tabs.with_panel(tab_id: "financial_tools") do %>
         <div class="rounded-xl bg-container-inset p-1">
           <ul class="bg-container shadow-border-xs rounded-lg">
+            <li class="p-4"><%= render DS::Link.new(text: t("statement_imports.title"), href: new_statement_import_path, data: { turbo_frame: "_top" }) %><p class="text-xs text-secondary mt-1"><%= t("statement_imports.formats") %></p></li>
             <% if @pending_import.present? && params[:type].present? && params[:type].in?(financial_tool_types) %>
               <li>
                 <%= link_to import_path(@pending_import), class: "flex items-center justify-between p-4 group cursor-pointer", data: { turbo: false } do %>

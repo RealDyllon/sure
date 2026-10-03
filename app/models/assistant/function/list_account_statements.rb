@@ -87,9 +87,9 @@ class Assistant::Function::ListAccountStatements < Assistant::Function
     # permanently unreachable whenever enough newer rows the caller cannot see sit
     # in front of it. Mirrors AccountStatement#viewable_by? for a statement
     # manager: unlinked statements are visible, linked ones follow the account.
-    scope = family.account_statements
+    scope = family.account_statements.visible_to(user)
       .where(account_id: nil)
-      .or(family.account_statements.where(account_id: user.accessible_accounts.select(:id)))
+      .or(family.account_statements.visible_to(user).where(account_id: user.accessible_accounts.select(:id)))
       .includes(:account, :suggested_account)
       .ordered
 

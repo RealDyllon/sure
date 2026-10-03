@@ -6,13 +6,13 @@ class AccountStatementsController < ApplicationController
 
   def index
     accessible_account_ids = Current.user.accessible_accounts.select(:id)
-    account_statements = Current.family.account_statements
+    account_statements = Current.family.account_statements.visible_to(Current.user)
       .with_attached_original_file
       .includes(:account, :suggested_account)
       .ordered
-    visible_storage_scope = Current.family.account_statements
+    visible_storage_scope = Current.family.account_statements.visible_to(Current.user)
       .where(account_id: nil)
-      .or(Current.family.account_statements.where(account_id: accessible_account_ids))
+      .or(Current.family.account_statements.visible_to(Current.user).where(account_id: accessible_account_ids))
     linked_statement_scope = account_statements.with_account.where(account_id: accessible_account_ids)
 
     @unmatched_pagy, @unmatched_statements = pagy(account_statements.unmatched, limit: safe_per_page, page_param: :unmatched_page)
@@ -135,12 +135,13 @@ class AccountStatementsController < ApplicationController
   private
 
     def set_statement
-      @statement = Current.family.account_statements
+      @statement = Current.family.account_statements.visible_to(Current.user)
         .with_attached_original_file
         .includes(:account, :suggested_account)
         .find(params[:id])
 
       raise ActiveRecord::RecordNotFound unless @statement.viewable_by?(Current.user)
+      raise ActiveRecord::RecordNotFound if action_name != "show" && @statement.statement_imports.exists?
     end
 
     def ensure_statement_manager!

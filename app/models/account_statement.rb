@@ -34,6 +34,7 @@ class AccountStatement < ApplicationRecord
   belongs_to :suggested_account, class_name: "Account", optional: true
 
   has_many :pdf_imports, -> { where(type: "PdfImport").ordered }, class_name: "PdfImport", dependent: :restrict_with_error
+  has_many :statement_imports, -> { ordered }, dependent: :restrict_with_error
   has_one_attached :original_file, dependent: :purge_later
 
   enum :source, { manual_upload: "manual_upload" }, validate: true, default: "manual_upload"
@@ -229,13 +230,17 @@ class AccountStatement < ApplicationRecord
     end
   end
 
+  scope :visible_to, ->(user) { where.not(id: StatementImport.where.not(initiating_user_id: user.id).select(:account_statement_id)) }
+
   def viewable_by?(user)
+    return statement_imports.all? { |import| import.manageable_by?(user) } if statement_imports.exists?
     return false unless user&.family_id == family_id
 
     account.present? ? account.shared_with?(user) : self.class.statement_manager?(user)
   end
 
   def manageable_by?(user)
+    return false if statement_imports.exists?
     return false unless user&.family_id == family_id
 
     return self.class.statement_manager?(user) if account.blank?

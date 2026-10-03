@@ -21,7 +21,7 @@ module Assistant::Function::StatementVaultSupport
     def find_statement(id)
       return nil unless id.present? && valid_uuid?(id)
 
-      family.account_statements.find_by(id: id)
+      family.account_statements.visible_to(user).find_by(id: id)
     end
 
     # Identity and provenance first: the fields an agent needs to cite a document

@@ -5,6 +5,8 @@ class Family < ApplicationRecord
 
   has_many :fire_profiles, dependent: :destroy
 
+  has_many :statement_profiles, dependent: :destroy
+
   include FioConnectable
   include Syncable, AutoTransferMatchable, Subscribeable, VectorSearchable
   include PlaidConnectable, SimplefinConnectable, LunchflowConnectable, AkahuConnectable, EnableBankingConnectable

@@ -1,4 +1,7 @@
 class Account < ApplicationRecord
+  has_many :statement_profiles, dependent: :destroy
+  has_many :statement_import_accounts, dependent: :destroy
+
   include AASM, Syncable, Monetizable, Chartable, Linkable, Enrichable, Anchorable, Reconcileable, TaxTreatable
 
   before_validation :assign_default_owner, if: -> { owner_id.blank? }

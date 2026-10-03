@@ -23,4 +23,4 @@ Rails.application.config.filter_parameters += [
   /\A(publisher_)?credential\z/i, /\Aevents\z/i, /\Aconsent\z/i, /\Abooked_balance\z/i
 ]
 
-Rails.application.config.filter_parameters += [ :fire_roles, :annual_spending_override, :annual_contribution ]
+Rails.application.config.filter_parameters += [ :reviews, :fire_roles, :annual_spending_override, :annual_contribution ]
