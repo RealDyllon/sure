@@ -410,4 +410,28 @@ class Settings::HostingsControllerTest < ActionDispatch::IntegrationTest
   ensure
     Setting.securities_providers = ""
   end
+
+  test "non-admin cannot enqueue the AI provider smoke test" do
+    sign_in users(:family_member)
+
+    assert_no_enqueued_jobs only: LlmSmokeTestJob do
+      with_self_hosting do
+        post enqueue_llm_smoke_test_settings_hosting_path
+      end
+    end
+
+    assert_redirected_to settings_hosting_path
+  end
+
+  test "admin enqueues the AI provider smoke test and records a queued result" do
+    Provider::LlmSmokeTest.clear(Current.family || families(:dylan_family))
+
+    assert_enqueued_with(job: LlmSmokeTestJob) do
+      with_self_hosting do
+        post enqueue_llm_smoke_test_settings_hosting_path
+      end
+    end
+
+    assert_redirected_to settings_hosting_path(anchor: "openai")
+  end
 end

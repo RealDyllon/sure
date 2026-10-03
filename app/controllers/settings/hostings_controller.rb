@@ -12,7 +12,7 @@ class Settings::HostingsController < ApplicationController
 
   guard_feature unless: -> { self_hosted? }
 
-  before_action :ensure_admin, only: [ :update, :clear_cache, :disconnect_external_assistant ]
+  before_action :ensure_admin, only: [ :update, :clear_cache, :disconnect_external_assistant, :enqueue_llm_smoke_test ]
   before_action :ensure_super_admin_for_onboarding, only: :update
 
   def show
@@ -44,6 +44,7 @@ class Settings::HostingsController < ApplicationController
     end
 
     @llm_health = Provider::LlmHealth.for_family(Current.family)
+    @llm_smoke_test = Provider::LlmSmokeTest.current(Current.family)
   end
 
   def update
@@ -228,6 +229,23 @@ class Settings::HostingsController < ApplicationController
   rescue => e
     Rails.logger.error("[External Assistant] Disconnect failed: #{e.message}")
     redirect_to settings_hosting_path, alert: t("settings.hostings.update.failure")
+  end
+
+  # Admin-only: enqueue a built-in AI provider smoke test that runs in the
+  # Sidekiq worker runtime. The controller performs no provider calls; the job
+  # records the result through Provider::LlmSmokeTest (cache-backed) and the
+  # settings page polls for the latest result.
+  def enqueue_llm_smoke_test
+    family = Current.family
+    Provider::LlmSmokeTest.record(
+      family,
+      status: "queued",
+      queued_at: Time.current,
+      provider: Provider::LlmHealth.for_family(family).provider_key
+    )
+    LlmSmokeTestJob.perform_later(family.id)
+
+    redirect_to settings_hosting_path(anchor: "openai"), notice: t(".smoke_test_queued", default: "AI provider smoke test queued.")
   end
 
   private

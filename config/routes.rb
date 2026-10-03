@@ -215,6 +215,9 @@ Rails.application.routes.draw do
     resource :preferences, only: :show
     resource :appearance, only: %i[show update]
     resource :hosting, only: %i[show update] do
+      member do
+        post :enqueue_llm_smoke_test
+      end
       delete :clear_cache, on: :collection
       delete :disconnect_external_assistant, on: :collection
     end

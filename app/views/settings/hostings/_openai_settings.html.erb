@@ -33,6 +33,34 @@
       <% else %>
         <p class="text-secondary"><%= t(".health_auth_config_missing", default: "Auth/config missing — set an access token or configure Codex auth.") %></p>
       <% end %>
+
+      <% if Current.user.admin? %>
+        <div class="pt-2 border-t border-secondary mt-2 space-y-1">
+          <div class="flex items-center gap-2">
+            <%= button_to t(".run_smoke_test", default: "Run worker smoke test"),
+                          enqueue_llm_smoke_test_settings_hosting_path,
+                          method: :post,
+                          class: "button button--secondary text-xs" %>
+            <% if defined?(@llm_smoke_test) && @llm_smoke_test && @llm_smoke_test.status.present? %>
+              <span class="text-secondary">
+                <% if @llm_smoke_test.succeeded? %>
+                  <span class="text-success"><%= t(".smoke_test_succeeded", default: "Worker OK") %></span>
+                  · <%= @llm_smoke_test.finished_at&.iso8601 %>
+                <% elsif @llm_smoke_test.failed? %>
+                  <span class="text-error"><%= t(".smoke_test_failed", default: "Worker failed") %></span>
+                  · <%= t(".smoke_test_worker_runtime", default: "ran in worker runtime") %>
+                  · <%= @llm_smoke_test.error %>
+                <% elsif @llm_smoke_test.running? %>
+                  <%= t(".smoke_test_running", default: "Running…") %>
+                <% else %>
+                  <%= t(".smoke_test_queued", default: "Queued…") %>
+                <% end %>
+              </span>
+            <% end %>
+          </div>
+          <p class="text-secondary"><%= t(".smoke_test_help", default: "Runs a minimal AI request in the Sidekiq worker runtime (not the web process) to prove the worker can reach the provider.") %></p>
+        </div>
+      <% end %>
     </div>
   <% end %>
 
