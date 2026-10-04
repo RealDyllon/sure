@@ -340,11 +340,11 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     get root_path
 
     assert_response :ok
-    assert_select "[data-controller='release-highlight'][data-release-highlight-tag-value=?]", Sure.version.to_release_tag
+    assert_select "[data-controller='release-highlight'][data-release-highlight-tag-value=?]", "fork:#{ForkRelease.tag}|upstream:#{Sure.version.to_release_tag}"
   end
 
-  test "dashboard omits the release highlight once the deployed release was seen" do
-    @user.mark_release_seen!(Sure.version.to_release_tag)
+  test "dashboard omits the release highlight once the deployed releases were seen" do
+    @user.mark_releases_seen!("upstream" => Sure.version.to_release_tag, "fork" => ForkRelease.tag)
 
     get root_path
 
@@ -352,43 +352,53 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-controller='release-highlight']", count: 0
   end
 
-  test "changelog" do
-    VCR.use_cassette("git_repository_provider/fetch_latest_release_notes") do
-      get changelog_path
-      assert_response :ok
-      assert_select "[data-breadcrumbs]", text: /What's new/
+  test "changelog shows both sources installed releases prereleases and sanitized Markdown" do
+    releases = ReleaseCatalog.sources.map do |source|
+      notes = {
+        tag: source[:installed_tag], name: "Release #{source[:id]}", published_at: Date.current,
+        prerelease: true, url: "https://github.com/#{source[:repository]}/releases/tag/#{source[:installed_tag]}",
+        body: "**New features** <script>alert('bad')</script> <img src=x onerror=alert(1)> [unsafe](javascript:alert(1))"
+      }
+      source.merge(releases: [ notes ], unavailable: false, installed_unavailable: false)
     end
-  end
-
-  test "changelog with nil release notes" do
-    # Mock the GitHub provider to return nil (simulating API failure or no releases)
-    github_provider = mock
-    github_provider.expects(:fetch_latest_release_notes).returns(nil)
-    Provider::Registry.stubs(:get_provider).with(:github).returns(github_provider)
-
+    ReleaseCatalog.stubs(:histories).returns(releases)
     get changelog_path
     assert_response :ok
-    assert_select "h2", text: "Release notes unavailable"
+    assert_select "[data-breadcrumbs]", text: /What's new/
+    assert_select "[role=tab][aria-selected=true]", text: "Fork"
+    assert_select "[data-release-source]", count: 2
+    assert_select "strong", text: "New features", count: 2
+    assert_select "span", text: "Installed", count: 2
+    assert_select "span", text: "Prerelease", count: 2
+    assert_select "[data-release-source] script", count: 0
+    assert_select "[data-release-source] [onerror]", count: 0
+    assert_select "[data-release-source] a[href^='javascript:']", count: 0
+    assert_select "p", text: "Fork 0.1.0 · based on Sure 0.7.5-hotfix.1"
+  end
+
+  test "changelog distinguishes empty history from unavailable history" do
+    fork, upstream = ReleaseCatalog.sources
+    ReleaseCatalog.stubs(:histories).returns([
+      fork.merge(releases: [], unavailable: false, installed_unavailable: true),
+      upstream.merge(releases: [], unavailable: true, installed_unavailable: true)
+    ])
+    get changelog_path
+    assert_response :ok
+    assert_select "[data-release-source=fork]", text: /No releases have been published/
+    assert_select "[data-release-source=upstream]", text: /Release notes unavailable/
     assert_select "a[href='https://github.com/we-promise/sure/releases']"
+    assert_select "a[href='https://github.com/RealDyllon/sure/releases']"
   end
 
-  test "changelog with incomplete release notes" do
-    # Mock the GitHub provider to return incomplete data (missing some fields)
-    github_provider = mock
-    incomplete_data = {
-      avatar: nil,
-      username: "maybe-finance",
-      name: "Test Release",
-      published_at: nil,
-      body: nil
-    }
-    github_provider.expects(:fetch_latest_release_notes).returns(incomplete_data)
-    Provider::Registry.stubs(:get_provider).with(:github).returns(github_provider)
-
+  test "changelog tolerates incomplete release notes" do
+    fork = ReleaseCatalog.sources.first
+    ReleaseCatalog.stubs(:histories).returns([
+      fork.merge(releases: [ { tag: fork[:installed_tag], name: "Test Release", body: nil } ], unavailable: false, installed_unavailable: false)
+    ])
     get changelog_path
     assert_response :ok
-    assert_select "h2", text: "Test Release"
-    # Should not crash even with nil values
+    assert_select "summary", text: "Test Release"
+    assert_select ".prose", text: /No release notes available/
   end
 
   test "feedback" do

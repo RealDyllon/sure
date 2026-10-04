@@ -1,0 +1,18 @@
+en:
+  fork_releases:
+    sources:
+      fork: Fork
+      upstream: Upstream
+    version: "Fork %{fork} · based on Sure %{upstream}"
+    fork_version: "Fork %{version}"
+    upstream_version: "Sure %{version}"
+    based_on: based on
+    github_history: All releases on GitHub
+    github_release: View release on GitHub
+    installed: Installed
+    prerelease: Prerelease
+    unavailable: Release notes unavailable
+    retry: Unable to load this repository's release history. Please try again later or visit GitHub.
+    empty: No releases have been published in this repository yet.
+    installed_unavailable: "Notes for the installed release (%{tag}) are unavailable."
+    no_notes: No release notes available.

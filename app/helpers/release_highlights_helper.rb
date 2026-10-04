@@ -6,7 +6,8 @@ module ReleaseHighlightsHelper
   def pending_release_tag
     return @pending_release_tag if defined?(@pending_release_tag)
 
-    @pending_release_tag = ReleaseHighlights.pending_tag_for(Current.user)
+    pending = ReleaseHighlights.pending_releases_for(Current.user)
+    @pending_release_tag = pending.map { |source, tag| "#{source}:#{tag}" }.join("|").presence
     @pending_release_tag
   end
 end

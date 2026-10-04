@@ -2,7 +2,10 @@ require "application_system_test_case"
 
 class SettingsTest < ApplicationSystemTestCase
   setup do
-    sign_in @user = users(:family_admin)
+    @user = users(:family_admin)
+    @user.mark_releases_seen!("fork" => ForkRelease.tag, "upstream" => Sure.version.to_release_tag)
+    ReleaseCatalog.stubs(:provider_for).returns(stub(fetch_recent_releases: [], fetch_release_notes: nil))
+    sign_in @user
 
     # Base settings available to all users
     @settings_links = [

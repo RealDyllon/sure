@@ -66,4 +66,26 @@ class ReleaseHighlightsTest < ActiveSupport::TestCase
     assert ReleaseHighlights.eligible?(Semver.new("0.7.5-alpha.7"))
     assert ReleaseHighlights.eligible?(Semver.new("0.7.4"))
   end
+  test "fork and upstream markers advance independently without losing preferences" do
+    @user.update!(preferences: { "other" => "preserved" })
+    @user.mark_releases_seen!("fork" => "fork-v0.2.0", "upstream" => Sure.version.to_release_tag)
+    @user.mark_releases_seen!("fork" => "fork-v0.1.0", "upstream" => "v0.0.1")
+    assert_equal "fork-v0.2.0", @user.reload.last_seen_fork_release_tag
+    assert_equal Sure.version.to_release_tag, @user.last_seen_release_tag
+    assert_equal "preserved", @user.preferences["other"]
+    assert_empty ReleaseHighlights.pending_releases_for(@user)
+  end
+
+  test "rejects invalid pairs without partially updating either marker" do
+    assert_raises(ArgumentError) { @user.mark_releases_seen!("upstream" => "v1.0.0", "fork" => "v1.0.0") }
+    assert_raises(ArgumentError) { @user.mark_releases_seen!("unknown" => "v1.0.0") }
+    assert_raises(ArgumentError) { @user.mark_releases_seen!({}) }
+    assert_nil @user.reload.last_seen_release_tag
+    assert_nil @user.last_seen_fork_release_tag
+  end
+
+  test "fork-only update is pending once upstream was seen" do
+    @user.mark_release_seen!(Sure.version.to_release_tag)
+    assert_equal({ "fork" => ForkRelease.tag }, ReleaseHighlights.pending_releases_for(@user))
+  end
 end

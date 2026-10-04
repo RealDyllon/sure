@@ -1,2 +1,2 @@
-<h2 class="mb-5 text-xl text-primary"><%= release_notes[:name] %></h2>
-<%= (release_notes[:body] || "No release notes available").html_safe %>
+<h2 class="mb-5 text-xl text-primary"><%= release_title(release_notes) %></h2>
+<%= release_notes_body(release_notes) %>

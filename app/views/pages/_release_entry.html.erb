@@ -1,0 +1,20 @@
+<%= render DS::Disclosure.new(title: release_title(release), align: :left, open: open, variant: :default, data: { release_tag: release[:tag] }) do %>
+  <div class="flex flex-wrap items-center gap-2 mb-4 text-sm text-secondary">
+    <span><%= release[:tag] %></span>
+    <% if release[:tag] == source[:installed_tag] %>
+      <%= render DS::Pill.new(label: t("fork_releases.installed"), tone: :success, marker: false) %>
+    <% end %>
+    <% if release[:prerelease] %>
+      <%= render DS::Pill.new(label: t("fork_releases.prerelease"), tone: :warning, marker: false) %>
+    <% end %>
+    <% if release[:published_at] %>
+      <span><%= l(release[:published_at].to_date, format: :long) %></span>
+    <% end %>
+    <% if release[:url] %>
+      <%= link_to t("fork_releases.github_release"), release[:url], target: "_blank", rel: "noopener noreferrer", class: "text-link hover:underline" %>
+    <% end %>
+  </div>
+  <div class="text-secondary text-sm prose prose--github-release-notes">
+    <%= release_notes_body(release) %>
+  </div>
+<% end %>

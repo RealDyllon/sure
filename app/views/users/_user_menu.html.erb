@@ -34,10 +34,10 @@
         <div class="px-4 py-3 border-t border-tertiary">
           <p class="text-sm">
             <span class="font-medium text-primary"><%= t(".version") %>:</span>
-            <%= link_to Sure.version.to_release_tag, "https://github.com/we-promise/sure/releases/tag/#{Sure.version.to_release_tag}", target: "_blank", class: "hover:underline" %>
+            <%= app_version_links %>
 
             <% if Sure.commit_sha.present? %>
-              (<%= link_to Sure.commit_sha.first(7), "https://github.com/we-promise/sure/commit/#{Sure.commit_sha}", target: "_blank", class: "hover:underline" %>)
+              (<%= link_to Sure.commit_sha.first(7), "https://github.com/#{ForkRelease.repository}/commit/#{Sure.commit_sha}", target: "_blank", rel: "noopener noreferrer", class: "hover:underline" %>)
             <% end %>
           </p>
         </div>

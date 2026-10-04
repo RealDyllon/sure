@@ -591,32 +591,44 @@ class User < ApplicationRecord
   end
 
   def mark_release_seen!(tag)
-    tag_version = parsed_release_tag_version!(tag)
+    mark_releases_seen!("upstream" => tag)
+  end
+
+  def last_seen_fork_release_tag
+    preferences&.[]("last_seen_fork_release_tag")
+  end
+
+  def mark_releases_seen!(releases)
+    keys = { "upstream" => "last_seen_release_tag", "fork" => "last_seen_fork_release_tag" }
+    raise ArgumentError, "invalid release sources" unless releases.is_a?(Hash) && releases.any? && (releases.keys - keys.keys).empty?
+
+    # Validate every pair before taking the lock or updating either marker.
+    versions = releases.each_with_object({}) do |(source, tag), parsed|
+      parsed[source] = parsed_release_tag_version!(tag, source: source)
+    end
 
     with_lock do
-      current = last_seen_release_tag
+      updated = (preferences || {}).dup
+      releases.each do |source, tag|
+        key = keys.fetch(source)
+        current_version = parsed_release_tag_version(updated[key], source: source)
+        next if current_version && versions.fetch(source) < current_version
 
-      # Never regress the marker: a stale tab (or an old app version during a
-      # rolling deploy) must not make an already-acknowledged release look
-      # unseen again. A previously stored malformed tag is overwritten by the
-      # next valid dismissal so the account can recover.
-      if current
-        current_version = parsed_release_tag_version(current)
-        next if current_version && tag_version < current_version
+        updated[key] = tag
       end
-
-      update!(preferences: (preferences || {}).merge("last_seen_release_tag" => tag))
+      update!(preferences: updated) if updated != preferences
     end
   end
 
-  def parsed_release_tag_version!(tag)
-    raise ArgumentError, "invalid release tag" unless tag.to_s.match?(/\Av\d+\.\d+\.\d+(?:[-+.][0-9A-Za-z.-]+)?\z/)
+  def parsed_release_tag_version!(tag, source: "upstream")
+    prefix = source == "fork" ? "fork-v" : "v"
+    raise ArgumentError, "invalid release tag" unless tag.is_a?(String) && tag.match?(/\A#{prefix}\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.-]+)?\z/)
 
-    Semver.from_release_tag(tag).version
+    Semver.new(tag.delete_prefix(prefix)).version
   end
 
-  def parsed_release_tag_version(tag)
-    parsed_release_tag_version!(tag)
+  def parsed_release_tag_version(tag, source: "upstream")
+    parsed_release_tag_version!(tag, source: source)
   rescue ArgumentError
     nil
   end

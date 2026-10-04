@@ -17,16 +17,26 @@ module ReleaseHighlights
     # Tag of the deployed release the user has not seen yet, or nil when the
     # highlight should not be offered.
     def pending_tag_for(user)
-      return unless user
+      pending_releases_for(user)["upstream"]
+    end
 
-      version = Sure.version
-      return unless eligible?(version)
+    def pending_releases_for(user)
+      return {} unless user
 
-      tag = version.to_release_tag
-      tag unless tag == user.last_seen_release_tag
+      ReleaseCatalog.sources.each_with_object({}) do |source, pending|
+        id = source.fetch(:id)
+        tag = source.fetch(:installed_tag)
+        version = user.parsed_release_tag_version!(tag, source: id)
+        seen = id == "fork" ? user.last_seen_fork_release_tag : user.last_seen_release_tag
+        seen_version = user.parsed_release_tag_version(seen, source: id)
+        next if seen_version && seen_version >= version
+        next unless eligible?(Semver.new(version.to_s))
+
+        pending[id] = tag
+      end
     rescue ArgumentError
       # Unparseable local version (e.g. "n/a: <sha>") - nothing to highlight.
-      nil
+      {}
     end
   end
 end

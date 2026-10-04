@@ -96,12 +96,18 @@ export default class extends Controller {
           },
         },
       ],
-      onDestroyed: () => {
+      // onDestroyed is skipped if dismissal happens before the opening
+      // animation establishes an active step. This hook runs for every user
+      // dismissal; destroy() bypasses it when disconnect tears the tour down.
+      onDestroyStarted: () => {
         this.dismissed = !this.tearingDown;
 
         if (this.dismissed) {
           this.markSeen();
         }
+
+        this.driverObj?.destroy();
+        this.driverObj = null;
       },
     });
 
@@ -120,7 +126,12 @@ export default class extends Controller {
       if (!response.ok) return null;
 
       const html = await response.text();
-      return html.trim().length > 0 ? html : null;
+      const document = new DOMParser().parseFromString(html, "text/html");
+      const content = document.querySelector("[data-release-acknowledgement]");
+      if (!content) return null;
+
+      this.acknowledgement = JSON.parse(content.dataset.releaseAcknowledgement);
+      return html;
     } catch (error) {
       if (error.name !== "AbortError") {
         console.error("[Release Highlight] Failed to load notes:", error);
@@ -161,7 +172,7 @@ export default class extends Controller {
   }
 
   async markSeen() {
-    if (this.markedSeen) return;
+    if (this.markedSeen || !this.acknowledgement) return;
     this.markedSeen = true;
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]');
@@ -173,7 +184,7 @@ export default class extends Controller {
           "Content-Type": "application/json",
           ...(csrfToken ? { "X-CSRF-Token": csrfToken.content } : {}),
         },
-        body: JSON.stringify({ tag: this.tagValue }),
+        body: JSON.stringify(this.acknowledgement),
       });
 
       if (!response.ok) {
